@@ -637,76 +637,78 @@ function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice
 // looks up basic product info from Open Food Facts to pre-fill the form.
 // Coverage is best-effort — small/artisanal brands often aren't in that
 // database, in which case you just fill the form in manually as usual. ---
+
 let scannerReader = null;
-
-function parseWeightFromQuantity(qtyStr){
-  if(!qtyStr) return null;
-  let m = qtyStr.match(/([\d.]+)\s*(g|grams?)\b/i);
-  if(m) return { value: parseFloat(m[1]), unit: 'g' };
-  m = qtyStr.match(/([\d.]+)\s*(kg|kilograms?)\b/i);
-  if(m) return { value: Math.round(parseFloat(m[1]) * 1000), unit: 'g' };
-  m = qtyStr.match(/([\d.]+)\s*(oz|ounces?)\b/i);
-  if(m) return { value: parseFloat(m[1]), unit: 'oz' };
-  return null;
-}
-
-async function lookupBarcodeInfo(code){
-  try{
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-    const json = await res.json();
-    if(json.status !== 1 || !json.product) return null;
-    const p = json.product;
-    const w = parseWeightFromQuantity(p.quantity);
-    return {
-      name: p.product_name || '',
-      brand: (p.brands || '').split(',')[0].trim(),
-      netWeightValue: w ? w.value : null,
-      netWeightUnit: w ? w.unit : 'g',
-    };
-  }catch(e){
-    console.error('Barcode lookup failed', e);
-    return null;
-  }
-}
-
-async function processScannedBarcode(code){
-  const existing = products.find(p=>p.barcode===code);
-  if(existing){
-    closeScanner();
-    openEdit(existing.id);
-    return;
-  }
-  const statusEl = document.getElementById('scannerStatus');
-  if(statusEl) statusEl.textContent = 'Looking up product…';
-  const info = await lookupBarcodeInfo(code);
-  closeScanner();
-  openNew(Object.assign({ barcode: code }, info || {}));
-  if(!info){
-    setTimeout(()=>alert("No product info found for that barcode — go ahead and fill it in manually. (The barcode is still saved with this entry.)"), 200);
-  }
-}
+let scannerStream = null;
+let scannerRAF = null;
 
 async function openScanner(){
   const statusEl = document.getElementById('scannerStatus');
-  statusEl.textContent = 'Point your camera at the barcode.';
+  const videoEl = document.getElementById('scannerVideo');
+  statusEl.textContent = 'Starting camera…';
   document.getElementById('scannerOverlay').classList.add('open');
+
+  try{
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    });
+  }catch(e){
+    statusEl.textContent = 'Could not access camera: ' + e.message;
+    return;
+  }
+
+  videoEl.srcObject = scannerStream;
+  await videoEl.play().catch(()=>{}); // iOS sometimes needs this called explicitly
+
+  statusEl.textContent = 'Point your camera at the barcode.';
+
+  // Prefer the browser's native barcode detector when available — it's
+  // generally more reliable on iOS Safari than the JS-based ZXing decoder.
+  if('BarcodeDetector' in window){
+    try{
+      const detector = new BarcodeDetector({
+        formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39']
+      });
+      const tick = async () => {
+        if(!scannerStream) return; // scanner was closed
+        try{
+          const codes = await detector.detect(videoEl);
+          if(codes.length){
+            const code = codes[0].rawValue;
+            stopScannerCamera();
+            processScannedBarcode(code);
+            return;
+          }
+        }catch(e){ /* detect() can throw on odd frames — ignore and keep trying */ }
+        scannerRAF = requestAnimationFrame(tick);
+      };
+      scannerRAF = requestAnimationFrame(tick);
+      return;
+    }catch(e){
+      // fall through to ZXing below if native detector construction fails
+    }
+  }
+
+  // Fallback: ZXing, restricted to retail barcode formats with TRY_HARDER
+  // enabled — scanning fewer formats more aggressively beats scanning all
+  // of them (including QR/PDF417/etc) more casually.
   if(typeof ZXing === 'undefined'){
     statusEl.textContent = 'Barcode scanner failed to load — check your connection and try again.';
     return;
   }
-  scannerReader = new ZXing.BrowserMultiFormatReader();
-
-  let deviceId;
-  try{
-    // Request the back camera directly so Safari doesn't default to front,
-    // then grab its deviceId to hand to ZXing explicitly.
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
-    deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
-    stream.getTracks().forEach(t => t.stop()); // release this probe stream, ZXing opens its own
-  }catch(e){
-    deviceId = undefined; // fall back to default if exact match isn't available
-  }
-
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
+  ]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  scannerReader = new ZXing.BrowserMultiFormatReader(hints);
+  const deviceId = scannerStream.getVideoTracks()[0].getSettings().deviceId;
   scannerReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result, err)=>{
     if(result){
       const code = result.getText();
@@ -719,11 +721,18 @@ async function openScanner(){
   });
 }
 
-  
 function stopScannerCamera(){
+  if(scannerRAF){
+    cancelAnimationFrame(scannerRAF);
+    scannerRAF = null;
+  }
   if(scannerReader){
     try{ scannerReader.reset(); }catch(e){}
     scannerReader = null;
+  }
+  if(scannerStream){
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
   }
 }
 function closeScanner(){
@@ -731,6 +740,7 @@ function closeScanner(){
   document.getElementById('scannerOverlay').classList.remove('open');
 }
 
+  
 const G_PER_OZ = 28.3495231;
 function formatWeight(value, unit, label){
   const v = Number(value);
