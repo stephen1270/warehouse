@@ -695,7 +695,8 @@ function openScanner(){
     return;
   }
   scannerReader = new ZXing.BrowserMultiFormatReader();
-  scannerReader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err)=>{
+  const constraints = { video: { facingMode: { ideal: 'environment' } } };
+  scannerReader.decodeFromConstraints(constraints, 'scannerVideo', (result, err)=>{
     if(result){
       const code = result.getText();
       stopScannerCamera(); // stop the camera feed but leave the overlay open for the lookup status
@@ -706,6 +707,7 @@ function openScanner(){
     statusEl.textContent = 'Could not access camera: ' + e.message;
   });
 }
+
 function stopScannerCamera(){
   if(scannerReader){
     try{ scannerReader.reset(); }catch(e){}
