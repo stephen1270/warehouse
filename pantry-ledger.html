@@ -305,105 +305,22 @@
   <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the ledger.</div>
 </div>
 
-<div class="overlay" id="overlay">
-  <div class="panel">
-    <h2 id="panelTitle">New entry</h2>
-    <input type="hidden" id="editId">
-    <div class="field" id="barcodeField" style="display:none;">
-      <label>Barcode</label>
-      <input type="text" id="f_barcode" placeholder="Scanned barcode">
-    </div>
-    <div class="field">
-      <label>Name *</label>
-      <input type="text" id="f_name" placeholder="e.g. Yuzu Kosho">
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Brand</label>
-        <input type="text" id="f_brand" autocomplete="off">
-        <div class="autocomplete-list" id="f_brand_options"></div>
-      </div>
-      <div class="field">
-        <label>Category</label>
-        <input type="text" id="f_category" placeholder="e.g. Condiments" autocomplete="off">
-        <div class="autocomplete-list" id="f_category_options"></div>
-      </div>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Source</label>
-        <input type="text" id="f_source" placeholder="Where bought" autocomplete="off">
-        <div class="autocomplete-list" id="f_source_options"></div>
-      </div>
-      <div class="field">
-        <label>Price</label>
-        <input type="text" id="f_price" placeholder="$">
-      </div>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Dry Weight</label>
-        <input type="number" id="f_dryWeightValue" placeholder="e.g. 77" min="0" step="any">
-      </div>
-      <div class="field">
-        <label>Dry Weight Unit</label>
-        <select id="f_dryWeightUnit">
-          <option value="g">grams (g)</option>
-          <option value="oz">ounces (oz)</option>
-        </select>
-      </div>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Net Weight</label>
-        <input type="number" id="f_netWeightValue" placeholder="e.g. 110" min="0" step="any">
-      </div>
-      <div class="field">
-        <label>Net Weight Unit</label>
-        <select id="f_netWeightUnit">
-          <option value="g">grams (g)</option>
-          <option value="oz">ounces (oz)</option>
-        </select>
-      </div>
-    </div>
-    <div class="field" id="packedInField" style="display:none;">
-      <label>Packed In</label>
-      <input type="text" id="f_packedIn" placeholder="e.g. Olive oil" autocomplete="off">
-      <div class="autocomplete-list" id="f_packedIn_options"></div>
-    </div>
-    <div class="field">
-      <label>Tags (comma separated)</label>
-      <input type="text" id="f_tags" placeholder="fermented, japanese, spicy">
-    </div>
-    <div class="field">
-      <label>Notes</label>
-      <textarea id="f_notes"></textarea>
-    </div>
-    <div class="row4">
-      <div class="field"><label>Overall</label><input type="number" id="f_overall" min="1" max="10"></div>
-      <div class="field"><label>Flavor</label><input type="number" id="f_flavor" min="1" max="10"></div>
-      <div class="field"><label>Quality</label><input type="number" id="f_quality" min="1" max="10"></div>
-      <div class="field"><label>Value</label><input type="number" id="f_value" min="1" max="10"></div>
-    </div>
-    <div class="hint">Ratings 1–10, optional. Leave blank if not yet tried.</div>
-    <div class="field">
-      <label>Photos</label>
-      <div class="gallery" id="galleryWrap">
-        <div class="addtile" id="addTile">+</div>
-      </div>
-      <input type="file" id="f_photos" accept="image/*" multiple>
-      <div class="hint" id="photoHint"></div>
-    </div>
+<div class="overlay" id="scannerOverlay">
+  <div class="panel" style="max-width:420px;">
+    <h2>Scan barcode</h2>
+    <div class="hint" id="scannerStatus">Take a clear, well-lit photo of the barcode.</div>
+    <img id="scannerPreview" style="width:100%;border-radius:5px;margin:12px 0;display:none;">
+    <input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none;">
     <div class="panel-actions">
-      <button class="ghost" id="deleteBtn" style="display:none;border-color:var(--rust);color:var(--rust);">Delete</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="cancelBtn">Cancel</button>
-        <button id="saveBtn">Save entry</button>
+        <button class="ghost" id="cancelScanBtn">Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
+
+  
 <div class="overlay" id="manageListsOverlay">
   <div class="panel">
     <h2>Manage lists</h2>
@@ -638,107 +555,44 @@ function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice
 // Coverage is best-effort — small/artisanal brands often aren't in that
 // database, in which case you just fill the form in manually as usual. ---
 
-let scannerReader = null;
-let scannerStream = null;
-let scannerRAF = null;
-
-async function openScanner(){
-  const statusEl = document.getElementById('scannerStatus');
-  const videoEl = document.getElementById('scannerVideo');
-  statusEl.textContent = 'Starting camera…';
+function openScanner(){
+  document.getElementById('scannerStatus').textContent = 'Take a clear, well-lit photo of the barcode.';
+  document.getElementById('scannerPreview').style.display = 'none';
   document.getElementById('scannerOverlay').classList.add('open');
-
-  try{
-    scannerStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    });
-  }catch(e){
-    statusEl.textContent = 'Could not access camera: ' + e.message;
-    return;
-  }
-
-  videoEl.srcObject = scannerStream;
-  await videoEl.play().catch(()=>{}); // iOS sometimes needs this called explicitly
-
-  statusEl.textContent = 'Point your camera at the barcode.';
-
-  // Prefer the browser's native barcode detector when available — it's
-  // generally more reliable on iOS Safari than the JS-based ZXing decoder.
-  if('BarcodeDetector' in window){
-    try{
-      const detector = new BarcodeDetector({
-        formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39']
-      });
-      const tick = async () => {
-        if(!scannerStream) return; // scanner was closed
-        try{
-          const codes = await detector.detect(videoEl);
-          if(codes.length){
-            const code = codes[0].rawValue;
-            stopScannerCamera();
-            processScannedBarcode(code);
-            return;
-          }
-        }catch(e){ /* detect() can throw on odd frames — ignore and keep trying */ }
-        scannerRAF = requestAnimationFrame(tick);
-      };
-      scannerRAF = requestAnimationFrame(tick);
-      return;
-    }catch(e){
-      // fall through to ZXing below if native detector construction fails
-    }
-  }
-
-  // Fallback: ZXing, restricted to retail barcode formats with TRY_HARDER
-  // enabled — scanning fewer formats more aggressively beats scanning all
-  // of them (including QR/PDF417/etc) more casually.
-  if(typeof ZXing === 'undefined'){
-    statusEl.textContent = 'Barcode scanner failed to load — check your connection and try again.';
-    return;
-  }
-  const hints = new Map();
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-    ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
-  ]);
-  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-  scannerReader = new ZXing.BrowserMultiFormatReader(hints);
-  const deviceId = scannerStream.getVideoTracks()[0].getSettings().deviceId;
-  scannerReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result, err)=>{
-    if(result){
-      const code = result.getText();
-      stopScannerCamera();
-      processScannedBarcode(code);
-    }
-    // err fires continuously for each frame with no barcode found — that's normal, ignore it
-  }).catch(e=>{
-    statusEl.textContent = 'Could not access camera: ' + e.message;
-  });
-}
-
-function stopScannerCamera(){
-  if(scannerRAF){
-    cancelAnimationFrame(scannerRAF);
-    scannerRAF = null;
-  }
-  if(scannerReader){
-    try{ scannerReader.reset(); }catch(e){}
-    scannerReader = null;
-  }
-  if(scannerStream){
-    scannerStream.getTracks().forEach(t => t.stop());
-    scannerStream = null;
-  }
+  document.getElementById('scanFileInput').click();
 }
 function closeScanner(){
-  stopScannerCamera();
   document.getElementById('scannerOverlay').classList.remove('open');
 }
+
+document.getElementById('scanFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('scannerStatus');
+  const previewEl = document.getElementById('scannerPreview');
+
+  const dataUrl = await new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = ev => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+  previewEl.src = dataUrl;
+  previewEl.style.display = 'block';
+  statusEl.textContent = 'Reading barcode…';
+
+  try{
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const result = await reader.decodeFromImageUrl(dataUrl);
+    const code = result.getText();
+    closeScanner();
+    processScannedBarcode(code);
+  }catch(err){
+    statusEl.textContent = "Couldn't read a barcode in that photo — retake it a bit closer/further, in good light, or enter it manually below.";
+  } finally {
+    e.target.value = ''; // allow retaking the same photo if needed
+  }
+});
+  
 
   
 const G_PER_OZ = 28.3495231;
