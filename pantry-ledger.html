@@ -686,7 +686,7 @@ async function processScannedBarcode(code){
   }
 }
 
-function openScanner(){
+async function openScanner(){
   const statusEl = document.getElementById('scannerStatus');
   statusEl.textContent = 'Point your camera at the barcode.';
   document.getElementById('scannerOverlay').classList.add('open');
@@ -695,11 +695,22 @@ function openScanner(){
     return;
   }
   scannerReader = new ZXing.BrowserMultiFormatReader();
-  const constraints = { video: { facingMode: { ideal: 'environment' } } };
-  scannerReader.decodeFromConstraints(constraints, 'scannerVideo', (result, err)=>{
+
+  let deviceId;
+  try{
+    // Request the back camera directly so Safari doesn't default to front,
+    // then grab its deviceId to hand to ZXing explicitly.
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
+    deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
+    stream.getTracks().forEach(t => t.stop()); // release this probe stream, ZXing opens its own
+  }catch(e){
+    deviceId = undefined; // fall back to default if exact match isn't available
+  }
+
+  scannerReader.decodeFromVideoDevice(deviceId, 'scannerVideo', (result, err)=>{
     if(result){
       const code = result.getText();
-      stopScannerCamera(); // stop the camera feed but leave the overlay open for the lookup status
+      stopScannerCamera();
       processScannedBarcode(code);
     }
     // err fires continuously for each frame with no barcode found — that's normal, ignore it
@@ -708,6 +719,7 @@ function openScanner(){
   });
 }
 
+  
 function stopScannerCamera(){
   if(scannerReader){
     try{ scannerReader.reset(); }catch(e){}
