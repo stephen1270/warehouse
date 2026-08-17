@@ -320,6 +320,7 @@
     </select>
     <button id="addBtn">+ Add entry</button>
     <button class="ghost" id="scanBtn">📷 Scan barcode</button>
+    <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan with a USB/Bluetooth scanner" autocomplete="off" inputmode="none" style="min-width:260px;">
     <button class="ghost" id="manageListsBtn">Manage lists</button>
   </div>
 
@@ -360,14 +361,124 @@
   </div>
 </div>
 
-<div class="overlay" id="scannerOverlay">
-  <div class="panel" style="max-width:420px;">
-    <h2>Scan barcode</h2>
-    <div class="hint" id="scannerStatus">Point your camera at the barcode.</div>
-    <video id="scannerVideo" playsinline muted style="width:100%;border-radius:5px;margin:12px 0;background:#000;"></video>
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2 id="panelTitle">New entry</h2>
+    <input type="hidden" id="editId">
+
+    <div class="field">
+      <label for="f_name">Name</label>
+      <input type="text" id="f_name" required>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f_brand">Brand</label>
+        <input type="text" id="f_brand" autocomplete="off">
+        <div class="autocomplete-list" id="f_brand_options"></div>
+      </div>
+      <div class="field">
+        <label for="f_category">Category</label>
+        <input type="text" id="f_category" autocomplete="off">
+        <div class="autocomplete-list" id="f_category_options"></div>
+      </div>
+    </div>
+
+    <div class="field" id="packedInField" style="display:none;">
+      <label for="f_packedIn">Packed in</label>
+      <input type="text" id="f_packedIn" autocomplete="off">
+      <div class="autocomplete-list" id="f_packedIn_options"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f_source">Source</label>
+        <input type="text" id="f_source" autocomplete="off">
+        <div class="autocomplete-list" id="f_source_options"></div>
+      </div>
+      <div class="field">
+        <label for="f_price">Price</label>
+        <input type="text" id="f_price" inputmode="decimal" placeholder="$">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="f_netWeightValue">Net weight</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="f_netWeightValue" step="any" min="0">
+          <select id="f_netWeightUnit" style="max-width:80px;">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="ml">ml</option>
+            <option value="l">l</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f_dryWeightValue">Drained/dry weight</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="f_dryWeightValue" step="any" min="0">
+          <select id="f_dryWeightUnit" style="max-width:80px;">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" id="barcodeField" style="display:none;">
+      <label for="f_barcode">Barcode</label>
+      <input type="text" id="f_barcode" readonly>
+    </div>
+
+    <div class="field">
+      <label for="f_tags">Tags</label>
+      <input type="text" id="f_tags" placeholder="comma, separated, tags">
+    </div>
+
+    <div class="field">
+      <label for="f_notes">Notes</label>
+      <textarea id="f_notes"></textarea>
+    </div>
+
+    <div class="row4">
+      <div class="field">
+        <label for="f_overall">Overall</label>
+        <input type="number" id="f_overall" min="1" max="10" step="1">
+      </div>
+      <div class="field">
+        <label for="f_flavor">Flavor</label>
+        <input type="number" id="f_flavor" min="1" max="10" step="1">
+      </div>
+      <div class="field">
+        <label for="f_quality">Quality</label>
+        <input type="number" id="f_quality" min="1" max="10" step="1">
+      </div>
+      <div class="field">
+        <label for="f_value">Value</label>
+        <input type="number" id="f_value" min="1" max="10" step="1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Photos</label>
+      <div class="gallery" id="galleryWrap">
+        <div class="addtile" id="addTile">+</div>
+      </div>
+      <input type="file" id="f_photos" accept="image/*" multiple>
+      <div class="hint" id="photoHint">Add one or more photos of this product.</div>
+    </div>
+
     <div class="panel-actions">
+      <button class="danger" id="deleteBtn" type="button" style="display:none;">Delete</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="cancelScanBtn">Cancel</button>
+        <button class="ghost" id="cancelBtn" type="button">Cancel</button>
+        <button id="saveBtn" type="button">Save entry</button>
       </div>
     </div>
   </div>
@@ -494,6 +605,8 @@ function applyAuthGating(){
   if(manageBtn) manageBtn.style.display = loggedIn ? '' : 'none';
   const scanBtn = document.getElementById('scanBtn');
   if(scanBtn) scanBtn.style.display = loggedIn ? '' : 'none';
+  const hwScanInput = document.getElementById('hwScanInput');
+  if(hwScanInput) hwScanInput.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.card-actions').forEach(el=>{
     el.style.display = loggedIn ? '' : 'none';
   });
@@ -613,6 +726,38 @@ function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice
 // looks up basic product info from Open Food Facts to pre-fill the form.
 // Coverage is best-effort — small/artisanal brands often aren't in that
 // database, in which case you just fill the form in manually as usual. ---
+
+// Takes a decoded/typed barcode, looks it up on Open Food Facts (public,
+// no key needed) to pre-fill what it can, then opens the entry form.
+// Works the same whether the code came from the camera scanner or a
+// hardware USB/Bluetooth scanner (see hwScanInput below) — both just
+// hand a barcode string to this function.
+async function processScannedBarcode(code){
+  code = (code || '').trim();
+  if(!code) return;
+  const prefill = { barcode: code };
+  try{
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+    const data = await res.json();
+    if(data && data.status === 1 && data.product){
+      const p = data.product;
+      if(p.product_name) prefill.name = p.product_name;
+      if(p.brands) prefill.brand = p.brands.split(',')[0].trim();
+      if(p.quantity){
+        const m = String(p.quantity).match(/([\d.]+)\s*(kg|g|lb|oz|ml|l)?/i);
+        if(m){
+          prefill.netWeightValue = m[1];
+          prefill.netWeightUnit = (m[2] || 'g').toLowerCase();
+        }
+      }
+    }
+  }catch(e){
+    console.error('Open Food Facts lookup failed', e);
+    // not fatal — still open the form with the barcode filled in and
+    // let the rest be typed in by hand
+  }
+  openNew(prefill);
+}
 
 function openScanner(){
   document.getElementById('scannerStatus').textContent = 'Take a clear, well-lit photo of the barcode.';
@@ -1034,6 +1179,17 @@ document.getElementById('manageListsBtn').addEventListener('click', openManageLi
 document.getElementById('closeManageListsBtn').addEventListener('click', closeManageLists);
 document.getElementById('scanBtn').addEventListener('click', openScanner);
 document.getElementById('cancelScanBtn').addEventListener('click', closeScanner);
+// Hardware USB/Bluetooth scanners (e.g. a Zebra LS2208) act like a keyboard:
+// they "type" the barcode digits into whatever field has focus, then send
+// Enter. So: click into this field once, then just scan — no camera needed,
+// and it stays focused/ready for scanning the next item right after.
+document.getElementById('hwScanInput').addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = e.target.value.trim();
+  e.target.value = '';
+  if(code) processScannedBarcode(code);
+});
 document.getElementById('scannerOverlay').addEventListener('click', e=>{ if(e.target.id==='scannerOverlay') closeScanner(); });
 document.getElementById('manageListsOverlay').addEventListener('click', e=>{ if(e.target.id==='manageListsOverlay') closeManageLists(); });
 document.getElementById('manageListsBody').addEventListener('click', e=>{
