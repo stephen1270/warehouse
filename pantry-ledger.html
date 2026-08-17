@@ -406,9 +406,12 @@ const localStorageAdapter = {
 };
 
 let supabaseClient = null;
+let supabaseInitError = null;
 
 function makeSupabaseAdapter(){
   if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    supabaseInitError = "Couldn't load the Supabase library (blocked by an ad blocker/network filter, or a connectivity issue) — showing this browser's local copy only. Entries saved from other devices won't appear until this loads successfully.";
+    console.error('Pantry Ledger:', supabaseInitError);
     return null;
   }
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -555,13 +558,12 @@ function renderGallery(){
     : 'Add one or more photos of this product.';
 }
 
-function setLoadError(e){
+function setLoadError(message){
   const el = document.getElementById('loadErrorState');
   if(!el) return;
-  if(e){
+  if(message){
     el.style.display = 'block';
-    el.querySelector('.msg').textContent =
-      `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`;
+    el.querySelector('.msg').textContent = message;
   }else{
     el.style.display = 'none';
   }
@@ -571,17 +573,23 @@ async function load(){
   try{
     const res = await storage.get(STORE_KEY);
     products = res ? JSON.parse(res.value) : [];
-    setLoadError(null);
+    // even on a "successful" read, if we're silently running on the local
+    // fallback because the Supabase library never loaded, keep the warning
+    // visible — a clean local read here does NOT mean your real data is safe
+    setLoadError(supabaseInitError);
   }catch(e){
-    if(e && e.message === 'not found'){
-      // no saved data yet for this key — genuinely empty, not a failure
+    if(e && e.message === 'not found' && !supabaseInitError){
+      // no saved data yet for this key, and Supabase loaded fine —
+      // genuinely empty, not a failure
       products = [];
       setLoadError(null);
     }else{
-      // real failure (network, blocked CDN, auth, etc.) — log it and tell the
-      // user, instead of silently wiping the list to "no entries"
+      // real failure: either Supabase never initialized (supabaseInitError
+      // set above) or the request itself failed (network, auth, etc.) —
+      // log it and tell the user, instead of silently wiping the list
       console.error('Pantry Ledger: failed to load entries', e);
-      setLoadError(e);
+      setLoadError(supabaseInitError ||
+        `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
       // leave `products` as whatever was already in memory rather than
       // clobbering a good list with an empty one on a transient failure
     }
