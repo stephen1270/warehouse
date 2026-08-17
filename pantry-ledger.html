@@ -736,6 +736,7 @@ async function processScannedBarcode(code){
   code = (code || '').trim();
   if(!code) return;
   const prefill = { barcode: code };
+  let photoDataUrl = null;
   try{
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
     const data = await res.json();
@@ -750,6 +751,24 @@ async function processScannedBarcode(code){
           prefill.netWeightUnit = (m[2] || 'g').toLowerCase();
         }
       }
+      // Category/source are deliberately NOT auto-filled: Open Food Facts'
+      // category taxonomy doesn't match your own "Tinned Fish"-style
+      // vocabulary, and OFF has no idea where *you* bought this — auto-
+      // filling either would just pollute the Manage Lists dropdowns with
+      // near-duplicate values instead of your established ones.
+      const photoUrl = p.image_front_url || p.image_url;
+      if(photoUrl){
+        try{
+          const imgRes = await fetch(photoUrl);
+          const blob = await imgRes.blob();
+          // reuse the same resize pipeline manually-added photos go
+          // through, so scanned photos match in size/quality
+          photoDataUrl = await resizeImage(blob, 1200, 0.75);
+        }catch(e){
+          console.error('Could not fetch product photo from Open Food Facts', e);
+          // not fatal — the entry still opens fine without a photo
+        }
+      }
     }
   }catch(e){
     console.error('Open Food Facts lookup failed', e);
@@ -757,6 +776,12 @@ async function processScannedBarcode(code){
     // let the rest be typed in by hand
   }
   openNew(prefill);
+  if(photoDataUrl){
+    // openNew() always resets currentImages to [] and re-renders the
+    // gallery, so this has to happen after — otherwise it'd get wiped
+    currentImages = [photoDataUrl];
+    renderGallery();
+  }
 }
 
 function openScanner(){
