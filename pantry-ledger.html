@@ -165,6 +165,28 @@
     font-style:italic;
   }
 
+  .load-error{
+    text-align:center;
+    padding:20px;
+    margin-bottom:18px;
+    border:1px solid var(--rust);
+    background:#F3E4DE;
+    color:var(--rust);
+    border-radius:4px;
+  }
+  .load-error .msg{margin-bottom:10px;font-size:0.85rem;}
+  .load-error button{
+    border:1px solid var(--rust);
+    color:var(--rust);
+    background:transparent;
+    padding:6px 14px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.8rem;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .load-error button:hover{background:var(--rust);color:var(--paper);}
+
   .overlay{
     display:none;
     position:fixed;inset:0;
@@ -301,6 +323,10 @@
     <button class="ghost" id="manageListsBtn">Manage lists</button>
   </div>
 
+  <div id="loadErrorState" class="load-error" style="display:none;">
+    <div class="msg"></div>
+    <button id="retryLoadBtn" type="button">Retry</button>
+  </div>
   <div id="grid" class="grid"></div>
   <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the ledger.</div>
 </div>
@@ -529,15 +555,40 @@ function renderGallery(){
     : 'Add one or more photos of this product.';
 }
 
+function setLoadError(e){
+  const el = document.getElementById('loadErrorState');
+  if(!el) return;
+  if(e){
+    el.style.display = 'block';
+    el.querySelector('.msg').textContent =
+      `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`;
+  }else{
+    el.style.display = 'none';
+  }
+}
+
 async function load(){
   try{
     const res = await storage.get(STORE_KEY);
     products = res ? JSON.parse(res.value) : [];
+    setLoadError(null);
   }catch(e){
-    products = [];
+    if(e && e.message === 'not found'){
+      // no saved data yet for this key — genuinely empty, not a failure
+      products = [];
+      setLoadError(null);
+    }else{
+      // real failure (network, blocked CDN, auth, etc.) — log it and tell the
+      // user, instead of silently wiping the list to "no entries"
+      console.error('Pantry Ledger: failed to load entries', e);
+      setLoadError(e);
+      // leave `products` as whatever was already in memory rather than
+      // clobbering a good list with an empty one on a transient failure
+    }
   }
   render();
 }
+document.getElementById('retryLoadBtn').addEventListener('click', load);
 
 async function persist(){
   try{
