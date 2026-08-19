@@ -297,7 +297,6 @@
   button.danger{border-color:var(--rust);color:var(--rust);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -319,7 +318,6 @@
       <option value="rating_asc">Lowest rated</option>
     </select>
     <button id="addBtn">+ Add entry</button>
-    <button class="ghost" id="scanBtn">📷 Scan barcode</button>
     <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan with a USB/Bluetooth scanner" autocomplete="off" inputmode="none" style="min-width:260px;">
     <button class="ghost" id="manageListsBtn">Manage lists</button>
   </div>
@@ -330,20 +328,6 @@
   </div>
   <div id="grid" class="grid"></div>
   <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the list.</div>
-</div>
-
-<div class="overlay" id="scannerOverlay">
-  <div class="panel" style="max-width:420px;">
-    <h2>Scan barcode</h2>
-    <div class="hint" id="scannerStatus">Take a clear, well-lit photo of the barcode.</div>
-    <img id="scannerPreview" style="width:100%;border-radius:5px;margin:12px 0;display:none;">
-    <input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none;">
-    <div class="panel-actions">
-      <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="cancelScanBtn">Cancel</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 
@@ -615,8 +599,6 @@ function applyAuthGating(){
   if(addBtn) addBtn.style.display = loggedIn ? '' : 'none';
   const manageBtn = document.getElementById('manageListsBtn');
   if(manageBtn) manageBtn.style.display = loggedIn ? '' : 'none';
-  const scanBtn = document.getElementById('scanBtn');
-  if(scanBtn) scanBtn.style.display = loggedIn ? '' : 'none';
   const hwScanInput = document.getElementById('hwScanInput');
   if(hwScanInput) hwScanInput.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.card-actions').forEach(el=>{
@@ -796,46 +778,7 @@ async function processScannedBarcode(code){
   }
 }
 
-function openScanner(){
-  document.getElementById('scannerStatus').textContent = 'Take a clear, well-lit photo of the barcode.';
-  document.getElementById('scannerPreview').style.display = 'none';
-  document.getElementById('scannerOverlay').classList.add('open');
-  document.getElementById('scanFileInput').click();
-}
-function closeScanner(){
-  document.getElementById('scannerOverlay').classList.remove('open');
-}
 
-document.getElementById('scanFileInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const statusEl = document.getElementById('scannerStatus');
-  const previewEl = document.getElementById('scannerPreview');
-
-  const dataUrl = await new Promise((resolve)=>{
-    const reader = new FileReader();
-    reader.onload = ev => resolve(ev.target.result);
-    reader.readAsDataURL(file);
-  });
-  previewEl.src = dataUrl;
-  previewEl.style.display = 'block';
-  statusEl.textContent = 'Reading barcode…';
-
-  try{
-    const reader = new ZXing.BrowserMultiFormatReader();
-    const result = await reader.decodeFromImageUrl(dataUrl);
-    const code = result.getText();
-    closeScanner();
-    processScannedBarcode(code);
-  }catch(err){
-    statusEl.textContent = "Couldn't read a barcode in that photo — retake it a bit closer/further, in good light, or enter it manually below.";
-  } finally {
-    e.target.value = ''; // allow retaking the same photo if needed
-  }
-});
-  
-
-  
 const G_PER_OZ = 28.3495231;
 function formatWeight(value, unit, label){
   const v = Number(value);
@@ -1290,8 +1233,6 @@ async function deleteEntry(){
 document.getElementById('addBtn').addEventListener('click', openNew);
 document.getElementById('manageListsBtn').addEventListener('click', openManageLists);
 document.getElementById('closeManageListsBtn').addEventListener('click', closeManageLists);
-document.getElementById('scanBtn').addEventListener('click', openScanner);
-document.getElementById('cancelScanBtn').addEventListener('click', closeScanner);
 // Hardware USB/Bluetooth scanners (e.g. a Zebra LS2208) act like a keyboard:
 // they "type" the barcode digits into whatever field has focus, then send
 // Enter. So: click into this field once, then just scan — no camera needed,
@@ -1303,7 +1244,6 @@ document.getElementById('hwScanInput').addEventListener('keydown', (e)=>{
   e.target.value = '';
   if(code) processScannedBarcode(code);
 });
-document.getElementById('scannerOverlay').addEventListener('click', e=>{ if(e.target.id==='scannerOverlay') closeScanner(); });
 document.getElementById('manageListsOverlay').addEventListener('click', e=>{ if(e.target.id==='manageListsOverlay') closeManageLists(); });
 document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
 document.getElementById('detailOverlay').addEventListener('click', e=>{ if(e.target.id==='detailOverlay') closeDetail(); });
