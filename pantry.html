@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pantry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F5F0E4;
+    --paper-dim: #ECE5D3;
+    --ink: #2B2318;
+    --ink-soft: #5B5241;
+    --moss: #4B5D3A;
+    --moss-dark: #384728;
+    --mustard: #C79A3D;
+    --rust: #8B4A3B;
+    --line: #D8CFB8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 80px;}
+
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  header h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:2rem;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  header .tally{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+    align-items:center;
+  }
+  input[type=text], select{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:16px; /* 16px minimum prevents iOS Safari auto-zoom on focus */
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    background:#fff;
+    color:var(--ink);
+  }
+  #search{flex:1;min-width:200px;}
+  select{cursor:pointer;}
+  button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    padding:9px 16px;
+    border-radius:3px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    cursor:pointer;
+  }
+  button.ghost{background:transparent;color:var(--ink);}
+  button.small{padding:5px 10px;font-size:0.7rem;}
+  .auth-control{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--ink-soft);}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:5px 8px;font-size:16px;border:1px solid var(--line);border-radius:4px;
+    background:var(--paper);color:var(--ink);width:130px;
+  }
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-error{color:var(--rust);font-size:0.7rem;}
+  button:hover{opacity:0.85;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+    gap:14px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:16px 16px 14px;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .card .badge{
+    position:absolute;
+    top:14px;
+    right:14px;
+    width:40px;height:40px;
+    border-radius:50%;
+    background:var(--moss);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:0.95rem;
+    border:2px solid var(--moss-dark);
+  }
+  .card .badge.none{background:var(--paper-dim);color:var(--ink-soft);border-color:var(--line);}
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-size:1.15rem;
+    margin:0;
+    padding-right:44px;
+    line-height:1.25;
+  }
+  .card .brand{font-size:0.82rem;color:var(--ink-soft);font-style:italic;}
+  .card .meta{font-size:0.78rem;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .card .notes{font-size:0.85rem;margin-top:2px;color:var(--ink);}
+  .card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+  .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    padding:2px 7px;
+    border:1px solid var(--mustard);
+    color:var(--moss-dark);
+    background:#FBF4E1;
+    border-radius:2px;
+  }
+  .card .subrates{
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+    margin-top:2px;
+  }
+  .card-actions{
+    display:flex;gap:6px;margin-top:auto;padding-top:8px;
+  }
+
+  .empty{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+    font-family:'Fraunces', serif;
+    font-size:1.1rem;
+    font-style:italic;
+  }
+
+  .overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(43,35,24,0.4);
+    align-items:flex-start;justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    z-index:10;
+  }
+  .overlay.open{display:flex;}
+  .panel{
+    background:var(--paper);
+    border:2px solid var(--ink);
+    border-radius:5px;
+    padding:26px;
+    width:100%;max-width:520px;
+  }
+  .panel h2{
+    font-family:'Fraunces', serif;
+    margin:0 0 16px;
+    font-size:1.4rem;
+    border-bottom:1px solid var(--line);
+    padding-bottom:10px;
+  }
+  .field{margin-bottom:12px;display:flex;flex-direction:column;gap:4px;position:relative;}
+  .autocomplete-list{
+    position:absolute;top:100%;left:0;right:0;z-index:20;
+    background:var(--paper);border:1px solid var(--ink);border-top:none;
+    max-height:160px;overflow-y:auto;display:none;
+  }
+  .autocomplete-list.open{display:block;}
+  .autocomplete-list div{
+    padding:7px 10px;font-size:0.85rem;cursor:pointer;
+  }
+  .autocomplete-list div:hover, .autocomplete-list div.active{
+    background:var(--paper-dim);
+  }
+  .field label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+  }
+  .field input, .field textarea, .field select{
+    font-family:'IBM Plex Sans', sans-serif;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-size:16px; /* 16px minimum prevents iOS Safari auto-zoom on focus */
+    background:#fff;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .panel-actions{display:flex;justify-content:space-between;margin-top:18px;gap:10px;}
+  textarea{resize:vertical;min-height:50px;}
+  .hint{font-size:0.72rem;color:var(--ink-soft);margin-top:-2px;}
+
+  .card .thumbwrap{
+    width:100%;height:120px;
+    border-radius:3px;overflow:hidden;
+    margin-bottom:4px;
+    background:var(--paper-dim);
+  }
+  .card .thumbwrap img{width:100%;height:100%;object-fit:cover;display:block;}
+
+  .gallery{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .gallery .thumb{
+    position:relative;width:72px;height:72px;
+    border-radius:3px;overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .gallery .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .gallery .thumb .rm{
+    position:absolute;top:2px;right:2px;
+    width:18px;height:18px;border-radius:50%;
+    background:rgba(43,35,24,0.75);color:#fff;
+    border:none;font-size:11px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;
+  }
+  .gallery .addtile{
+    width:72px;height:72px;
+    border:1px dashed var(--line);
+    border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);
+    font-size:1.4rem;
+    cursor:pointer;
+    background:var(--paper-dim);
+  }
+  #f_photos{display:none;}
+  .mlist-section{margin-bottom:20px;}
+  .mlist-section h3{
+    font-family:'IBM Plex Mono', monospace;font-size:0.75rem;text-transform:uppercase;
+    letter-spacing:0.06em;color:var(--ink-soft);margin:0 0 8px;
+    border-bottom:1px solid var(--line);padding-bottom:6px;
+  }
+  .mlist-row{
+    display:flex;align-items:center;gap:8px;padding:6px 0;
+    border-bottom:1px solid var(--paper-dim);
+  }
+  .mlist-val{flex:1;font-size:0.9rem;}
+  .mlist-count{font-size:0.7rem;color:var(--ink-soft);white-space:nowrap;}
+  .mlist-empty{font-size:0.8rem;color:var(--ink-soft);font-style:italic;}
+  button.danger{border-color:var(--rust);color:var(--rust);}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pantry</h1>
+    <div class="tally" id="tally">0 entries</div>
+    <div id="authControl" class="auth-control"></div>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search name, brand, notes…">
+    <select id="filterCategory"><option value="">All categories</option></select>
+    <select id="filterTag"><option value="">All tags</option></select>
+    <select id="sortBy">
+      <option value="date_desc">Newest first</option>
+      <option value="date_asc">Oldest first</option>
+      <option value="rating_desc">Highest rated</option>
+      <option value="rating_asc">Lowest rated</option>
+      <option value="name_asc">Name A–Z</option>
+    </select>
+    <button id="addBtn">+ Add entry</button>
+    <button class="ghost" id="scanBtn">📷 Scan barcode</button>
+    <button class="ghost" id="manageListsBtn">Manage lists</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the list.</div>
+</div>
+
+<div class="overlay" id="scannerOverlay">
+  <div class="panel" style="max-width:420px;">
+    <h2>Scan barcode</h2>
+    <div class="hint" id="scannerStatus">Take a clear, well-lit photo of the barcode.</div>
+    <img id="scannerPreview" style="width:100%;border-radius:5px;margin:12px 0;display:none;">
+    <input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none;">
+    <div class="panel-actions">
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ghost" id="cancelScanBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  
+<div class="overlay" id="manageListsOverlay">
+  <div class="panel">
+    <h2>Manage lists</h2>
+    <div class="hint" style="margin-bottom:16px;">Rename a value to update it everywhere it's used, or delete to clear it from those entries (the entries themselves aren't removed).</div>
+    <div id="manageListsBody"></div>
+    <div class="panel-actions">
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ghost" id="closeManageListsBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="scannerOverlay">
+  <div class="panel" style="max-width:420px;">
+    <h2>Scan barcode</h2>
+    <div class="hint" id="scannerStatus">Point your camera at the barcode.</div>
+    <video id="scannerVideo" playsinline muted style="width:100%;border-radius:5px;margin:12px 0;background:#000;"></video>
+    <div class="panel-actions">
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ghost" id="cancelScanBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = 'pantry-ledger-products';
+let products = [];
+let currentImages = []; // full-size base64 images for the entry currently being edited
+
+// Supabase-backed storage, so entries sync across devices instead of being
+// trapped in one browser's localStorage. Falls back to localStorage if
+// Supabase can't be reached (e.g. offline), and to Claude's window.storage
+// when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      // keep a local mirror so the app still works offline
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+let currentUser = null;
+
+function renderAuthControl(){
+  const el = document.getElementById('authControl');
+  if(!supabaseClient){
+    el.innerHTML = ''; // no Supabase (local/offline mode) — no gating possible, leave open
+    return;
+  }
+  if(currentUser){
+    el.innerHTML = `
+      <span>${esc(currentUser.email)}</span>
+      <button class="ghost small" id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+    });
+  } else {
+    el.innerHTML = `
+      <form id="signInForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button class="ghost small" type="submit">Sign in</button>
+      </form>
+      <span class="auth-error" id="authError"></span>`;
+    document.getElementById('signInForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+    });
+  }
+}
+
+function applyAuthGating(){
+  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local mode)
+  const addBtn = document.getElementById('addBtn');
+  if(addBtn) addBtn.style.display = loggedIn ? '' : 'none';
+  const manageBtn = document.getElementById('manageListsBtn');
+  if(manageBtn) manageBtn.style.display = loggedIn ? '' : 'none';
+  const scanBtn = document.getElementById('scanBtn');
+  if(scanBtn) scanBtn.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.card-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
+}
+
+if(supabaseClient){
+  supabaseClient.auth.getSession().then(({data})=>{
+    currentUser = data.session ? data.session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session ? session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+} else {
+  renderAuthControl();
+}
+
+function imagesKey(id){ return 'pantry-ledger-images:' + id; }
+
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderGallery(){
+  const wrap = document.getElementById('galleryWrap');
+  wrap.querySelectorAll('.thumb').forEach(el=>el.remove());
+  currentImages.forEach((src, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${src}"><button type="button" class="rm" data-idx="${idx}">&times;</button>`;
+    wrap.insertBefore(div, document.getElementById('addTile'));
+  });
+  wrap.querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentImages.splice(Number(btn.dataset.idx), 1);
+      renderGallery();
+    });
+  });
+  document.getElementById('photoHint').textContent = currentImages.length
+    ? `${currentImages.length} photo${currentImages.length>1?'s':''} attached`
+    : 'Add one or more photos of this product.';
+}
+
+async function load(){
+  try{
+    const res = await storage.get(STORE_KEY);
+    products = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    products = [];
+  }
+  render();
+}
+
+async function persist(){
+  try{
+    await storage.set(STORE_KEY, JSON.stringify(products));
+  }catch(e){
+    console.error('Storage error', e);
+    alert('Could not save — please try again.');
+  }
+}
+
+function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);}
+
+// --- Barcode scanning: uses the device camera to read a barcode, then
+// looks up basic product info from Open Food Facts to pre-fill the form.
+// Coverage is best-effort — small/artisanal brands often aren't in that
+// database, in which case you just fill the form in manually as usual. ---
+
+function openScanner(){
+  document.getElementById('scannerStatus').textContent = 'Take a clear, well-lit photo of the barcode.';
+  document.getElementById('scannerPreview').style.display = 'none';
+  document.getElementById('scannerOverlay').classList.add('open');
+  document.getElementById('scanFileInput').click();
+}
+function closeScanner(){
+  document.getElementById('scannerOverlay').classList.remove('open');
+}
+
+document.getElementById('scanFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('scannerStatus');
+  const previewEl = document.getElementById('scannerPreview');
+
+  const dataUrl = await new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = ev => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+  previewEl.src = dataUrl;
+  previewEl.style.display = 'block';
+  statusEl.textContent = 'Reading barcode…';
+
+  try{
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const result = await reader.decodeFromImageUrl(dataUrl);
+    const code = result.getText();
+    closeScanner();
+    processScannedBarcode(code);
+  }catch(err){
+    statusEl.textContent = "Couldn't read a barcode in that photo — retake it a bit closer/further, in good light, or enter it manually below.";
+  } finally {
+    e.target.value = ''; // allow retaking the same photo if needed
+  }
+});
+  
+
+  
+const G_PER_OZ = 28.3495231;
+function formatWeight(value, unit, label){
+  const v = Number(value);
+  if(!v || isNaN(v)) return null;
+  const prefix = label ? `${label} ` : '';
+  if(unit === 'oz'){
+    const g = Math.round(v * G_PER_OZ);
+    return `${prefix}${v}oz (${g}g)`;
+  }
+  const oz = Math.round((v / G_PER_OZ) * 10) / 10;
+  return `${prefix}${v}g (${oz}oz)`;
+}
+
+function allCategories(){
+  return [...new Set(products.map(p=>p.category).filter(Boolean))].sort();
+}
+function allBrands(){
+  return [...new Set(products.map(p=>p.brand).filter(Boolean))].sort();
+}
+function allSources(){
+  return [...new Set(products.map(p=>p.source).filter(Boolean))].sort();
+}
+function allPackedIn(){
+  return [...new Set(products.map(p=>p.packedIn).filter(Boolean))].sort();
+}
+
+// --- Manage lists: rename/delete a category, brand, source, packed-in,
+// or tag value everywhere it's used across your products in one go. ---
+const MANAGEABLE_FIELDS = [
+  { key: 'category', label: 'Categories', getter: allCategories, type: 'scalar' },
+  { key: 'brand', label: 'Brands', getter: allBrands, type: 'scalar' },
+  { key: 'source', label: 'Sources', getter: allSources, type: 'scalar' },
+  { key: 'packedIn', label: 'Packed In', getter: allPackedIn, type: 'scalar' },
+  { key: 'tags', label: 'Tags', getter: allTags, type: 'array' },
+];
+
+function countUsing(field, val){
+  if(field.type === 'array') return products.filter(p => (p.tags||[]).includes(val)).length;
+  return products.filter(p => (p[field.key]||'') === val).length;
+}
+
+function renderManageLists(){
+  const wrap = document.getElementById('manageListsBody');
+  wrap.innerHTML = MANAGEABLE_FIELDS.map(f=>{
+    const vals = f.getter();
+    const rows = vals.length
+      ? vals.map(v=>{
+          const count = countUsing(f, v);
+          return `<div class="mlist-row">
+            <span class="mlist-val">${esc(v)}</span>
+            <span class="mlist-count">${count} item${count===1?'':'s'}</span>
+            <button class="ghost small" data-action="rename" data-type="${f.type}" data-key="${f.key}" data-val="${esc(v)}">Rename</button>
+            <button class="ghost small danger" data-action="delete" data-type="${f.type}" data-key="${f.key}" data-val="${esc(v)}">Delete</button>
+          </div>`;
+        }).join('')
+      : `<div class="mlist-empty">No values yet.</div>`;
+    return `<div class="mlist-section"><h3>${f.label}</h3>${rows}</div>`;
+  }).join('');
+}
+
+async function renameListValue(type, key, oldVal){
+  const newVal = prompt(`Rename "${oldVal}" to:`, oldVal);
+  if(newVal === null) return;
+  const trimmed = type === 'array' ? newVal.trim().toLowerCase() : newVal.trim();
+  if(!trimmed || trimmed === oldVal) return;
+  if(type === 'array'){
+    products.forEach(p=>{
+      if(!p.tags || !p.tags.includes(oldVal)) return;
+      p.tags = [...new Set(p.tags.map(t => t===oldVal ? trimmed : t))]; // dedupe in case renamed tag already exists
+    });
+  } else {
+    products.forEach(p=>{ if((p[key]||'') === oldVal) p[key] = trimmed; });
+  }
+  await persist();
+  render();
+  renderManageLists();
+}
+
+async function deleteListValue(type, key, val){
+  const field = MANAGEABLE_FIELDS.find(f=>f.key===key);
+  const count = countUsing(field, val);
+  if(!confirm(`Remove "${val}" from ${count} item${count===1?'':'s'}? This clears it from those entries — it does not delete the entries themselves.`)) return;
+  if(type === 'array'){
+    products.forEach(p=>{ if(p.tags) p.tags = p.tags.filter(t=>t!==val); });
+  } else {
+    products.forEach(p=>{ if((p[key]||'') === val) p[key] = ''; });
+  }
+  await persist();
+  render();
+  renderManageLists();
+}
+
+function openManageLists(){
+  renderManageLists();
+  document.getElementById('manageListsOverlay').classList.add('open');
+}
+function closeManageLists(){
+  document.getElementById('manageListsOverlay').classList.remove('open');
+}
+function allTags(){
+  return [...new Set(products.flatMap(p=>p.tags||[]))].sort();
+}
+
+function refreshFilterOptions(){
+  const catSel = document.getElementById('filterCategory');
+  const tagSel = document.getElementById('filterTag');
+  const curCat = catSel.value, curTag = tagSel.value;
+  catSel.innerHTML = '<option value="">All categories</option>' + allCategories().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  tagSel.innerHTML = '<option value="">All tags</option>' + allTags().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  catSel.value = curCat; tagSel.value = curTag;
+
+  document.getElementById('f_category_options').dataset.options = JSON.stringify(allCategories());
+  document.getElementById('f_brand_options').dataset.options = JSON.stringify(allBrands());
+  document.getElementById('f_source_options').dataset.options = JSON.stringify(allSources());
+  document.getElementById('f_packedIn_options').dataset.options = JSON.stringify(allPackedIn());
+}
+
+// Custom autocomplete dropdown (replaces native <datalist>, which Safari
+// handles unreliably). Shows suggestions on focus, filters as you type,
+// still allows any free-text value.
+function setupAutocomplete(inputId, listId){
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+
+  function optionsFor(){
+    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
+  }
+
+  function renderList(opts){
+    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
+    list.innerHTML = opts.map(o=>`<div data-val="${esc(o)}">${esc(o)}</div>`).join('');
+    list.classList.add('open');
+  }
+  function showAll(){
+    renderList(optionsFor()); // on focus: show every option, not just ones matching what's already typed
+    input.select(); // highlight existing text so typing (or tapping an option) cleanly replaces it
+  }
+  function showFiltered(){
+    const q = input.value.trim().toLowerCase();
+    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
+  }
+  function hide(){ list.classList.remove('open'); }
+
+  input.addEventListener('focus', showAll);
+  input.addEventListener('input', showFiltered);
+  input.addEventListener('blur', ()=> setTimeout(hide, 150)); // delay so click below registers first
+  list.addEventListener('mousedown', (e)=>{
+    const opt = e.target.closest('[data-val]');
+    if(!opt) return;
+    input.value = opt.dataset.val;
+    input.dispatchEvent(new Event('input', { bubbles: true })); // so listeners like the Packed In toggle fire on click-select too
+    hide();
+  });
+}
+setupAutocomplete('f_category', 'f_category_options');
+setupAutocomplete('f_brand', 'f_brand_options');
+setupAutocomplete('f_source', 'f_source_options');
+setupAutocomplete('f_packedIn', 'f_packedIn_options');
+
+function togglePackedInField(){
+  const cat = document.getElementById('f_category').value.trim().toLowerCase();
+  document.getElementById('packedInField').style.display = (cat === 'tinned fish') ? '' : 'none';
+}
+document.getElementById('f_category').addEventListener('input', togglePackedInField);
+
+function esc(s){
+  return (s||'').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function render(){
+  refreshFilterOptions();
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const catF = document.getElementById('filterCategory').value;
+  const tagF = document.getElementById('filterTag').value;
+  const sortBy = document.getElementById('sortBy').value;
+
+  let list = products.filter(p=>{
+    if(catF && p.category !== catF) return false;
+    if(tagF && !(p.tags||[]).includes(tagF)) return false;
+    if(q){
+      const hay = [p.name,p.brand,p.notes,p.category,(p.tags||[]).join(' ')].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  list.sort((a,b)=>{
+    if(sortBy==='date_desc') return b.dateAdded.localeCompare(a.dateAdded);
+    if(sortBy==='date_asc') return a.dateAdded.localeCompare(b.dateAdded);
+    if(sortBy==='rating_desc') return (b.overall||0)-(a.overall||0);
+    if(sortBy==='rating_asc') return (a.overall||0)-(b.overall||0);
+    if(sortBy==='name_asc') return a.name.localeCompare(b.name);
+    return 0;
+  });
+
+  document.getElementById('tally').textContent = `${products.length} ${products.length===1?'entry':'entries'}`;
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+  if(list.length===0){
+    grid.innerHTML='';
+    empty.style.display='block';
+    empty.textContent = products.length===0 ? 'No entries yet — add your first product to the list.' : 'No entries match your search/filters.';
+    return;
+  }
+  empty.style.display='none';
+
+  grid.innerHTML = list.map(p=>{
+    const badge = p.overall ? `<div class="badge">${p.overall}</div>` : `<div class="badge none">—</div>`;
+    const subrates = [
+      p.flavor?`Fl ${p.flavor}`:null,
+      p.quality?`Qu ${p.quality}`:null,
+      p.value?`Va ${p.value}`:null
+    ].filter(Boolean).join(' · ');
+    const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
+    const tags = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
+    const thumbHtml = p.thumb ? `<div class="thumbwrap"><img src="${p.thumb}"></div>` : '';
+    return `
+    <div class="card">
+      ${badge}
+      ${thumbHtml}
+      <h3>${esc(p.name)}</h3>
+      ${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}
+      <div class="meta">${[p.category, p.source, p.price?('$'+esc(p.price)):null].filter(Boolean).join(' · ')}</div>
+      ${subrates?`<div class="subrates">${subrates}</div>`:''}
+      ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
+      ${tags?`<div class="tags">${tags}</div>`:''}
+      <div class="card-actions">
+        <button class="ghost small" onclick="openEdit('${p.id}')">Edit</button>
+      </div>
+    </div>`;
+  }).join('');
+  applyAuthGating();
+}
+
+function openNew(prefill){
+  prefill = prefill || {};
+  document.getElementById('panelTitle').textContent = 'New entry';
+  document.getElementById('editId').value = '';
+  ['f_name','f_brand','f_category','f_source','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_netWeightUnit').value = 'g';
+  document.getElementById('f_dryWeightUnit').value = 'g';
+  document.getElementById('deleteBtn').style.display='none';
+  currentImages = [];
+  renderGallery();
+
+  if(prefill.name) document.getElementById('f_name').value = prefill.name;
+  if(prefill.brand) document.getElementById('f_brand').value = prefill.brand;
+  if(prefill.netWeightValue){
+    document.getElementById('f_netWeightValue').value = prefill.netWeightValue;
+    document.getElementById('f_netWeightUnit').value = prefill.netWeightUnit || 'g';
+  }
+  document.getElementById('f_barcode').value = prefill.barcode || '';
+  document.getElementById('barcodeField').style.display = prefill.barcode ? '' : 'none';
+  togglePackedInField();
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('f_name').focus();
+}
+
+async function openEdit(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('panelTitle').textContent = 'Edit entry';
+  document.getElementById('editId').value = p.id;
+  document.getElementById('f_name').value = p.name||'';
+  document.getElementById('f_brand').value = p.brand||'';
+  document.getElementById('f_category').value = p.category||'';
+  document.getElementById('f_packedIn').value = p.packedIn||'';
+  togglePackedInField();
+  document.getElementById('f_source').value = p.source||'';
+  document.getElementById('f_price').value = p.price||'';
+  document.getElementById('f_netWeightValue').value = (p.netWeightValue ?? p.weightValue ?? '');
+  document.getElementById('f_netWeightUnit').value = p.netWeightUnit || p.weightUnit || 'g';
+  document.getElementById('f_dryWeightValue').value = (p.dryWeightValue !== null && p.dryWeightValue !== undefined) ? p.dryWeightValue : '';
+  document.getElementById('f_dryWeightUnit').value = p.dryWeightUnit || 'g';
+  document.getElementById('f_barcode').value = p.barcode || '';
+  document.getElementById('barcodeField').style.display = p.barcode ? '' : 'none';
+  document.getElementById('f_tags').value = (p.tags||[]).join(', ');
+  document.getElementById('f_notes').value = p.notes||'';
+  document.getElementById('f_overall').value = p.overall||'';
+  document.getElementById('f_flavor').value = p.flavor||'';
+  document.getElementById('f_quality').value = p.quality||'';
+  document.getElementById('f_value').value = p.value||'';
+  document.getElementById('deleteBtn').style.display='inline-block';
+
+  currentImages = [];
+  renderGallery();
+  document.getElementById('photoHint').textContent = 'Loading photos…';
+  if(p.thumb){
+    try{
+      const res = await storage.get(imagesKey(p.id));
+      currentImages = res ? JSON.parse(res.value) : [];
+    }catch(e){
+      currentImages = [];
+    }
+  }
+  renderGallery();
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closePanel(){
+  document.getElementById('overlay').classList.remove('open');
+}
+
+async function saveEntry(){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ alert('Name is required.'); return; }
+  let id = document.getElementById('editId').value;
+  const tags = document.getElementById('f_tags').value.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
+  const numOrNull = v => v===''? null: Number(v);
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.textContent = 'Saving…';
+  saveBtn.disabled = true;
+
+  const data = {
+    name,
+    brand: document.getElementById('f_brand').value.trim(),
+    category: document.getElementById('f_category').value.trim(),
+    source: document.getElementById('f_source').value.trim(),
+    price: document.getElementById('f_price').value.trim(),
+    tags,
+    notes: document.getElementById('f_notes').value.trim(),
+    overall: numOrNull(document.getElementById('f_overall').value),
+    flavor: numOrNull(document.getElementById('f_flavor').value),
+    quality: numOrNull(document.getElementById('f_quality').value),
+    value: numOrNull(document.getElementById('f_value').value),
+    netWeightValue: numOrNull(document.getElementById('f_netWeightValue').value),
+    netWeightUnit: document.getElementById('f_netWeightUnit').value,
+    dryWeightValue: numOrNull(document.getElementById('f_dryWeightValue').value),
+    dryWeightUnit: document.getElementById('f_dryWeightUnit').value,
+    barcode: document.getElementById('f_barcode').value.trim() || null,
+    thumb: currentImages[0] || null,
+  };
+  data.packedIn = (data.category.toLowerCase() === 'tinned fish')
+    ? document.getElementById('f_packedIn').value.trim()
+    : '';
+
+  if(id){
+    const idx = products.findIndex(p=>p.id===id);
+    if(idx>-1) products[idx] = {...products[idx], ...data};
+  }else{
+    id = uid();
+    products.push({id, dateAdded: new Date().toISOString().slice(0,10), ...data});
+  }
+
+  try{
+    if(currentImages.length){
+      await storage.set(imagesKey(id), JSON.stringify(currentImages));
+    }else{
+      try{ await storage.delete(imagesKey(id)); }catch(e){ /* no images existed, fine */ }
+    }
+  }catch(e){
+    console.error('Image storage error', e);
+  }
+
+  await persist();
+  saveBtn.textContent = 'Save entry';
+  saveBtn.disabled = false;
+  closePanel();
+  render();
+}
+
+async function deleteEntry(){
+  const id = document.getElementById('editId').value;
+  if(!id) return;
+  if(!confirm('Delete this entry?')) return;
+  products = products.filter(p=>p.id!==id);
+  try{ await storage.delete(imagesKey(id)); }catch(e){ /* fine if none existed */ }
+  await persist();
+  closePanel();
+  render();
+}
+
+document.getElementById('addBtn').addEventListener('click', openNew);
+document.getElementById('manageListsBtn').addEventListener('click', openManageLists);
+document.getElementById('closeManageListsBtn').addEventListener('click', closeManageLists);
+document.getElementById('scanBtn').addEventListener('click', openScanner);
+document.getElementById('cancelScanBtn').addEventListener('click', closeScanner);
+document.getElementById('scannerOverlay').addEventListener('click', e=>{ if(e.target.id==='scannerOverlay') closeScanner(); });
+document.getElementById('manageListsOverlay').addEventListener('click', e=>{ if(e.target.id==='manageListsOverlay') closeManageLists(); });
+document.getElementById('manageListsBody').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const { action, type, key, val } = btn.dataset;
+  if(action === 'rename') renameListValue(type, key, val);
+  if(action === 'delete') deleteListValue(type, key, val);
+});
+document.getElementById('cancelBtn').addEventListener('click', closePanel);
+document.getElementById('saveBtn').addEventListener('click', saveEntry);
+document.getElementById('deleteBtn').addEventListener('click', deleteEntry);
+document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closePanel(); });
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filterCategory').addEventListener('change', render);
+document.getElementById('filterTag').addEventListener('change', render);
+document.getElementById('sortBy').addEventListener('change', render);
+
+document.getElementById('addTile').addEventListener('click', ()=>document.getElementById('f_photos').click());
+document.getElementById('f_photos').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  document.getElementById('photoHint').textContent = 'Processing photos…';
+  for(const file of files){
+    try{
+      const resized = await resizeImage(file, 1200, 0.75);
+      currentImages.push(resized);
+    }catch(err){
+      console.error('Image resize failed', err);
+    }
+  }
+  e.target.value = '';
+  renderGallery();
+});
+
+load();
+</script>
+</body>
+</html>
