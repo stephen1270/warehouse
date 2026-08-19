@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Restaurants</title>
+<style>
+  :root{
+    --paper:#f4f1e8;
+    --paper-dark:#e9e4d5;
+    --ink:#2a2b26;
+    --wine:#7c2e2e;
+    --brass:#a6813f;
+    --slate:#3f4a44;
+    --line:#c9c2ab;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-dark);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{
+    text-align:center;
+    margin-bottom:28px;
+    position:relative;
+  }
+  header .kicker{
+    letter-spacing:.28em;
+    font-size:11px;
+    color:var(--wine);
+    text-transform:uppercase;
+  }
+  header h1{
+    font-family:'Palatino Linotype', Palatino, 'Iowan Old Style', Georgia, serif;
+    font-weight:400;
+    font-style:italic;
+    font-size:44px;
+    margin:6px 0 4px;
+    letter-spacing:.01em;
+  }
+  header .sub{
+    font-size:12px;
+    color:var(--slate);
+    opacity:.75;
+  }
+  header .rule{
+    margin:18px auto 0;
+    width:100%;
+    height:1px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
+    opacity:.35;
+  }
+
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin:22px 0 14px;
+    font-size:12px;
+  }
+  .toolbar .count{color:var(--slate);opacity:.75;}
+  .newbtn{
+    background:var(--wine);
+    color:var(--paper);
+    border:none;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:10px 16px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .newbtn:hover{background:#682626;}
+
+  /* form ticket */
+  .ticket{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:22px;
+    margin-bottom:22px;
+    position:relative;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+    display:none;
+  }
+  .ticket.open{display:block;}
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:10px;
+    background:
+      radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
+  }
+  .ticket::before{top:-6px;transform:rotate(180deg);}
+  .ticket::after{bottom:-6px;}
+
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:10px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--wine);
+    margin-bottom:5px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    font-family:inherit;
+    font-size:14px;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:6px 2px;
+    color:var(--ink);
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none;
+    border-bottom:1px solid var(--wine);
+  }
+  .field textarea{resize:vertical;min-height:54px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;user-select:none;}
+  .stars span{opacity:.25;transition:opacity .1s;}
+  .stars span.on{opacity:1;color:var(--wine);}
+
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .form-actions button{
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:9px 14px;
+    cursor:pointer;
+    border-radius:2px;
+    border:1px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+  }
+  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* entries */
+  .entry{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:18px 20px;
+    margin-bottom:14px;
+    position:relative;
+  }
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .entry-name{
+    font-family:'Palatino Linotype', Palatino, 'Iowan Old Style', Georgia, serif;
+    font-style:italic;
+    font-size:22px;
+  }
+  .entry-meta{
+    font-size:11px;
+    color:var(--slate);
+    opacity:.8;
+    margin-top:2px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .entry-rating{color:var(--wine);font-size:14px;white-space:nowrap;}
+  .entry-price{color:var(--brass);letter-spacing:1px;}
+  .entry-dishes{
+    margin-top:10px;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .entry-dishes .lbl{color:var(--wine);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:3px;}
+  .entry-notes{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.55;
+    color:var(--ink);
+    white-space:pre-wrap;
+  }
+  .entry-tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{
+    font-size:10px;
+    border:1px solid var(--line);
+    padding:3px 8px;
+    border-radius:10px;
+    color:var(--slate);
+    letter-spacing:.04em;
+  }
+  .entry-actions{
+    position:absolute;
+    top:14px;right:16px;
+    display:flex;gap:8px;
+  }
+  .entry-actions button{
+    background:none;border:none;
+    font-family:inherit;
+    font-size:11px;
+    color:var(--slate);
+    opacity:.5;
+    cursor:pointer;
+  }
+  .entry-actions button:hover{opacity:1;color:var(--wine);}
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--slate);
+    opacity:.7;
+    font-size:13px;
+    line-height:1.7;
+  }
+  .empty .big{font-family:'Palatino Linotype', Palatino, Georgia, serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
+
+  .loading{text-align:center;padding:40px;font-size:12px;color:var(--slate);}
+
+  ::placeholder{color:var(--slate);opacity:.4;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Warehouse &middot; Est. In Practice</div>
+    <h1>Restaurants</h1>
+    <div class="sub">a running record of tables kept</div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="toolbar">
+    <span class="count" id="count">loading…</span>
+    <button class="newbtn" id="toggleForm">+ New Entry</button>
+  </div>
+
+  <div class="ticket" id="ticket">
+    <div class="field">
+      <label>Restaurant</label>
+      <input id="f-name" type="text" placeholder="Bar Americano">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Neighborhood / City</label>
+        <input id="f-place" type="text" placeholder="Flatiron, NYC">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input id="f-date" type="date">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Price</label>
+        <select id="f-price">
+          <option value="">—</option>
+          <option>$</option>
+          <option>$$</option>
+          <option>$$$</option>
+          <option>$$$$</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Rating</label>
+        <div class="stars" id="f-stars">
+          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Dishes had</label>
+      <textarea id="f-dishes" placeholder="Marcona almonds, endive & radicchio salad, prosciutto board…"></textarea>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="f-notes" placeholder="How it was, who with, what to order next time…"></textarea>
+    </div>
+    <div class="field">
+      <label>Tags (comma separated)</label>
+      <input id="f-tags" type="text" placeholder="aperitivo, date night, Fort Greene">
+    </div>
+    <div class="form-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save Entry</button>
+    </div>
+  </div>
+
+  <div id="entries" class="loading">loading…</div>
+</div>
+
+<script>
+let entries = [];
+let editingId = null;
+let currentStars = 0;
+
+const $ = (id) => document.getElementById(id);
+
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function starsHtml(n){
+  let s = '';
+  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
+  return s;
+}
+
+function render(){
+  const wrap = $('entries');
+  $('count').textContent = entries.length === 0 ? 'no entries yet' :
+    entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
+
+  if(entries.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">The list is empty.</span>Log the first table.</div>`;
+    return;
+  }
+
+  const sorted = [...entries].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  wrap.innerHTML = sorted.map(e => `
+    <div class="entry" data-id="${e.id}">
+      <div class="entry-actions">
+        <button class="editBtn">edit</button>
+        <button class="delBtn">delete</button>
+      </div>
+      <div class="entry-top">
+        <div>
+          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
+          <div class="entry-meta">
+            ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
+            ${e.place ? `<span>${escapeHtml(e.place)}</span>` : ''}
+            ${e.price ? `<span class="entry-price">${e.price}</span>` : ''}
+          </div>
+        </div>
+        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
+      </div>
+      ${e.dishes ? `<div class="entry-dishes"><span class="lbl">Had</span>${escapeHtml(e.dishes)}</div>` : ''}
+      ${e.notes ? `<div class="entry-notes">${escapeHtml(e.notes)}</div>` : ''}
+      ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      const id = e.target.closest('.entry').dataset.id;
+      openForEdit(id);
+    });
+  });
+  wrap.querySelectorAll('.delBtn').forEach(btn=>{
+    btn.addEventListener('click', async e => {
+      const id = e.target.closest('.entry').dataset.id;
+      if(confirm('Remove this entry?')){
+        await deleteEntry(id);
+      }
+    });
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function resetForm(){
+  $('f-name').value='';
+  $('f-place').value='';
+  $('f-date').value=new Date().toISOString().slice(0,10);
+  $('f-price').value='';
+  $('f-dishes').value='';
+  $('f-notes').value='';
+  $('f-tags').value='';
+  setStars(0);
+  editingId = null;
+}
+
+function setStars(n){
+  currentStars = n;
+  document.querySelectorAll('#f-stars span').forEach(s=>{
+    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
+  });
+}
+
+function openForEdit(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  $('f-name').value = e.name || '';
+  $('f-place').value = e.place || '';
+  $('f-date').value = e.date || '';
+  $('f-price').value = e.price || '';
+  $('f-dishes').value = e.dishes || '';
+  $('f-notes').value = e.notes || '';
+  $('f-tags').value = (e.tags||[]).join(', ');
+  setStars(e.rating || 0);
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function seedIfEmpty(){
+  const seed = {
+    id: 'e-seed-bar-americano',
+    name: 'Bar Americano',
+    place: '',
+    date: new Date().toISOString().slice(0,10),
+    price: '',
+    rating: 0,
+    dishes: 'Marcona almonds, marinated olives, endive & radicchio salad with dill, prosciutto and cheese board (with dried figs, pickled peppers, salami)',
+    notes: '',
+    tags: ['aperitivo']
+  };
+  await window.storage.set('entry:' + seed.id, JSON.stringify(seed));
+  entries = [seed];
+}
+
+async function loadEntries(){
+  try{
+    const result = await window.storage.list('entry:');
+    if(!result || !result.keys || result.keys.length === 0){
+      await seedIfEmpty();
+      render();
+      return;
+    }
+    const loaded = [];
+    for(const key of result.keys){
+      try{
+        const r = await window.storage.get(key);
+        if(r && r.value){
+          loaded.push(JSON.parse(r.value));
+        }
+      }catch(err){ /* skip missing */ }
+    }
+    entries = loaded;
+  }catch(err){
+    entries = [];
+  }
+  render();
+}
+
+async function saveEntry(){
+  const name = $('f-name').value.trim();
+  if(!name){
+    $('f-name').focus();
+    return;
+  }
+  const id = editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7));
+  const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const entry = {
+    id,
+    name,
+    place: $('f-place').value.trim(),
+    date: $('f-date').value,
+    price: $('f-price').value,
+    rating: currentStars,
+    dishes: $('f-dishes').value.trim(),
+    notes: $('f-notes').value.trim(),
+    tags
+  };
+  try{
+    await window.storage.set('entry:' + id, JSON.stringify(entry));
+    if(editingId){
+      const idx = entries.findIndex(e=>e.id===id);
+      if(idx>-1) entries[idx] = entry; else entries.push(entry);
+    } else {
+      entries.push(entry);
+    }
+    render();
+    closeForm();
+  }catch(err){
+    alert('Could not save entry. Please try again.');
+    console.error(err);
+  }
+}
+
+async function deleteEntry(id){
+  try{
+    await window.storage.delete('entry:' + id);
+    entries = entries.filter(e=>e.id!==id);
+    render();
+  }catch(err){
+    alert('Could not delete entry. Please try again.');
+    console.error(err);
+  }
+}
+
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
+}
+
+$('toggleForm').addEventListener('click', () => {
+  const t = $('ticket');
+  if(t.classList.contains('open')){
+    closeForm();
+  } else {
+    resetForm();
+    t.classList.add('open');
+    t.scrollIntoView({behavior:'smooth', block:'start'});
+    $('f-name').focus();
+  }
+});
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEntry);
+document.querySelectorAll('#f-stars span').forEach(s=>{
+  s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
+});
+
+loadEntries();
+</script>
+</body>
+</html>
