@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Warehouse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F5F0E4;
+    --paper-dim: #ECE5D3;
+    --ink: #2B2318;
+    --ink-soft: #5B5241;
+    --moss: #4B5D3A;
+    --mustard: #C79A3D;
+    --rust: #8B4A3B;
+    --line: #D8CFB8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:60px 20px 80px;}
+  header{
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;
+    margin-bottom:36px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:2.6rem;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .tagline{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:16px;
+  }
+  a.card{
+    display:block;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:22px 20px;
+    text-decoration:none;
+    color:var(--ink);
+    transition:border-color 0.15s ease;
+  }
+  a.card:hover{
+    border-color:var(--ink);
+  }
+  .card.disabled{
+    background:var(--paper-dim);
+    color:var(--ink-soft);
+    pointer-events:none;
+    border-style:dashed;
+  }
+  .card h2{
+    font-family:'Fraunces', serif;
+    font-size:1.3rem;
+    margin:0 0 4px;
+    font-weight:600;
+  }
+  .card .desc{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .card .status{
+    display:inline-block;
+    margin-top:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.65rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+  }
+  footer{
+    margin-top:50px;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Warehouse</h1>
+    <div class="tagline">A collection of collections</div>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="pantry-ledger.html">
+      <h2>Pantry</h2>
+      <div class="desc">Conservas, tinned fish, and pantry staples — tasted, rated, and sourced.</div>
+    </a>
+    <a class="card" href="music-ledger.html">
+      <h2>Music</h2>
+      <div class="desc">CDs and vinyl, cataloged from CLZ — artist, format, condition, rating.</div>
+    </a>
+    <a class="card" href="movie-ledger.html">
+      <h2>Movies</h2>
+      <div class="desc">DVDs and Blu-rays, cataloged from CLZ — director, studio, condition.</div>
+    </a>
+    <div class="card disabled">
+      <h2>Books</h2>
+      <div class="desc">Not built yet.</div>
+      <span class="status">Coming soon</span>
+    </div>
+    <div class="card disabled">
+      <h2>Comics</h2>
+      <div class="desc">Not built yet.</div>
+      <span class="status">Coming soon</span>
+    </div>
+  </div>
+
+  <footer>Each collection is independently signed in — read access is open to anyone with the link, editing is owner-only.</footer>
+</div>
+</body>
+</html>
