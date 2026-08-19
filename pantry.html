@@ -108,12 +108,6 @@
     display:flex;
     flex-direction:column;
     gap:6px;
-    cursor:pointer;
-    transition:box-shadow 0.15s, border-color 0.15s;
-  }
-  .card:hover{
-    border-color:var(--ink-soft);
-    box-shadow:0 2px 8px rgba(43,35,24,0.1);
   }
   .card .badge{
     position:absolute;
@@ -287,31 +281,6 @@
     background:var(--paper-dim);
   }
   #f_photos{display:none;}
-
-  .view-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
-  .view-header h2{
-    font-family:'Fraunces', serif;margin:0 0 2px;font-size:1.4rem;line-height:1.25;
-  }
-  .view-header .brand{font-size:0.9rem;color:var(--ink-soft);font-style:italic;}
-  .view-grid{
-    display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;
-    margin:14px 0;padding:14px 0;
-    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  }
-  .view-row{display:flex;flex-direction:column;gap:2px;}
-  .view-label{
-    font-family:'IBM Plex Mono', monospace;font-size:0.68rem;
-    text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);
-  }
-  .view-ratings{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-    margin:14px 0;text-align:center;
-  }
-  .view-ratings > div{
-    border:1px solid var(--line);border-radius:3px;padding:8px 4px;
-    font-family:'IBM Plex Mono', monospace;font-size:1.15rem;font-weight:600;
-  }
-  .view-notes{margin-top:12px;font-size:0.9rem;white-space:pre-wrap;line-height:1.4;}
   .mlist-section{margin-bottom:20px;}
   .mlist-section h3{
     font-family:'IBM Plex Mono', monospace;font-size:0.75rem;text-transform:uppercase;
@@ -328,6 +297,7 @@
   button.danger{border-color:var(--rust);color:var(--rust);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -342,13 +312,14 @@
     <select id="filterCategory"><option value="">All categories</option></select>
     <select id="filterTag"><option value="">All tags</option></select>
     <select id="sortBy">
-      <option value="name_asc">Name A–Z</option>
+      <option value="name_asc" selected>Name A–Z</option>
       <option value="date_desc">Newest first</option>
       <option value="date_asc">Oldest first</option>
       <option value="rating_desc">Highest rated</option>
       <option value="rating_asc">Lowest rated</option>
     </select>
     <button id="addBtn">+ Add entry</button>
+    <button class="ghost" id="scanBtn">📷 Scan barcode</button>
     <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan with a USB/Bluetooth scanner" autocomplete="off" inputmode="none" style="min-width:260px;">
     <button class="ghost" id="manageListsBtn">Manage lists</button>
   </div>
@@ -361,8 +332,18 @@
   <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the list.</div>
 </div>
 
-<div class="overlay" id="viewOverlay">
-  <div class="panel" id="viewPanelBody"></div>
+<div class="overlay" id="scannerOverlay">
+  <div class="panel" style="max-width:420px;">
+    <h2>Scan barcode</h2>
+    <div class="hint" id="scannerStatus">Take a clear, well-lit photo of the barcode.</div>
+    <img id="scannerPreview" style="width:100%;border-radius:5px;margin:12px 0;display:none;">
+    <input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none;">
+    <div class="panel-actions">
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ghost" id="cancelScanBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -375,6 +356,18 @@
     <div class="panel-actions">
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="ghost" id="closeManageListsBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="panel" style="max-width:560px;">
+    <div id="detailBody"></div>
+    <div class="panel-actions">
+      <div id="detailEditWrap"></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ghost" id="closeDetailBtn">Close</button>
       </div>
     </div>
   </div>
@@ -450,9 +443,9 @@
       </div>
     </div>
 
-    <div class="field" id="barcodeField">
+    <div class="field" id="barcodeField" style="display:none;">
       <label for="f_barcode">Barcode</label>
-      <input type="text" id="f_barcode" inputmode="numeric" placeholder="Scan, or type one in by hand">
+      <input type="text" id="f_barcode" readonly>
     </div>
 
     <div class="field">
@@ -622,12 +615,13 @@ function applyAuthGating(){
   if(addBtn) addBtn.style.display = loggedIn ? '' : 'none';
   const manageBtn = document.getElementById('manageListsBtn');
   if(manageBtn) manageBtn.style.display = loggedIn ? '' : 'none';
+  const scanBtn = document.getElementById('scanBtn');
+  if(scanBtn) scanBtn.style.display = loggedIn ? '' : 'none';
   const hwScanInput = document.getElementById('hwScanInput');
   if(hwScanInput) hwScanInput.style.display = loggedIn ? '' : 'none';
-  // viewEditBtn only exists while the view-entry panel is open (built
-  // dynamically in openView), so it may not be in the DOM right now
-  const viewEditBtn = document.getElementById('viewEditBtn');
-  if(viewEditBtn) viewEditBtn.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.card-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
 }
 
 if(supabaseClient){
@@ -750,94 +744,98 @@ function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice
 // Works the same whether the code came from the camera scanner or a
 // hardware USB/Bluetooth scanner (see hwScanInput below) — both just
 // hand a barcode string to this function.
-// Shared Open Food Facts lookup — given a barcode, returns whatever product
-// info is available (any field may be absent) plus a resized photo data URL
-// if the product has a picture. Pure data fetch, never touches the DOM, so
-// both the scan flow and manual barcode entry can reuse it identically.
-//
-// Category/source are deliberately never included here: Open Food Facts'
-// category taxonomy doesn't match your own "Tinned Fish"-style vocabulary,
-// and OFF has no idea where *you* bought this — auto-filling either would
-// just pollute the Manage Lists dropdowns with near-duplicate values
-// instead of your established ones.
-async function lookupOpenFoodFacts(code){
-  const info = {};
+async function processScannedBarcode(code){
+  code = (code || '').trim();
+  if(!code) return;
+  const prefill = { barcode: code };
+  let photoDataUrl = null;
   try{
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
     const data = await res.json();
     if(data && data.status === 1 && data.product){
       const p = data.product;
-      if(p.product_name) info.name = p.product_name;
-      if(p.brands) info.brand = p.brands.split(',')[0].trim();
+      if(p.product_name) prefill.name = p.product_name;
+      if(p.brands) prefill.brand = p.brands.split(',')[0].trim();
       if(p.quantity){
         const m = String(p.quantity).match(/([\d.]+)\s*(kg|g|lb|oz|ml|l)?/i);
         if(m){
-          info.netWeightValue = m[1];
-          info.netWeightUnit = (m[2] || 'g').toLowerCase();
+          prefill.netWeightValue = m[1];
+          prefill.netWeightUnit = (m[2] || 'g').toLowerCase();
         }
       }
+      // Category/source are deliberately NOT auto-filled: Open Food Facts'
+      // category taxonomy doesn't match your own "Tinned Fish"-style
+      // vocabulary, and OFF has no idea where *you* bought this — auto-
+      // filling either would just pollute the Manage Lists dropdowns with
+      // near-duplicate values instead of your established ones.
       const photoUrl = p.image_front_url || p.image_url;
       if(photoUrl){
         try{
           const imgRes = await fetch(photoUrl);
           const blob = await imgRes.blob();
           // reuse the same resize pipeline manually-added photos go
-          // through, so fetched photos match in size/quality
-          info.photoDataUrl = await resizeImage(blob, 1200, 0.75);
+          // through, so scanned photos match in size/quality
+          photoDataUrl = await resizeImage(blob, 1200, 0.75);
         }catch(e){
           console.error('Could not fetch product photo from Open Food Facts', e);
-          // not fatal — the rest of the lookup still applies without a photo
+          // not fatal — the entry still opens fine without a photo
         }
       }
     }
   }catch(e){
     console.error('Open Food Facts lookup failed', e);
-    // not fatal — caller just gets an empty/partial info object back
+    // not fatal — still open the form with the barcode filled in and
+    // let the rest be typed in by hand
   }
-  return info;
-}
-
-// Scanned barcode → brand new entry, pre-filled with whatever OFF has.
-async function processScannedBarcode(code){
-  code = (code || '').trim();
-  if(!code) return;
-  const info = await lookupOpenFoodFacts(code);
-  openNew({ barcode: code, name: info.name, brand: info.brand,
-    netWeightValue: info.netWeightValue, netWeightUnit: info.netWeightUnit });
-  if(info.photoDataUrl){
+  openNew(prefill);
+  if(photoDataUrl){
     // openNew() always resets currentImages to [] and re-renders the
     // gallery, so this has to happen after — otherwise it'd get wiped
-    currentImages = [info.photoDataUrl];
+    currentImages = [photoDataUrl];
     renderGallery();
   }
 }
 
-// Manually typing/editing the barcode field (rather than scanning) does the
-// same lookup once you move on from the field — but only ever fills in
-// fields that are still empty, and only adds a photo if none has been added
-// yet, so it can never clobber something you already typed or attached.
-let lastLookedUpBarcode = '';
-async function handleManualBarcodeEntry(){
-  const code = document.getElementById('f_barcode').value.trim();
-  if(!code || code === lastLookedUpBarcode) return;
-  lastLookedUpBarcode = code;
-  const info = await lookupOpenFoodFacts(code);
-  if(document.getElementById('f_barcode').value.trim() !== code) return; // field changed again while this was in flight
-  const nameEl = document.getElementById('f_name');
-  if(info.name && !nameEl.value.trim()) nameEl.value = info.name;
-  const brandEl = document.getElementById('f_brand');
-  if(info.brand && !brandEl.value.trim()) brandEl.value = info.brand;
-  const netEl = document.getElementById('f_netWeightValue');
-  if(info.netWeightValue && !netEl.value.trim()){
-    netEl.value = info.netWeightValue;
-    document.getElementById('f_netWeightUnit').value = info.netWeightUnit || 'g';
-  }
-  if(info.photoDataUrl && currentImages.length === 0){
-    currentImages = [info.photoDataUrl];
-    renderGallery();
-  }
+function openScanner(){
+  document.getElementById('scannerStatus').textContent = 'Take a clear, well-lit photo of the barcode.';
+  document.getElementById('scannerPreview').style.display = 'none';
+  document.getElementById('scannerOverlay').classList.add('open');
+  document.getElementById('scanFileInput').click();
+}
+function closeScanner(){
+  document.getElementById('scannerOverlay').classList.remove('open');
 }
 
+document.getElementById('scanFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('scannerStatus');
+  const previewEl = document.getElementById('scannerPreview');
+
+  const dataUrl = await new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = ev => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+  previewEl.src = dataUrl;
+  previewEl.style.display = 'block';
+  statusEl.textContent = 'Reading barcode…';
+
+  try{
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const result = await reader.decodeFromImageUrl(dataUrl);
+    const code = result.getText();
+    closeScanner();
+    processScannedBarcode(code);
+  }catch(err){
+    statusEl.textContent = "Couldn't read a barcode in that photo — retake it a bit closer/further, in good light, or enter it manually below.";
+  } finally {
+    e.target.value = ''; // allow retaking the same photo if needed
+  }
+});
+  
+
+  
 const G_PER_OZ = 28.3495231;
 function formatWeight(value, unit, label){
   const v = Number(value);
@@ -1054,89 +1052,26 @@ function render(){
     const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
     const tags = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
     const thumbHtml = p.thumb ? `<div class="thumbwrap"><img src="${p.thumb}"></div>` : '';
+    const isOnHand = p.onHand !== false; // undefined (older entries) counts as on-hand
+    const onHandBadge = isOnHand ? '' : `<div class="tag" style="border-color:var(--rust);color:var(--rust);margin-bottom:6px;display:inline-block;">OUT</div>`;
     return `
-    <div class="card" onclick="openView('${p.id}')">
+    <div class="card" onclick="openDetail('${p.id}')" style="cursor:pointer;${isOnHand?'':'opacity:0.6;'}">
       ${badge}
       ${thumbHtml}
+      ${onHandBadge}
       <h3>${esc(p.name)}</h3>
       ${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}
-      <div class="meta">${[p.category, p.source].filter(Boolean).join(' · ')}</div>
+      <div class="meta">${[p.category, p.source, p.price?('$'+esc(p.price)):null].filter(Boolean).join(' · ')}</div>
       ${subrates?`<div class="subrates">${subrates}</div>`:''}
       ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
       ${tags?`<div class="tags">${tags}</div>`:''}
+      <div class="card-actions">
+        <button class="ghost small" onclick="event.stopPropagation(); openEdit('${p.id}')">Edit</button>
+        <button class="ghost small" onclick="event.stopPropagation(); toggleOnHand('${p.id}')">${isOnHand ? 'Mark Out' : 'Mark On-Hand'}</button>
+      </div>
     </div>`;
   }).join('');
   applyAuthGating();
-}
-
-// Read-only "full info" view, opened by clicking anywhere on a card. Editing
-// happens separately via the Edit button inside this panel (which hands off
-// to the existing openEdit() form) — selecting a card should never itself
-// put you into edit mode.
-function openView(id){
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
-
-  const badge = p.overall ? `<div class="badge">${p.overall}</div>` : `<div class="badge none">—</div>`;
-  const netWeight = formatWeight(p.netWeightValue, p.netWeightUnit) || '—';
-  const dryWeight = formatWeight(p.dryWeightValue, p.dryWeightUnit) || '—';
-  const tags = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
-  const packedInRow = p.packedIn
-    ? `<div class="view-row"><span class="view-label">Packed in</span><span>${esc(p.packedIn)}</span></div>`
-    : '';
-
-  document.getElementById('viewPanelBody').innerHTML = `
-    <div class="view-header">
-      ${badge}
-      <div>
-        <h2>${esc(p.name)}</h2>
-        ${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}
-      </div>
-    </div>
-    <div id="viewGallery" class="gallery"></div>
-    <div class="view-grid">
-      <div class="view-row"><span class="view-label">Category</span><span>${esc(p.category)||'—'}</span></div>
-      <div class="view-row"><span class="view-label">Source</span><span>${esc(p.source)||'—'}</span></div>
-      <div class="view-row"><span class="view-label">Price</span><span>${p.price?('$'+esc(p.price)):'—'}</span></div>
-      <div class="view-row"><span class="view-label">Net weight</span><span>${netWeight}</span></div>
-      <div class="view-row"><span class="view-label">Drained/dry weight</span><span>${dryWeight}</span></div>
-      ${packedInRow}
-      <div class="view-row"><span class="view-label">Barcode</span><span>${esc(p.barcode)||'—'}</span></div>
-      <div class="view-row"><span class="view-label">Added</span><span>${esc(p.dateAdded)||'—'}</span></div>
-    </div>
-    <div class="view-ratings">
-      <div><span class="view-label">Overall</span><br>${p.overall||'—'}</div>
-      <div><span class="view-label">Flavor</span><br>${p.flavor||'—'}</div>
-      <div><span class="view-label">Quality</span><br>${p.quality||'—'}</div>
-      <div><span class="view-label">Value</span><br>${p.value||'—'}</div>
-    </div>
-    ${tags?`<div class="tags">${tags}</div>`:''}
-    ${p.notes?`<div class="view-notes">${esc(p.notes)}</div>`:''}
-    <div class="panel-actions">
-      <button class="ghost" type="button" onclick="closeView()">Close</button>
-      <div style="display:flex;gap:8px;margin-left:auto;">
-        <button id="viewEditBtn" type="button" onclick="closeView(); openEdit('${p.id}');">Edit</button>
-      </div>
-    </div>
-  `;
-
-  // Show whatever we already have (the card's thumbnail) immediately, then
-  // fetch the full-size photo set — same lazy-load pattern openEdit() uses.
-  const galleryEl = document.getElementById('viewGallery');
-  galleryEl.innerHTML = p.thumb ? `<div class="thumb"><img src="${p.thumb}"></div>` : '';
-
-  document.getElementById('viewOverlay').classList.add('open');
-  applyAuthGating(); // gates the just-created #viewEditBtn to logged-in users
-
-  if(p.thumb){
-    storage.get(imagesKey(p.id)).then(res=>{
-      const imgs = res ? JSON.parse(res.value) : [];
-      if(imgs.length) galleryEl.innerHTML = imgs.map(src=>`<div class="thumb"><img src="${src}"></div>`).join('');
-    }).catch(()=>{ /* not fatal — the thumbnail we already showed stays visible */ });
-  }
-}
-function closeView(){
-  document.getElementById('viewOverlay').classList.remove('open');
 }
 
 function openNew(prefill){
@@ -1157,11 +1092,75 @@ function openNew(prefill){
     document.getElementById('f_netWeightUnit').value = prefill.netWeightUnit || 'g';
   }
   document.getElementById('f_barcode').value = prefill.barcode || '';
-  lastLookedUpBarcode = prefill.barcode || ''; // already looked up via processScannedBarcode — don't re-fetch on blur
+  document.getElementById('barcodeField').style.display = prefill.barcode ? '' : 'none';
   togglePackedInField();
 
   document.getElementById('overlay').classList.add('open');
   document.getElementById('f_name').focus();
+}
+
+async function openDetail(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+
+  const netW = formatWeight(p.netWeightValue ?? p.weightValue, p.netWeightUnit ?? p.weightUnit, p.dryWeightValue ? 'Net' : null);
+  const dryW = formatWeight(p.dryWeightValue, p.dryWeightUnit, 'Dry');
+  const ratingRows = [
+    ['Overall', p.overall], ['Flavor', p.flavor], ['Quality', p.quality], ['Value', p.value]
+  ].filter(([,v])=>v);
+  const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
+  const tagsHtml = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
+
+  const infoRows = [
+    ['Brand', p.brand], ['Category', p.category], ['Source', p.source],
+    ['Price', p.price ? '$'+esc(p.price) : null],
+    ['Net Weight', netW], ['Dry Weight', dryW],
+    ['Barcode', p.barcode],
+  ].filter(([,v])=>v);
+
+  document.getElementById('detailBody').innerHTML = `
+    <h2 style="margin-bottom:4px;">${esc(p.name)}</h2>
+    <div id="detailGallery" style="margin:12px 0;"></div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+      ${infoRows.map(([label,val])=>`
+        <tr>
+          <td style="padding:4px 10px 4px 0;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);white-space:nowrap;vertical-align:top;">${label}</td>
+          <td style="padding:4px 0;">${val}</td>
+        </tr>`).join('')}
+    </table>
+    ${ratingRows.length ? `<div class="subrates" style="margin-bottom:10px;">${ratingRows.map(([l,v])=>`${l} ${v}`).join(' · ')}</div>` : ''}
+    ${p.notes ? `<div class="notes" style="margin-bottom:10px;">${esc(p.notes)}</div>` : ''}
+    ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
+  `;
+
+  // owner-only edit shortcut inside the detail view
+  const editWrap = document.getElementById('detailEditWrap');
+  const loggedIn = !supabaseClient || !!currentUser;
+  editWrap.innerHTML = loggedIn ? `<button class="ghost" id="detailEditBtn">Edit</button>` : '';
+  if(loggedIn){
+    document.getElementById('detailEditBtn').addEventListener('click', ()=>{
+      closeDetail();
+      openEdit(p.id);
+    });
+  }
+
+  document.getElementById('overlay').classList.remove('open'); // just in case
+  document.getElementById('detailOverlay').classList.add('open');
+
+  // load full photo gallery (not just the thumb) in the background
+  const galleryEl = document.getElementById('detailGallery');
+  if(p.thumb){
+    try{
+      const res = await storage.get(imagesKey(p.id));
+      const images = res ? JSON.parse(res.value) : [];
+      galleryEl.innerHTML = images.map(src=>`<img src="${src}" style="width:100%;border-radius:4px;margin-bottom:8px;">`).join('') || `<img src="${p.thumb}" style="width:100%;border-radius:4px;">`;
+    }catch(e){
+      galleryEl.innerHTML = `<img src="${p.thumb}" style="width:100%;border-radius:4px;">`;
+    }
+  }
+}
+function closeDetail(){
+  document.getElementById('detailOverlay').classList.remove('open');
 }
 
 async function openEdit(id){
@@ -1181,7 +1180,7 @@ async function openEdit(id){
   document.getElementById('f_dryWeightValue').value = (p.dryWeightValue !== null && p.dryWeightValue !== undefined) ? p.dryWeightValue : '';
   document.getElementById('f_dryWeightUnit').value = p.dryWeightUnit || 'g';
   document.getElementById('f_barcode').value = p.barcode || '';
-  lastLookedUpBarcode = p.barcode || ''; // existing value — don't re-fetch on blur unless it's actually edited
+  document.getElementById('barcodeField').style.display = p.barcode ? '' : 'none';
   document.getElementById('f_tags').value = (p.tags||[]).join(', ');
   document.getElementById('f_notes').value = p.notes||'';
   document.getElementById('f_overall').value = p.overall||'';
@@ -1208,6 +1207,14 @@ async function openEdit(id){
 
 function closePanel(){
   document.getElementById('overlay').classList.remove('open');
+}
+
+async function toggleOnHand(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  p.onHand = p.onHand === false ? true : false; // undefined counts as currently on-hand, so first toggle marks it out
+  await persist();
+  render();
 }
 
 async function saveEntry(){
@@ -1283,6 +1290,8 @@ async function deleteEntry(){
 document.getElementById('addBtn').addEventListener('click', openNew);
 document.getElementById('manageListsBtn').addEventListener('click', openManageLists);
 document.getElementById('closeManageListsBtn').addEventListener('click', closeManageLists);
+document.getElementById('scanBtn').addEventListener('click', openScanner);
+document.getElementById('cancelScanBtn').addEventListener('click', closeScanner);
 // Hardware USB/Bluetooth scanners (e.g. a Zebra LS2208) act like a keyboard:
 // they "type" the barcode digits into whatever field has focus, then send
 // Enter. So: click into this field once, then just scan — no camera needed,
@@ -1294,8 +1303,10 @@ document.getElementById('hwScanInput').addEventListener('keydown', (e)=>{
   e.target.value = '';
   if(code) processScannedBarcode(code);
 });
-document.getElementById('viewOverlay').addEventListener('click', e=>{ if(e.target.id==='viewOverlay') closeView(); });
+document.getElementById('scannerOverlay').addEventListener('click', e=>{ if(e.target.id==='scannerOverlay') closeScanner(); });
 document.getElementById('manageListsOverlay').addEventListener('click', e=>{ if(e.target.id==='manageListsOverlay') closeManageLists(); });
+document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
+document.getElementById('detailOverlay').addEventListener('click', e=>{ if(e.target.id==='detailOverlay') closeDetail(); });
 document.getElementById('manageListsBody').addEventListener('click', e=>{
   const btn = e.target.closest('button[data-action]');
   if(!btn) return;
@@ -1312,7 +1323,6 @@ document.getElementById('filterCategory').addEventListener('change', render);
 document.getElementById('filterTag').addEventListener('change', render);
 document.getElementById('sortBy').addEventListener('change', render);
 
-document.getElementById('f_barcode').addEventListener('blur', handleManualBarcodeEntry);
 document.getElementById('addTile').addEventListener('click', ()=>document.getElementById('f_photos').click());
 document.getElementById('f_photos').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
