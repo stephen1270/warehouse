@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Restaurants</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --paper:#f4f1e8;
@@ -76,6 +77,22 @@
     border-radius:2px;
   }
   .newbtn:hover{background:#682626;}
+
+  .auth-control{
+    display:flex;align-items:center;gap:8px;
+    font-size:11px;color:var(--slate);
+  }
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
+    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
+  }
+  .auth-control button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 10px;cursor:pointer;border-radius:2px;
+    border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .auth-error{color:var(--wine);font-size:10px;}
 
   /* form ticket */
   .ticket{
@@ -232,6 +249,7 @@
     <div class="kicker">Warehouse &middot; Est. In Practice</div>
     <h1>Restaurants</h1>
     <div class="sub">a running record of tables kept</div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
     <div class="rule"></div>
   </header>
 
@@ -301,6 +319,134 @@ let currentStars = 0;
 
 const $ = (id) => document.getElementById(id);
 
+// Supabase-backed storage, shared with the rest of Warehouse, so entries
+// sync across devices instead of being trapped in one browser. Falls back
+// to localStorage if Supabase can't be reached, and to Claude's
+// window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+let currentUser = null;
+
+function renderAuthControl(){
+  const el = document.getElementById('authControl');
+  if(!supabaseClient){
+    el.innerHTML = '';
+    return;
+  }
+  if(currentUser){
+    el.innerHTML = `
+      <span>${currentUser.email}</span>
+      <button id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+    });
+  } else {
+    el.innerHTML = `
+      <form id="signInForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <span class="auth-error" id="authError"></span>`;
+    document.getElementById('signInForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+    });
+  }
+}
+
+function applyAuthGating(){
+  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local/artifact mode)
+  const newBtn = document.getElementById('toggleForm');
+  if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.entry-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
+}
+
+if(supabaseClient){
+  supabaseClient.auth.getSession().then(({data})=>{
+    currentUser = data.session ? data.session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session ? session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+} else {
+  renderAuthControl();
+}
+
 function fmtDate(d){
   if(!d) return '';
   const dt = new Date(d + 'T00:00:00');
@@ -321,6 +467,7 @@ function render(){
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The list is empty.</span>Log the first table.</div>`;
+    applyAuthGating();
     return;
   }
 
@@ -363,6 +510,7 @@ function render(){
       }
     });
   });
+  applyAuthGating();
 }
 
 function escapeHtml(str){
@@ -406,34 +554,18 @@ function openForEdit(id){
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-async function seedIfEmpty(){
-  const seed = {
-    id: 'e-seed-bar-americano',
-    name: 'Bar Americano',
-    place: '',
-    date: new Date().toISOString().slice(0,10),
-    price: '',
-    rating: 0,
-    dishes: 'Marcona almonds, marinated olives, endive & radicchio salad with dill, prosciutto and cheese board (with dried figs, pickled peppers, salami)',
-    notes: '',
-    tags: ['aperitivo']
-  };
-  await window.storage.set('entry:' + seed.id, JSON.stringify(seed));
-  entries = [seed];
-}
-
 async function loadEntries(){
   try{
-    const result = await window.storage.list('entry:');
+    const result = await storage.list('entry:');
     if(!result || !result.keys || result.keys.length === 0){
-      await seedIfEmpty();
+      entries = [];
       render();
       return;
     }
     const loaded = [];
     for(const key of result.keys){
       try{
-        const r = await window.storage.get(key);
+        const r = await storage.get(key);
         if(r && r.value){
           loaded.push(JSON.parse(r.value));
         }
@@ -466,7 +598,7 @@ async function saveEntry(){
     tags
   };
   try{
-    await window.storage.set('entry:' + id, JSON.stringify(entry));
+    await storage.set('entry:' + id, JSON.stringify(entry));
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);
@@ -483,7 +615,7 @@ async function saveEntry(){
 
 async function deleteEntry(id){
   try{
-    await window.storage.delete('entry:' + id);
+    await storage.delete('entry:' + id);
     entries = entries.filter(e=>e.id!==id);
     render();
   }catch(err){
