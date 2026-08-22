@@ -241,6 +241,77 @@
   .loading{text-align:center;padding:40px;font-size:12px;color:var(--slate);}
 
   ::placeholder{color:var(--slate);opacity:.4;}
+
+  /* entry photos + lightbox */
+  .entry{cursor:pointer;}
+  .entry-thumbs{
+    display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;
+  }
+  .entry-thumbs img{
+    width:56px;height:56px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+  }
+
+  .lightbox{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(20,18,14,.88);
+    z-index:100;
+    align-items:flex-start;justify-content:center;
+    overflow-y:auto;
+    padding:40px 16px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    padding:24px;
+    position:relative;
+    border:1px solid var(--line);
+  }
+  .lightbox-close{
+    position:absolute;top:12px;right:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:13px;
+    color:var(--slate);cursor:pointer;
+  }
+  .lightbox-close:hover{color:var(--wine);}
+  .lightbox-name{
+    font-family:'Palatino Linotype', Palatino, 'Iowan Old Style', Georgia, serif;
+    font-style:italic;font-size:26px;margin-bottom:2px;
+  }
+  .lightbox-meta{
+    font-size:11px;color:var(--slate);opacity:.8;
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+  }
+  .lightbox-photos{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:8px;margin-bottom:18px;
+  }
+  .lightbox-photos img{
+    width:100%;height:140px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    cursor:zoom-in;
+  }
+  .lightbox-dishes .lbl, .lightbox-notes .lbl{
+    color:var(--wine);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;display:block;margin-bottom:4px;
+  }
+  .lightbox-dishes, .lightbox-notes{font-size:13px;line-height:1.55;margin-bottom:14px;white-space:pre-wrap;}
+  .lightbox-tags{display:flex;gap:6px;flex-wrap:wrap;}
+
+  .photo-zoom{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.92);
+    z-index:200;
+    align-items:center;justify-content:center;
+    padding:20px;
+    cursor:zoom-out;
+  }
+  .photo-zoom.open{display:flex;}
+  .photo-zoom img{max-width:100%;max-height:100%;object-fit:contain;}
 </style>
 </head>
 <body>
@@ -310,6 +381,26 @@
   </div>
 
   <div id="entries" class="loading">loading…</div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close ✕</button>
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-meta" id="lb-meta"></div>
+    <div class="lightbox-photos" id="lb-photos"></div>
+    <div class="lightbox-dishes" id="lb-dishes-wrap" style="display:none;">
+      <span class="lbl">Dishes had</span><span id="lb-dishes"></span>
+    </div>
+    <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
+      <span class="lbl">Notes</span><span id="lb-notes"></span>
+    </div>
+    <div class="lightbox-tags" id="lb-tags"></div>
+  </div>
+</div>
+
+<div class="photo-zoom" id="photoZoom">
+  <img id="photoZoomImg" src="" alt="">
 </div>
 
 <script>
@@ -492,26 +583,112 @@ function render(){
       </div>
       ${e.dishes ? `<div class="entry-dishes"><span class="lbl">Had</span>${escapeHtml(e.dishes)}</div>` : ''}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(e.notes)}</div>` : ''}
+      ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${p}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     </div>
   `).join('');
 
   wrap.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
+      e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
       openForEdit(id);
     });
   });
   wrap.querySelectorAll('.delBtn').forEach(btn=>{
     btn.addEventListener('click', async e => {
+      e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
       if(confirm('Remove this entry?')){
         await deleteEntry(id);
       }
     });
   });
+  wrap.querySelectorAll('.entry').forEach(card=>{
+    card.addEventListener('click', e => {
+      openLightbox(card.dataset.id);
+    });
+  });
   applyAuthGating();
 }
+
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+
+  $('lb-name').textContent = e.name || 'Untitled';
+
+  const metaBits = [];
+  if(e.date) metaBits.push(fmtDate(e.date));
+  if(e.place) metaBits.push(e.place);
+  if(e.price) metaBits.push(e.price);
+  if(e.rating) metaBits.push(starsHtml(e.rating));
+  $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
+
+  const photosWrap = $('lb-photos');
+  if(e.photos && e.photos.length){
+    photosWrap.style.display = 'grid';
+    photosWrap.innerHTML = e.photos.map(p => `<img src="${p}" alt="">`).join('');
+    photosWrap.querySelectorAll('img').forEach(img=>{
+      img.addEventListener('click', ev => {
+        ev.stopPropagation();
+        openPhotoZoom(img.src);
+      });
+    });
+  } else {
+    photosWrap.style.display = 'none';
+    photosWrap.innerHTML = '';
+  }
+
+  if(e.dishes){
+    $('lb-dishes-wrap').style.display = 'block';
+    $('lb-dishes').textContent = e.dishes;
+  } else {
+    $('lb-dishes-wrap').style.display = 'none';
+  }
+
+  if(e.notes){
+    $('lb-notes-wrap').style.display = 'block';
+    $('lb-notes').textContent = e.notes;
+  } else {
+    $('lb-notes-wrap').style.display = 'none';
+  }
+
+  $('lb-tags').innerHTML = (e.tags && e.tags.length)
+    ? e.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
+    : '';
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+}
+
+function openPhotoZoom(src){
+  $('photoZoomImg').src = src;
+  $('photoZoom').classList.add('open');
+}
+
+function closePhotoZoom(){
+  $('photoZoom').classList.remove('open');
+  $('photoZoomImg').src = '';
+}
+
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+$('photoZoom').addEventListener('click', closePhotoZoom);
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    closePhotoZoom();
+    closeLightbox();
+  }
+});
 
 function escapeHtml(str){
   const div = document.createElement('div');
