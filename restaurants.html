@@ -191,12 +191,6 @@
   }
   .entry-rating{color:var(--wine);font-size:14px;white-space:nowrap;}
   .entry-price{color:var(--brass);letter-spacing:1px;}
-  .entry-dishes{
-    margin-top:10px;
-    font-size:13px;
-    line-height:1.5;
-  }
-  .entry-dishes .lbl{color:var(--wine);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:3px;}
   .entry-notes{
     margin-top:8px;
     font-size:13px;
@@ -294,11 +288,11 @@
     border:1px solid var(--line);border-radius:2px;
     cursor:zoom-in;
   }
-  .lightbox-dishes .lbl, .lightbox-notes .lbl{
+  .lightbox-notes .lbl{
     color:var(--wine);font-size:10px;letter-spacing:.12em;
     text-transform:uppercase;display:block;margin-bottom:4px;
   }
-  .lightbox-dishes, .lightbox-notes{font-size:13px;line-height:1.55;margin-bottom:14px;white-space:pre-wrap;}
+  .lightbox-notes{font-size:13px;line-height:1.55;margin-bottom:14px;white-space:pre-wrap;}
   .lightbox-tags{display:flex;gap:6px;flex-wrap:wrap;}
 
   .photo-zoom{
@@ -389,9 +383,6 @@
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
     <div class="lightbox-photos" id="lb-photos"></div>
-    <div class="lightbox-dishes" id="lb-dishes-wrap" style="display:none;">
-      <span class="lbl">Dishes had</span><span id="lb-dishes"></span>
-    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -581,7 +572,6 @@ function render(){
         </div>
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
-      ${e.dishes ? `<div class="entry-dishes"><span class="lbl">Had</span>${escapeHtml(e.dishes)}</div>` : ''}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(e.notes)}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${p}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -638,13 +628,6 @@ function openLightbox(id){
   } else {
     photosWrap.style.display = 'none';
     photosWrap.innerHTML = '';
-  }
-
-  if(e.dishes){
-    $('lb-dishes-wrap').style.display = 'block';
-    $('lb-dishes').textContent = e.dishes;
-  } else {
-    $('lb-dishes-wrap').style.display = 'none';
   }
 
   if(e.notes){
