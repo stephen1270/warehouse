@@ -579,7 +579,7 @@ function render(){
         </div>
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
-      ${e.notes ? `<div class="entry-notes">${escapeHtml(e.notes)}</div>` : ''}
+      ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     </div>
@@ -611,6 +611,10 @@ function render(){
 
 function photoUrl(p){
   return (p && typeof p === 'object') ? p.url : p;
+}
+
+function stripPhotoTags(notes){
+  return notes.replace(/\(photo:\s*[^)]+\)\s*/gi, '');
 }
 
 function renderNotesWithPhotos(e){
