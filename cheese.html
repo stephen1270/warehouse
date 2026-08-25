@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cheese</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#f6f0e2;
+    --paper-dark:#ecdfbd;
+    --ink:#2b2416;
+    --rind:#8a5a2b;
+    --gold:#c99a3d;
+    --sage:#5b6b46;
+    --line:#d9c9a0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-dark);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{
+    text-align:center;
+    margin-bottom:28px;
+    position:relative;
+  }
+  header .kicker{
+    letter-spacing:.28em;
+    font-size:11px;
+    color:var(--rind);
+    text-transform:uppercase;
+  }
+  header h1{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-weight:400;
+    font-style:italic;
+    font-size:44px;
+    margin:6px 0 4px;
+    letter-spacing:.01em;
+  }
+  header .sub{
+    font-size:12px;
+    color:var(--sage);
+    opacity:.85;
+  }
+  header .rule{
+    margin:18px auto 0;
+    width:100%;
+    height:1px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
+    opacity:.35;
+  }
+
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin:22px 0 14px;
+    font-size:12px;
+  }
+  .toolbar .count{color:var(--sage);opacity:.85;}
+  .newbtn{
+    background:var(--rind);
+    color:var(--paper);
+    border:none;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:10px 16px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .newbtn:hover{background:#6e451f;}
+
+  .auth-control{
+    display:flex;align-items:center;gap:8px;
+    font-size:11px;color:var(--sage);
+  }
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
+    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
+  }
+  .auth-control button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 10px;cursor:pointer;border-radius:2px;
+    border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .auth-error{color:var(--rind);font-size:10px;}
+
+  /* form ticket */
+  .ticket{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:22px;
+    margin-bottom:22px;
+    position:relative;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+    display:none;
+  }
+  .ticket.open{display:block;}
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:10px;
+    background:
+      radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
+  }
+  .ticket::before{top:-6px;transform:rotate(180deg);}
+  .ticket::after{bottom:-6px;}
+
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:10px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--rind);
+    margin-bottom:5px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    font-family:inherit;
+    font-size:14px;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:6px 2px;
+    color:var(--ink);
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none;
+    border-bottom:1px solid var(--rind);
+  }
+  .field textarea{resize:vertical;min-height:54px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field-hint{font-size:10px;color:var(--sage);opacity:.8;margin-top:4px;}
+
+  /* photo picker */
+  .photo-picker{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .photo-preview{
+    width:72px;height:72px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    display:none;
+  }
+  .photo-preview.on{display:block;}
+  .photo-remove{
+    font-family:inherit;font-size:11px;color:var(--sage);
+    background:none;border:none;cursor:pointer;text-decoration:underline;
+    display:none;
+  }
+  .photo-remove.on{display:inline;}
+
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .form-actions button{
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:9px 14px;
+    cursor:pointer;
+    border-radius:2px;
+    border:1px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+  }
+  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* entries */
+  .entry{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:18px 20px;
+    margin-bottom:14px;
+    position:relative;
+    cursor:pointer;
+    display:flex;
+    gap:16px;
+  }
+  .entry-thumb{
+    width:64px;height:64px;object-fit:cover;flex:none;
+    border:1px solid var(--line);border-radius:2px;
+    background:var(--paper-dark);
+  }
+  .entry-thumb.empty{
+    display:flex;align-items:center;justify-content:center;
+    font-family:'adobe-caslon-pro', Georgia, serif;font-style:italic;
+    color:var(--sage);opacity:.5;font-size:22px;
+  }
+  .entry-body{flex:1;min-width:0;}
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .entry-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;
+    font-size:22px;
+  }
+  .entry-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--rind);}
+  .entry-name a:hover{color:var(--rind);}
+  .entry-meta{
+    font-size:11px;
+    color:var(--sage);
+    opacity:.9;
+    margin-top:4px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .entry-meta a{color:var(--rind);text-decoration:none;border-bottom:1px solid var(--line);}
+  .entry-meta a:hover{border-color:var(--rind);}
+  .entry-comment{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.55;
+    color:var(--ink);
+    white-space:pre-wrap;
+  }
+  .entry-actions{
+    position:absolute;
+    top:14px;right:16px;
+    display:flex;gap:8px;
+  }
+  .entry-actions button{
+    background:none;border:none;
+    font-family:inherit;
+    font-size:11px;
+    color:var(--sage);
+    opacity:.6;
+    cursor:pointer;
+  }
+  .entry-actions button:hover{opacity:1;color:var(--rind);}
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--sage);
+    opacity:.8;
+    font-size:13px;
+    line-height:1.7;
+  }
+  .empty .big{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
+
+  .loading{text-align:center;padding:40px;font-size:12px;color:var(--sage);}
+
+  .load-error{
+    background:#f6e6d9;border:1px solid var(--rind);color:var(--ink);
+    padding:14px 16px;border-radius:3px;font-size:12px;margin-bottom:16px;
+    display:none;
+  }
+  .load-error button{
+    font-family:inherit;font-size:11px;margin-left:8px;cursor:pointer;
+    border:1px solid var(--ink);background:transparent;padding:4px 8px;border-radius:2px;
+  }
+
+  ::placeholder{color:var(--sage);opacity:.4;}
+
+  .lightbox{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(20,16,8,.88);
+    z-index:100;
+    align-items:flex-start;justify-content:center;
+    overflow-y:auto;
+    padding:40px 16px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    padding:24px;
+    position:relative;
+    border:1px solid var(--line);
+  }
+  .lightbox-close{
+    position:absolute;top:12px;right:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:13px;
+    color:var(--sage);cursor:pointer;
+  }
+  .lightbox-close:hover{color:var(--rind);}
+  .lightbox-photo{
+    width:100%;max-height:320px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    margin-bottom:16px;cursor:zoom-in;
+    display:none;
+  }
+  .lightbox-photo.on{display:block;}
+  .lightbox-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;font-size:26px;margin-bottom:2px;
+  }
+  .lightbox-name a{color:inherit;}
+  .lightbox-meta{
+    font-size:11px;color:var(--sage);opacity:.9;
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+  }
+  .lightbox-meta a{color:var(--rind);text-decoration:none;border-bottom:1px solid var(--line);}
+  .lightbox-fields{margin-bottom:14px;}
+  .lightbox-fields .row{
+    display:flex;gap:8px;font-size:12px;padding:5px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .lightbox-fields .lbl{
+    color:var(--rind);letter-spacing:.08em;text-transform:uppercase;
+    font-size:10px;flex:none;width:110px;padding-top:2px;
+  }
+  .lightbox-comment .lbl{
+    color:var(--rind);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;display:block;margin-bottom:4px;
+  }
+  .lightbox-comment{font-size:13px;line-height:1.55;white-space:pre-wrap;}
+
+  .photo-zoom{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.92);
+    z-index:200;
+    align-items:center;justify-content:center;
+    padding:20px;
+    cursor:zoom-out;
+  }
+  .photo-zoom.open{display:flex;}
+  .photo-zoom img{max-width:100%;max-height:100%;object-fit:contain;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Warehouse &middot; Est. In Practice</div>
+    <h1>Cheese</h1>
+    <div class="sub">a running record of wheels, wedges, and rinds</div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="toolbar">
+    <span class="count" id="count">loading&hellip;</span>
+    <button class="newbtn" id="toggleForm">+ New Cheese</button>
+  </div>
+
+  <div class="load-error" id="loadErrorState">
+    <span class="msg"></span>
+    <button id="retryLoadBtn">Retry</button>
+  </div>
+
+  <div class="ticket" id="ticket">
+    <div class="row2">
+      <div class="field">
+        <label>Name</label>
+        <input id="f-name" type="text" placeholder="Époisses de Bourgogne">
+      </div>
+      <div class="field">
+        <label>Name link (optional)</label>
+        <input id="f-nameUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Picture</label>
+      <div class="photo-picker">
+        <img class="photo-preview" id="photoPreview" alt="">
+        <input type="file" id="f-photo" accept="image/*">
+        <button type="button" class="photo-remove" id="photoRemoveBtn">remove</button>
+      </div>
+      <div class="field-hint">A single photo of the wheel, wedge, or label.</div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Producer</label>
+        <input id="f-producer" type="text" placeholder="Fromagerie Berthaut">
+      </div>
+      <div class="field">
+        <label>Producer link (optional)</label>
+        <input id="f-producerUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Cheesemonger</label>
+        <input id="f-cheesemonger" type="text" placeholder="Bedford Cheese Shop">
+      </div>
+      <div class="field">
+        <label>Cheesemonger link (optional)</label>
+        <input id="f-cheesemongerUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Milk Type</label>
+        <select id="f-milk">
+          <option value="">&mdash;</option>
+          <option>Cow</option>
+          <option>Goat</option>
+          <option>Sheep</option>
+          <option>Buffalo</option>
+          <option>Mixed</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Age</label>
+        <input id="f-age" type="text" placeholder="6 weeks / 18 months">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>State / Region</label>
+        <input id="f-region" type="text" placeholder="Burgundy">
+      </div>
+      <div class="field">
+        <label>Country</label>
+        <input id="f-country" type="text" placeholder="France">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Comment</label>
+      <textarea id="f-comment" placeholder="Tasting notes, pairing, where it was had&hellip;"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save Cheese</button>
+    </div>
+  </div>
+
+  <div id="entries" class="loading">loading&hellip;</div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
+    <img class="lightbox-photo" id="lb-photo" src="" alt="">
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-fields" id="lb-fields"></div>
+    <div class="lightbox-comment" id="lb-comment-wrap" style="display:none;">
+      <span class="lbl">Comment</span><span id="lb-comment"></span>
+    </div>
+  </div>
+</div>
+
+<div class="photo-zoom" id="photoZoom">
+  <img id="photoZoomImg" src="" alt="">
+</div>
+
+<script>
+let entries = [];
+let editingId = null;
+let currentPhoto = null; // data URL of the photo attached to the entry currently being edited
+
+const $ = (id) => document.getElementById(id);
+
+// Supabase-backed storage, shared with the rest of Warehouse, so entries
+// sync across devices instead of being trapped in one browser. Falls back
+// to localStorage if Supabase can't be reached, and to Claude's
+// window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+let supabaseInitError = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    supabaseInitError = 'Supabase library did not load — running on this browser only until the page is refreshed with a connection.';
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+let currentUser = null;
+
+function renderAuthControl(){
+  const el = document.getElementById('authControl');
+  if(!supabaseClient){
+    el.innerHTML = '';
+    return;
+  }
+  if(currentUser){
+    el.innerHTML = `
+      <span>${currentUser.email}</span>
+      <button id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+    });
+  } else {
+    el.innerHTML = `
+      <form id="signInForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <span class="auth-error" id="authError"></span>`;
+    document.getElementById('signInForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+    });
+  }
+}
+
+function applyAuthGating(){
+  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local/artifact mode)
+  const newBtn = document.getElementById('toggleForm');
+  if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.entry-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
+}
+
+if(supabaseClient){
+  supabaseClient.auth.getSession().then(({data})=>{
+    currentUser = data.session ? data.session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session ? session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+} else {
+  renderAuthControl();
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+
+// Only allow http(s) URLs through as href values — guards against
+// javascript: or other schemes sneaking into a link field.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
+function linkOrText(text, url){
+  const t = escapeHtml(text || '');
+  if(!t) return '';
+  const href = safeUrl(url);
+  return href
+    ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${t}</a>`
+    : t;
+}
+
+function setLoadError(message){
+  const el = document.getElementById('loadErrorState');
+  if(!el) return;
+  if(message){
+    el.style.display = 'block';
+    el.querySelector('.msg').textContent = message;
+  }else{
+    el.style.display = 'none';
+  }
+}
+
+function render(){
+  const wrap = $('entries');
+  $('count').textContent = entries.length === 0 ? 'no cheeses yet' :
+    entries.length + (entries.length === 1 ? ' cheese logged' : ' cheeses logged');
+
+  if(entries.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">The board is empty.</span>Log the first cheese.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  const sorted = [...entries].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  wrap.innerHTML = sorted.map(e => {
+    const metaBits = [];
+    if(e.producer) metaBits.push(linkOrText(e.producer, e.producerUrl));
+    if(e.cheesemonger) metaBits.push(linkOrText(e.cheesemonger, e.cheesemongerUrl));
+    if(e.milkType) metaBits.push(escapeHtml(e.milkType));
+    if(e.age) metaBits.push(escapeHtml(e.age));
+    const place = [e.region, e.country].filter(Boolean).join(', ');
+    if(place) metaBits.push(escapeHtml(place));
+
+    return `
+    <div class="entry" data-id="${e.id}">
+      <div class="entry-actions">
+        <button class="editBtn">edit</button>
+        <button class="delBtn">delete</button>
+      </div>
+      ${e.photo
+        ? `<img class="entry-thumb" src="${e.photo}" alt="">`
+        : `<div class="entry-thumb empty">c</div>`}
+      <div class="entry-body">
+        <div class="entry-top">
+          <div>
+            <div class="entry-name">${linkOrText(e.name || 'Untitled', e.nameUrl) || 'Untitled'}</div>
+            ${metaBits.length ? `<div class="entry-meta">${metaBits.map(m=>`<span>${m}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        ${e.comment ? `<div class="entry-comment">${escapeHtml(e.comment)}</div>` : ''}
+      </div>
+    </div>
+  `;}).join('');
+
+  wrap.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      openForEdit(id);
+    });
+  });
+  wrap.querySelectorAll('.delBtn').forEach(btn=>{
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      if(confirm('Remove this cheese?')){
+        await deleteEntry(id);
+      }
+    });
+  });
+  wrap.querySelectorAll('.entry').forEach(card=>{
+    card.addEventListener('click', e => {
+      openLightbox(card.dataset.id);
+    });
+  });
+  applyAuthGating();
+}
+
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+
+  const photoEl = $('lb-photo');
+  if(e.photo){
+    photoEl.src = e.photo;
+    photoEl.classList.add('on');
+  } else {
+    photoEl.classList.remove('on');
+    photoEl.src = '';
+  }
+
+  $('lb-name').innerHTML = linkOrText(e.name || 'Untitled', e.nameUrl) || 'Untitled';
+
+  const rows = [];
+  if(e.producer) rows.push(['Producer', linkOrText(e.producer, e.producerUrl)]);
+  if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
+  if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
+  if(e.age) rows.push(['Age', escapeHtml(e.age)]);
+  const place = [e.region, e.country].filter(Boolean).join(', ');
+  if(place) rows.push(['Region', escapeHtml(place)]);
+
+  $('lb-fields').innerHTML = rows.map(([label, val]) =>
+    `<div class="row"><span class="lbl">${label}</span><span>${val}</span></div>`
+  ).join('');
+
+  if(e.comment){
+    $('lb-comment-wrap').style.display = 'block';
+    $('lb-comment').textContent = e.comment;
+  } else {
+    $('lb-comment-wrap').style.display = 'none';
+  }
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+}
+
+function openPhotoZoom(src){
+  $('photoZoomImg').src = src;
+  $('photoZoom').classList.add('open');
+}
+function closePhotoZoom(){
+  $('photoZoom').classList.remove('open');
+  $('photoZoomImg').src = '';
+}
+
+$('lb-photo').addEventListener('click', e => {
+  e.stopPropagation();
+  if(e.target.src) openPhotoZoom(e.target.src);
+});
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+$('photoZoom').addEventListener('click', closePhotoZoom);
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    closePhotoZoom();
+    closeLightbox();
+  }
+});
+
+function resetForm(){
+  $('f-name').value='';
+  $('f-nameUrl').value='';
+  $('f-producer').value='';
+  $('f-producerUrl').value='';
+  $('f-cheesemonger').value='';
+  $('f-cheesemongerUrl').value='';
+  $('f-milk').value='';
+  $('f-age').value='';
+  $('f-region').value='';
+  $('f-country').value='';
+  $('f-comment').value='';
+  $('f-photo').value='';
+  currentPhoto = null;
+  renderPhotoPreview();
+  editingId = null;
+}
+
+function renderPhotoPreview(){
+  const img = $('photoPreview');
+  const rm = $('photoRemoveBtn');
+  if(currentPhoto){
+    img.src = currentPhoto;
+    img.classList.add('on');
+    rm.classList.add('on');
+  } else {
+    img.src = '';
+    img.classList.remove('on');
+    rm.classList.remove('on');
+  }
+}
+
+// Resize/compress to a reasonable web size before storing as base64 —
+// keeps entries light and quick to load across the collection.
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+$('f-photo').addEventListener('change', async () => {
+  const file = $('f-photo').files[0];
+  if(!file) return;
+  try{
+    currentPhoto = await resizeImage(file, 1000, 0.72);
+    renderPhotoPreview();
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+  }
+});
+$('photoRemoveBtn').addEventListener('click', () => {
+  currentPhoto = null;
+  $('f-photo').value = '';
+  renderPhotoPreview();
+});
+
+function openForEdit(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  $('f-name').value = e.name || '';
+  $('f-nameUrl').value = e.nameUrl || '';
+  $('f-producer').value = e.producer || '';
+  $('f-producerUrl').value = e.producerUrl || '';
+  $('f-cheesemonger').value = e.cheesemonger || '';
+  $('f-cheesemongerUrl').value = e.cheesemongerUrl || '';
+  $('f-milk').value = e.milkType || '';
+  $('f-age').value = e.age || '';
+  $('f-region').value = e.region || '';
+  $('f-country').value = e.country || '';
+  $('f-comment').value = e.comment || '';
+  currentPhoto = e.photo || null;
+  renderPhotoPreview();
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function loadEntries(){
+  try{
+    const result = await storage.list('cheese:');
+    if(!result || !result.keys || result.keys.length === 0){
+      entries = [];
+      setLoadError(supabaseInitError);
+      render();
+      return;
+    }
+    const loaded = [];
+    for(const key of result.keys){
+      try{
+        const r = await storage.get(key);
+        if(r && r.value){
+          loaded.push(JSON.parse(r.value));
+        }
+      }catch(err){ /* skip missing */ }
+    }
+    entries = loaded;
+    setLoadError(supabaseInitError);
+  }catch(err){
+    console.error('Cheese Collection: failed to load entries', err);
+    setLoadError(supabaseInitError ||
+      `Couldn't load your entries (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
+  }
+  render();
+}
+$('retryLoadBtn').addEventListener('click', loadEntries);
+
+async function saveEntry(){
+  const name = $('f-name').value.trim();
+  if(!name){
+    $('f-name').focus();
+    return;
+  }
+  const id = editingId || ('c' + Date.now() + Math.random().toString(36).slice(2,7));
+  const entry = {
+    id,
+    name,
+    nameUrl: $('f-nameUrl').value.trim(),
+    photo: currentPhoto,
+    producer: $('f-producer').value.trim(),
+    producerUrl: $('f-producerUrl').value.trim(),
+    cheesemonger: $('f-cheesemonger').value.trim(),
+    cheesemongerUrl: $('f-cheesemongerUrl').value.trim(),
+    milkType: $('f-milk').value,
+    age: $('f-age').value.trim(),
+    region: $('f-region').value.trim(),
+    country: $('f-country').value.trim(),
+    comment: $('f-comment').value.trim()
+  };
+  try{
+    await storage.set('cheese:' + id, JSON.stringify(entry));
+    if(editingId){
+      const idx = entries.findIndex(e=>e.id===id);
+      if(idx>-1) entries[idx] = entry; else entries.push(entry);
+    } else {
+      entries.push(entry);
+    }
+    render();
+    closeForm();
+  }catch(err){
+    console.error(err);
+    alert('Could not save entry. Please try again.');
+  }
+}
+
+async function deleteEntry(id){
+  try{
+    await storage.delete('cheese:' + id);
+    entries = entries.filter(e=>e.id!==id);
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Could not delete entry. Please try again.');
+  }
+}
+
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
+}
+
+$('toggleForm').addEventListener('click', () => {
+  const t = $('ticket');
+  if(t.classList.contains('open')){
+    closeForm();
+  } else {
+    resetForm();
+    t.classList.add('open');
+    t.scrollIntoView({behavior:'smooth', block:'start'});
+    $('f-name').focus();
+  }
+});
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEntry);
+
+loadEntries();
+</script>
+</body>
+</html>
