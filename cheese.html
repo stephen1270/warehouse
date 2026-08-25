@@ -986,6 +986,10 @@ async function runAutofill(){
       $('f-milk').value = data.milkType;
       filled.push('f-milk');
     }
+    if(data.wrapped && !$('f-wrapped').value){
+      $('f-wrapped').value = data.wrapped;
+      filled.push('f-wrapped');
+    }
     fillIfEmpty('f-comment', data.comment);
     if(data.photo && currentPhotos.length === 0){
       try{
@@ -1090,6 +1094,10 @@ async function refreshFromCheesemonger(){
     if(data.milkType && !$('f-milk').value){
       $('f-milk').value = data.milkType;
       added.push('f-milk');
+    }
+    if(data.wrapped && !$('f-wrapped').value){
+      $('f-wrapped').value = data.wrapped;
+      added.push('f-wrapped');
     }
 
     // Quote status is reported separately from "other fields filled" so a
