@@ -842,8 +842,10 @@ async function runAutofill(){
       }
     };
     fillIfEmpty('f-name', data.name);
-    fillIfEmpty('f-nameUrl', data.sourceUrl);
     fillIfEmpty('f-producer', data.producer);
+    fillIfEmpty('f-producerUrl', data.producerUrl);
+    fillIfEmpty('f-cheesemonger', data.cheesemonger);
+    fillIfEmpty('f-cheesemongerUrl', data.cheesemongerUrl);
     fillIfEmpty('f-age', data.age);
     if(data.country && !$('f-country').value.trim()){
       $('f-country').value = data.country;
