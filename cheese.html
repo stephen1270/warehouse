@@ -177,6 +177,14 @@
   #autofillStatus.err{color:var(--rind);}
   #autofillStatus.ok{color:var(--sage);}
 
+  .refresh-link{
+    font-family:inherit;font-size:10px;color:var(--sage);
+    background:none;border:none;cursor:pointer;text-decoration:underline;
+    padding:0;margin-top:4px;
+  }
+  .refresh-link:hover{color:var(--rind);}
+  .refresh-link:disabled{opacity:.5;cursor:default;text-decoration:none;}
+
   /* photo gallery picker */
   .gallery{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
   .gallery .thumb{
@@ -452,6 +460,8 @@
       <div class="field">
         <label>Cheesemonger link (optional)</label>
         <input id="f-cheesemongerUrl" type="url" placeholder="https://&hellip;">
+        <button type="button" id="cheesemongerRefreshBtn" class="refresh-link">&#8635; Pull comments from this link</button>
+        <div class="field-hint" id="cheesemongerRefreshStatus"></div>
       </div>
     </div>
 
@@ -986,6 +996,100 @@ async function runAutofill(){
 
 $('autofillBtn').addEventListener('click', runAutofill);
 
+// --- Refresh from Cheesemonger link: for when the Cheesemonger link is
+// entered or corrected AFTER the initial autofill (or entered by hand with
+// no autofill at all). Unlike the main autofill, this doesn't skip fields
+// that already have a value — the whole point is to pull whatever's new
+// from that specific page, especially a pull-quote, and APPEND it to
+// Comment rather than silently drop it because Comment isn't empty. ---
+async function refreshFromCheesemonger(){
+  const url = $('f-cheesemongerUrl').value.trim();
+  const statusEl = $('cheesemongerRefreshStatus');
+  if(!url){
+    statusEl.textContent = 'Add a Cheesemonger link first.';
+    statusEl.className = 'field-hint err';
+    return;
+  }
+  const btn = $('cheesemongerRefreshBtn');
+  btn.disabled = true;
+  statusEl.textContent = 'Fetching…';
+  statusEl.className = 'field-hint';
+
+  let data;
+  try{
+    const res = await fetch(AUTOFILL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ url })
+    });
+    data = await res.json();
+    if(!res.ok || !data.ok){
+      statusEl.textContent = data.error || `Could not fetch that page (HTTP ${res.status}).`;
+      statusEl.className = 'field-hint err';
+      btn.disabled = false;
+      return;
+    }
+  }catch(err){
+    console.error('Cheesemonger refresh fetch failed', err);
+    statusEl.textContent = 'Request failed — check the link and try again.';
+    statusEl.className = 'field-hint err';
+    btn.disabled = false;
+    return;
+  }
+
+  try{
+    const added = [];
+
+    // The quote is the main point of this button — append it even though
+    // Comment likely already has content, with simple dedup so clicking
+    // twice doesn't paste the same quote in twice.
+    if(data.quote){
+      const quoteLine = `\u201C${data.quote}\u201D \u2014 ${data.quoteAttribution || $('f-cheesemonger').value.trim() || 'source site'}`;
+      const existing = $('f-comment').value;
+      if(!existing.includes(data.quote)){
+        $('f-comment').value = existing ? `${existing}\n\n${quoteLine}` : quoteLine;
+        added.push('a quote');
+      }
+    }
+
+    // Anything else this page reveals that's still blank is fair game too,
+    // same fill-blanks-only behavior as the main autofill.
+    const fillIfEmpty = (id, value) => {
+      if(value && !$(id).value.trim()){
+        $(id).value = value;
+        added.push(id);
+      }
+    };
+    fillIfEmpty('f-cheesemaker', data.cheesemaker);
+    fillIfEmpty('f-age', data.age);
+    fillIfEmpty('f-region', data.region);
+    if(data.country && !$('f-country').value.trim()){
+      $('f-country').value = data.country;
+      added.push('f-country');
+    }
+    if(data.milkType && !$('f-milk').value){
+      $('f-milk').value = data.milkType;
+      added.push('f-milk');
+    }
+
+    statusEl.textContent = added.length
+      ? `Added ${added.length} thing${added.length>1?'s':''} from this page.`
+      : 'Fetched the page, but found nothing new (no quote found, and everything else was already filled).';
+    statusEl.className = 'field-hint' + (added.length ? ' ok' : '');
+  }catch(err){
+    console.error('Cheesemonger refresh apply failed', err);
+    statusEl.textContent = 'Fetched the page, but hit a problem applying it — check the browser console.';
+    statusEl.className = 'field-hint err';
+  }finally{
+    btn.disabled = false;
+  }
+}
+$('cheesemongerRefreshBtn').addEventListener('click', refreshFromCheesemonger);
+
 // Custom autocomplete dropdown for Cheesemonger (replaces native <datalist>,
 // which iOS Safari handles unreliably). Shows every known cheesemonger on
 // focus, filters as you type, still accepts any free-text value so a new
@@ -1040,6 +1144,7 @@ function resetForm(){
   $('f-cheesemaker').value='';
   $('f-cheesemonger').value='';
   $('f-cheesemongerUrl').value='';
+  $('cheesemongerRefreshStatus').textContent = '';
   $('f-milk').value='';
   $('f-age').value='';
   $('f-region').value='';
