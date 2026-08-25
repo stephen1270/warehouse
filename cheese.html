@@ -118,7 +118,7 @@
   .ticket::before{top:-6px;transform:rotate(180deg);}
   .ticket::after{bottom:-6px;}
 
-  .field{margin-bottom:14px;}
+  .field{margin-bottom:14px;position:relative;}
   .field label{
     display:block;
     font-size:10px;
@@ -145,6 +145,19 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .field-hint{font-size:10px;color:var(--sage);opacity:.8;margin-top:4px;}
 
+  .autocomplete-list{
+    position:absolute;top:100%;left:0;right:0;z-index:20;
+    background:var(--paper);border:1px solid var(--ink);border-top:none;
+    max-height:160px;overflow-y:auto;display:none;
+  }
+  .autocomplete-list.open{display:block;}
+  .autocomplete-list div{
+    padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .autocomplete-list div:hover, .autocomplete-list div.active{
+    background:var(--paper-dark);
+  }
+
   .autofill-field{
     background:var(--paper-dark);
     border:1px dashed var(--line);
@@ -164,20 +177,33 @@
   #autofillStatus.err{color:var(--rind);}
   #autofillStatus.ok{color:var(--sage);}
 
-  /* photo picker */
-  .photo-picker{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-  .photo-preview{
-    width:72px;height:72px;object-fit:cover;
-    border:1px solid var(--line);border-radius:2px;
-    display:none;
+  /* photo gallery picker */
+  .gallery{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .gallery .thumb{
+    position:relative;width:72px;height:72px;
+    border-radius:2px;overflow:hidden;
+    border:1px solid var(--line);
   }
-  .photo-preview.on{display:block;}
-  .photo-remove{
-    font-family:inherit;font-size:11px;color:var(--sage);
-    background:none;border:none;cursor:pointer;text-decoration:underline;
-    display:none;
+  .gallery .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .gallery .thumb .rm{
+    position:absolute;top:2px;right:2px;
+    width:18px;height:18px;border-radius:50%;
+    background:rgba(43,36,22,0.75);color:var(--paper);
+    border:none;font-size:11px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;
   }
-  .photo-remove.on{display:inline;}
+  .gallery .addtile{
+    width:72px;height:72px;
+    border:1px dashed var(--line);
+    border-radius:2px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--sage);
+    font-size:1.4rem;
+    cursor:pointer;
+    background:var(--paper-dark);
+  }
+  #f-photos{display:none;}
 
   .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
   .form-actions button{
@@ -227,8 +253,6 @@
     font-style:italic;
     font-size:22px;
   }
-  .entry-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--rind);}
-  .entry-name a:hover{color:var(--rind);}
   .entry-meta{
     font-size:11px;
     color:var(--sage);
@@ -310,13 +334,16 @@
     color:var(--sage);cursor:pointer;
   }
   .lightbox-close:hover{color:var(--rind);}
-  .lightbox-photo{
-    width:100%;max-height:320px;object-fit:cover;
-    border:1px solid var(--line);border-radius:2px;
-    margin-bottom:16px;cursor:zoom-in;
-    display:none;
+  .lightbox-photos{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:8px;margin-bottom:18px;
   }
-  .lightbox-photo.on{display:block;}
+  .lightbox-photos img{
+    width:100%;height:140px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    cursor:zoom-in;
+  }
   .lightbox-name{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-style:italic;font-size:26px;margin-bottom:2px;
@@ -385,25 +412,18 @@
       <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
     </div>
 
-    <div class="row2">
-      <div class="field">
-        <label>Name</label>
-        <input id="f-name" type="text" placeholder="Époisses de Bourgogne">
-      </div>
-      <div class="field">
-        <label>Name link (optional)</label>
-        <input id="f-nameUrl" type="url" placeholder="https://&hellip;">
-      </div>
+    <div class="field">
+      <label>Name</label>
+      <input id="f-name" type="text" placeholder="Époisses de Bourgogne">
     </div>
 
     <div class="field">
-      <label>Picture</label>
-      <div class="photo-picker">
-        <img class="photo-preview" id="photoPreview" alt="">
-        <input type="file" id="f-photo" accept="image/*">
-        <button type="button" class="photo-remove" id="photoRemoveBtn">remove</button>
+      <label>Pictures</label>
+      <div class="gallery" id="galleryWrap">
+        <div class="addtile" id="addPhotoTile">+</div>
       </div>
-      <div class="field-hint">A single photo of the wheel, wedge, or label.</div>
+      <input type="file" id="f-photos" accept="image/*" multiple>
+      <div class="field-hint" id="photoHint">Add one or more photos of the wheel, wedge, or label.</div>
     </div>
 
     <div class="row2">
@@ -420,7 +440,8 @@
     <div class="row2">
       <div class="field">
         <label>Cheesemonger</label>
-        <input id="f-cheesemonger" type="text" placeholder="Bedford Cheese Shop">
+        <input id="f-cheesemonger" type="text" placeholder="Bedford Cheese Shop" autocomplete="off">
+        <div class="autocomplete-list" id="f-cheesemonger-options"></div>
       </div>
       <div class="field">
         <label>Cheesemonger link (optional)</label>
@@ -458,6 +479,22 @@
       </div>
     </div>
 
+    <div class="row2">
+      <div class="field">
+        <label>Restaurant</label>
+        <input id="f-restaurant" type="text" placeholder="Le Bernardin">
+      </div>
+      <div class="field">
+        <label>Restaurant link (optional)</label>
+        <input id="f-restaurantUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Date</label>
+      <input id="f-date" type="date">
+    </div>
+
     <div class="field">
       <label>Comment</label>
       <textarea id="f-comment" placeholder="Tasting notes, pairing, where it was had&hellip;"></textarea>
@@ -475,7 +512,7 @@
 <div class="lightbox" id="lightbox">
   <div class="lightbox-card">
     <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
-    <img class="lightbox-photo" id="lb-photo" src="" alt="">
+    <div class="lightbox-photos" id="lb-photos"></div>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-fields" id="lb-fields"></div>
     <div class="lightbox-comment" id="lb-comment-wrap" style="display:none;">
@@ -491,9 +528,17 @@
 <script>
 let entries = [];
 let editingId = null;
-let currentPhoto = null; // data URL of the photo attached to the entry currently being edited
+let currentPhotos = []; // data URLs of the photos attached to the entry currently being edited
 
 const $ = (id) => document.getElementById(id);
+
+// Reads an entry's photos array, falling back to the old singular `photo`
+// field so entries saved before multi-photo support still display fine.
+function entryPhotos(e){
+  if(e.photos && e.photos.length) return e.photos;
+  if(e.photo) return [e.photo];
+  return [];
+}
 
 // Supabase-backed storage, shared with the rest of Warehouse, so entries
 // sync across devices instead of being trapped in one browser. Falls back
@@ -660,6 +705,13 @@ function setLoadError(message){
   }
 }
 
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
 function render(){
   const wrap = $('entries');
   $('count').textContent = entries.length === 0 ? 'no cheeses yet' :
@@ -681,6 +733,8 @@ function render(){
     if(e.age) metaBits.push(escapeHtml(e.age));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
+    if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
+    if(e.date) metaBits.push(fmtDate(e.date));
 
     return `
     <div class="entry" data-id="${e.id}">
@@ -688,13 +742,13 @@ function render(){
         <button class="editBtn">edit</button>
         <button class="delBtn">delete</button>
       </div>
-      ${e.photo
-        ? `<img class="entry-thumb" src="${e.photo}" alt="">`
+      ${entryPhotos(e).length
+        ? `<img class="entry-thumb" src="${entryPhotos(e)[0]}" alt="">`
         : `<div class="entry-thumb empty">c</div>`}
       <div class="entry-body">
         <div class="entry-top">
           <div>
-            <div class="entry-name">${linkOrText(e.name || 'Untitled', e.nameUrl) || 'Untitled'}</div>
+            <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
             ${metaBits.length ? `<div class="entry-meta">${metaBits.map(m=>`<span>${m}</span>`).join('')}</div>` : ''}
           </div>
         </div>
@@ -724,11 +778,12 @@ function render(){
       openLightbox(card.dataset.id);
     });
   });
-  wrap.querySelectorAll('.entry-name a, .entry-meta a').forEach(a=>{
-    // Let a Name/Producer/Cheesemonger link just navigate on its own,
+  wrap.querySelectorAll('.entry-meta a').forEach(a=>{
+    // Let a Producer/Cheesemonger/Restaurant link just navigate on its own,
     // instead of also popping the detail lightbox open behind it.
     a.addEventListener('click', e => e.stopPropagation());
   });
+  refreshCheesemongerOptions();
   applyAuthGating();
 }
 
@@ -736,16 +791,17 @@ function openLightbox(id){
   const e = entries.find(x => x.id === id);
   if(!e) return;
 
-  const photoEl = $('lb-photo');
-  if(e.photo){
-    photoEl.src = e.photo;
-    photoEl.classList.add('on');
-  } else {
-    photoEl.classList.remove('on');
-    photoEl.src = '';
-  }
+  const photos = entryPhotos(e);
+  const photosEl = $('lb-photos');
+  photosEl.innerHTML = photos.map(src => `<img src="${src}" alt="">`).join('');
+  photosEl.querySelectorAll('img').forEach(img=>{
+    img.addEventListener('click', ev => {
+      ev.stopPropagation();
+      openPhotoZoom(img.src);
+    });
+  });
 
-  $('lb-name').innerHTML = linkOrText(e.name || 'Untitled', e.nameUrl) || 'Untitled';
+  $('lb-name').textContent = e.name || 'Untitled';
 
   const rows = [];
   if(e.producer) rows.push(['Producer', linkOrText(e.producer, e.producerUrl)]);
@@ -754,6 +810,8 @@ function openLightbox(id){
   if(e.age) rows.push(['Age', escapeHtml(e.age)]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
+  if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
+  if(e.date) rows.push(['Date', escapeHtml(fmtDate(e.date))]);
 
   $('lb-fields').innerHTML = rows.map(([label, val]) =>
     `<div class="row"><span class="lbl">${label}</span><span>${val}</span></div>`
@@ -782,10 +840,6 @@ function closePhotoZoom(){
   $('photoZoomImg').src = '';
 }
 
-$('lb-photo').addEventListener('click', e => {
-  e.stopPropagation();
-  if(e.target.src) openPhotoZoom(e.target.src);
-});
 $('lightboxClose').addEventListener('click', e => {
   e.stopPropagation();
   closeLightbox();
@@ -861,9 +915,9 @@ async function runAutofill(){
       filled.push('f-milk');
     }
     fillIfEmpty('f-comment', data.comment);
-    if(data.photo && !currentPhoto){
-      currentPhoto = data.photo;
-      renderPhotoPreview();
+    if(data.photo && currentPhotos.length === 0){
+      currentPhotos.push(data.photo);
+      renderGallery();
       filled.push('picture');
     }
 
@@ -882,11 +936,55 @@ async function runAutofill(){
 
 $('autofillBtn').addEventListener('click', runAutofill);
 
+// Custom autocomplete dropdown for Cheesemonger (replaces native <datalist>,
+// which iOS Safari handles unreliably). Shows every known cheesemonger on
+// focus, filters as you type, still accepts any free-text value so a new
+// cheesemonger isn't blocked.
+function allCheesemongers(){
+  return [...new Set(entries.map(e=>e.cheesemonger).filter(Boolean))].sort();
+}
+function refreshCheesemongerOptions(){
+  const el = $('f-cheesemonger-options');
+  if(el) el.dataset.options = JSON.stringify(allCheesemongers());
+}
+function setupAutocomplete(inputId, listId){
+  const input = $(inputId);
+  const list = $(listId);
+
+  function optionsFor(){
+    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
+  }
+  function renderList(opts){
+    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
+    list.innerHTML = opts.map(o=>`<div data-val="${escapeHtml(o)}">${escapeHtml(o)}</div>`).join('');
+    list.classList.add('open');
+  }
+  function showAll(){
+    renderList(optionsFor());
+    input.select();
+  }
+  function showFiltered(){
+    const q = input.value.trim().toLowerCase();
+    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
+  }
+  function hide(){ list.classList.remove('open'); }
+
+  input.addEventListener('focus', showAll);
+  input.addEventListener('input', showFiltered);
+  input.addEventListener('blur', ()=> setTimeout(hide, 150));
+  list.addEventListener('mousedown', (e)=>{
+    const opt = e.target.closest('[data-val]');
+    if(!opt) return;
+    input.value = opt.dataset.val;
+    hide();
+  });
+}
+setupAutocomplete('f-cheesemonger', 'f-cheesemonger-options');
+
 function resetForm(){
   $('f-autofillUrl').value='';
   setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
   $('f-name').value='';
-  $('f-nameUrl').value='';
   $('f-producer').value='';
   $('f-producerUrl').value='';
   $('f-cheesemonger').value='';
@@ -895,25 +993,34 @@ function resetForm(){
   $('f-age').value='';
   $('f-region').value='';
   $('f-country').value='';
+  $('f-restaurant').value='';
+  $('f-restaurantUrl').value='';
+  $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-comment').value='';
-  $('f-photo').value='';
-  currentPhoto = null;
-  renderPhotoPreview();
+  $('f-photos').value='';
+  currentPhotos = [];
+  renderGallery();
   editingId = null;
 }
 
-function renderPhotoPreview(){
-  const img = $('photoPreview');
-  const rm = $('photoRemoveBtn');
-  if(currentPhoto){
-    img.src = currentPhoto;
-    img.classList.add('on');
-    rm.classList.add('on');
-  } else {
-    img.src = '';
-    img.classList.remove('on');
-    rm.classList.remove('on');
-  }
+function renderGallery(){
+  const wrap = $('galleryWrap');
+  wrap.querySelectorAll('.thumb').forEach(el=>el.remove());
+  currentPhotos.forEach((src, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${src}"><button type="button" class="rm" data-idx="${idx}">&times;</button>`;
+    wrap.insertBefore(div, $('addPhotoTile'));
+  });
+  wrap.querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentPhotos.splice(Number(btn.dataset.idx), 1);
+      renderGallery();
+    });
+  });
+  $('photoHint').textContent = currentPhotos.length
+    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached`
+    : 'Add one or more photos of the wheel, wedge, or label.';
 }
 
 // Resize/compress to a reasonable web size before storing as base64 —
@@ -940,21 +1047,20 @@ function resizeImage(file, maxDim, quality){
   });
 }
 
-$('f-photo').addEventListener('change', async () => {
-  const file = $('f-photo').files[0];
-  if(!file) return;
-  try{
-    currentPhoto = await resizeImage(file, 1000, 0.72);
-    renderPhotoPreview();
-  }catch(err){
-    console.error('Could not process photo', err);
-    alert('Could not read that photo — please try another.');
+$('addPhotoTile').addEventListener('click', () => $('f-photos').click());
+$('f-photos').addEventListener('change', async () => {
+  const files = Array.from($('f-photos').files || []);
+  if(!files.length) return;
+  $('photoHint').textContent = 'Processing photos…';
+  for(const file of files){
+    try{
+      currentPhotos.push(await resizeImage(file, 1000, 0.72));
+    }catch(err){
+      console.error('Could not process photo', err);
+    }
   }
-});
-$('photoRemoveBtn').addEventListener('click', () => {
-  currentPhoto = null;
-  $('f-photo').value = '';
-  renderPhotoPreview();
+  $('f-photos').value = '';
+  renderGallery();
 });
 
 function openForEdit(id){
@@ -962,7 +1068,6 @@ function openForEdit(id){
   if(!e) return;
   editingId = id;
   $('f-name').value = e.name || '';
-  $('f-nameUrl').value = e.nameUrl || '';
   $('f-producer').value = e.producer || '';
   $('f-producerUrl').value = e.producerUrl || '';
   $('f-cheesemonger').value = e.cheesemonger || '';
@@ -971,9 +1076,12 @@ function openForEdit(id){
   $('f-age').value = e.age || '';
   $('f-region').value = e.region || '';
   $('f-country').value = e.country || '';
+  $('f-restaurant').value = e.restaurant || '';
+  $('f-restaurantUrl').value = e.restaurantUrl || '';
+  $('f-date').value = e.date || '';
   $('f-comment').value = e.comment || '';
-  currentPhoto = e.photo || null;
-  renderPhotoPreview();
+  currentPhotos = entryPhotos(e).slice();
+  renderGallery();
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -1017,8 +1125,7 @@ async function saveEntry(){
   const entry = {
     id,
     name,
-    nameUrl: $('f-nameUrl').value.trim(),
-    photo: currentPhoto,
+    photos: currentPhotos,
     producer: $('f-producer').value.trim(),
     producerUrl: $('f-producerUrl').value.trim(),
     cheesemonger: $('f-cheesemonger').value.trim(),
@@ -1027,6 +1134,9 @@ async function saveEntry(){
     age: $('f-age').value.trim(),
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
+    restaurant: $('f-restaurant').value.trim(),
+    restaurantUrl: $('f-restaurantUrl').value.trim(),
+    date: $('f-date').value,
     comment: $('f-comment').value.trim()
   };
   try{
