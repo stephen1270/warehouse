@@ -438,6 +438,11 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Cheesemaker</label>
+      <input id="f-cheesemaker" type="text" placeholder="Veronica Pedraza">
+    </div>
+
     <div class="row2">
       <div class="field">
         <label>Cheesemonger</label>
@@ -729,6 +734,7 @@ function render(){
   wrap.innerHTML = sorted.map(e => {
     const metaBits = [];
     if(e.producer) metaBits.push(linkOrText(e.producer, e.producerUrl));
+    if(e.cheesemaker) metaBits.push(escapeHtml(e.cheesemaker));
     if(e.cheesemonger) metaBits.push(linkOrText(e.cheesemonger, e.cheesemongerUrl));
     if(e.milkType) metaBits.push(escapeHtml(e.milkType));
     if(e.age) metaBits.push(escapeHtml(e.age));
@@ -806,6 +812,7 @@ function openLightbox(id){
 
   const rows = [];
   if(e.producer) rows.push(['Producer', linkOrText(e.producer, e.producerUrl)]);
+  if(e.cheesemaker) rows.push(['Cheesemaker', escapeHtml(e.cheesemaker)]);
   if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
   if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
   if(e.age) rows.push(['Age', escapeHtml(e.age)]);
@@ -1029,6 +1036,7 @@ function resetForm(){
   $('f-name').value='';
   $('f-producer').value='';
   $('f-producerUrl').value='';
+  $('f-cheesemaker').value='';
   $('f-cheesemonger').value='';
   $('f-cheesemongerUrl').value='';
   $('f-milk').value='';
@@ -1112,6 +1120,7 @@ function openForEdit(id){
   $('f-name').value = e.name || '';
   $('f-producer').value = e.producer || '';
   $('f-producerUrl').value = e.producerUrl || '';
+  $('f-cheesemaker').value = e.cheesemaker || '';
   $('f-cheesemonger').value = e.cheesemonger || '';
   $('f-cheesemongerUrl').value = e.cheesemongerUrl || '';
   $('f-milk').value = e.milkType || '';
@@ -1170,6 +1179,7 @@ async function saveEntry(){
     photos: currentPhotos,
     producer: $('f-producer').value.trim(),
     producerUrl: $('f-producerUrl').value.trim(),
+    cheesemaker: $('f-cheesemaker').value.trim(),
     cheesemonger: $('f-cheesemonger').value.trim(),
     cheesemongerUrl: $('f-cheesemongerUrl').value.trim(),
     milkType: $('f-milk').value,
