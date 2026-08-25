@@ -942,6 +942,7 @@ async function runAutofill(){
     fillIfEmpty('f-cheesemonger', data.cheesemonger);
     fillIfEmpty('f-cheesemongerUrl', data.cheesemongerUrl);
     fillIfEmpty('f-age', data.age);
+    fillIfEmpty('f-region', data.region);
     if(data.country && !$('f-country').value.trim()){
       $('f-country').value = data.country;
       filled.push('f-country');
