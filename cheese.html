@@ -724,6 +724,11 @@ function render(){
       openLightbox(card.dataset.id);
     });
   });
+  wrap.querySelectorAll('.entry-name a, .entry-meta a').forEach(a=>{
+    // Let a Name/Producer/Cheesemonger link just navigate on its own,
+    // instead of also popping the detail lightbox open behind it.
+    a.addEventListener('click', e => e.stopPropagation());
+  });
   applyAuthGating();
 }
 
