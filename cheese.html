@@ -499,6 +499,11 @@
       </select>
     </div>
 
+    <div class="field" id="wrappedDescField" style="display:none;">
+      <label>Wrapped detail (optional)</label>
+      <input id="f-wrappedDesc" type="text" placeholder="Hand-dipped in black wax, cave-aged 3 months&hellip;">
+    </div>
+
     <div class="row2">
       <div class="field">
         <label>State / Region</label>
@@ -842,7 +847,7 @@ function openLightbox(id){
   if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
   if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
   if(e.age) rows.push(['Age', escapeHtml(e.age)]);
-  if(e.wrapped) rows.push(['Wrapped', escapeHtml(e.wrapped)]);
+  if(e.wrapped) rows.push(['Wrapped', escapeHtml(e.wrapped) + (e.wrappedDesc ? ' — ' + escapeHtml(e.wrappedDesc) : '')]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
   if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
@@ -989,6 +994,7 @@ async function runAutofill(){
     if(data.wrapped && !$('f-wrapped').value){
       $('f-wrapped').value = data.wrapped;
       filled.push('f-wrapped');
+      toggleWrappedDescField();
     }
     fillIfEmpty('f-comment', data.comment);
     if(data.photo && currentPhotos.length === 0){
@@ -1098,6 +1104,7 @@ async function refreshFromCheesemonger(){
     if(data.wrapped && !$('f-wrapped').value){
       $('f-wrapped').value = data.wrapped;
       added.push('f-wrapped');
+      toggleWrappedDescField();
     }
 
     // Quote status is reported separately from "other fields filled" so a
@@ -1171,6 +1178,15 @@ function setupAutocomplete(inputId, listId){
 }
 setupAutocomplete('f-cheesemonger', 'f-cheesemonger-options');
 
+// Shows/hides the Wrapped detail field based on whether Wrapped has a
+// value — covers manual selection (change event) and programmatic sets
+// from autofill (called directly after those assignments, since setting
+// .value in JS doesn't fire 'change' on its own).
+function toggleWrappedDescField(){
+  $('wrappedDescField').style.display = $('f-wrapped').value ? '' : 'none';
+}
+$('f-wrapped').addEventListener('change', toggleWrappedDescField);
+
 function resetForm(){
   $('f-autofillUrl').value='';
   setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
@@ -1184,6 +1200,8 @@ function resetForm(){
   $('f-milk').value='';
   $('f-age').value='';
   $('f-wrapped').value='';
+  $('f-wrappedDesc').value='';
+  toggleWrappedDescField();
   $('f-region').value='';
   $('f-country').value='';
   $('f-restaurant').value='';
@@ -1269,6 +1287,8 @@ function openForEdit(id){
   $('f-milk').value = e.milkType || '';
   $('f-age').value = e.age || '';
   $('f-wrapped').value = e.wrapped || '';
+  $('f-wrappedDesc').value = e.wrappedDesc || '';
+  toggleWrappedDescField();
   $('f-region').value = e.region || '';
   $('f-country').value = e.country || '';
   $('f-restaurant').value = e.restaurant || '';
@@ -1329,6 +1349,7 @@ async function saveEntry(){
     milkType: $('f-milk').value,
     age: $('f-age').value.trim(),
     wrapped: $('f-wrapped').value,
+    wrappedDesc: $('f-wrappedDesc').value.trim(),
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
     restaurant: $('f-restaurant').value.trim(),
