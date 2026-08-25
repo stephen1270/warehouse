@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Music</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#f2ede1;
+    --paper-dark:#e6ded0;
+    --ink:#26221c;
+    --plum:#5b2a4a;
+    --brass:#a6813f;
+    --slate:#48453e;
+    --line:#cfc4ad;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-dark);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{text-align:center;margin-bottom:26px;position:relative;}
+  header .kicker{letter-spacing:.28em;font-size:11px;color:var(--plum);text-transform:uppercase;}
+  header h1{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-weight:400;font-style:italic;font-size:44px;
+    margin:6px 0 4px;letter-spacing:.01em;
+  }
+  header .sub{font-size:12px;color:var(--slate);opacity:.75;}
+  header .rule{
+    margin:18px auto 0;width:100%;height:1px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
+    opacity:.35;
+  }
+
+  .toolbar{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 14px;font-size:12px;gap:10px;flex-wrap:wrap;}
+  .toolbar .count{color:var(--slate);opacity:.75;}
+  .toolbar-btns{display:flex;gap:8px;}
+  .newbtn, .importbtn{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .newbtn{background:var(--plum);color:var(--paper);border-color:var(--plum);}
+  .newbtn:hover{background:#471f3a;}
+  .importbtn:hover{border-color:var(--plum);color:var(--plum);}
+
+  .auth-control{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--slate);}
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
+    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
+  }
+  .auth-control button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 10px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .auth-error{color:var(--plum);font-size:10px;}
+
+  /* filter bar */
+  .filters{
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;
+    background:var(--paper);border:1px solid var(--line);padding:12px 14px;border-radius:2px;
+  }
+  .filters input, .filters select{
+    font-family:inherit;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:6px 2px;color:var(--ink);
+  }
+  .filters input:focus, .filters select:focus{outline:none;border-bottom:1px solid var(--plum);}
+  .filters .f-search{flex:2;min-width:160px;}
+  .filters .f-sel{flex:1;min-width:110px;}
+
+  /* form ticket */
+  .ticket{
+    background:var(--paper);border:1px solid var(--line);padding:22px;margin-bottom:22px;
+    position:relative;box-shadow:0 1px 2px rgba(0,0,0,.06);display:none;
+  }
+  .ticket.open{display:block;}
+  .ticket::before, .ticket::after{
+    content:"";position:absolute;left:0;right:0;height:10px;
+    background:radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
+  }
+  .ticket::before{top:-6px;transform:rotate(180deg);}
+  .ticket::after{bottom:-6px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--plum);margin-bottom:5px;}
+  .field input, .field textarea, .field select{
+    width:100%;font-family:inherit;font-size:14px;background:transparent;border:none;
+    border-bottom:1px solid var(--line);padding:6px 2px;color:var(--ink);
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{outline:none;border-bottom:1px solid var(--plum);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+
+  .stars{display:flex;gap:4px;font-size:18px;cursor:pointer;user-select:none;}
+  .stars span{opacity:.25;transition:opacity .1s;}
+  .stars span.on{opacity:1;color:var(--plum);}
+
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .form-actions button{
+    font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* import panel */
+  .import-panel{
+    background:var(--paper);border:1px dashed var(--line);padding:18px 20px;margin-bottom:22px;display:none;
+  }
+  .import-panel.open{display:block;}
+  .import-panel p{font-size:12px;line-height:1.6;color:var(--slate);margin:0 0 12px;}
+  .import-panel input[type=file]{font-family:inherit;font-size:12px;}
+  .import-status{font-size:12px;margin-top:10px;color:var(--plum);white-space:pre-wrap;}
+
+  /* entries */
+  .entry{background:var(--paper);border:1px solid var(--line);padding:16px 18px;margin-bottom:10px;position:relative;cursor:pointer;}
+  .entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .entry-title{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:19px;line-height:1.3;}
+  .entry-artist{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--plum);margin-bottom:2px;}
+  .entry-meta{font-size:11px;color:var(--slate);opacity:.85;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
+  .entry-rating{color:var(--plum);font-size:13px;white-space:nowrap;}
+  .entry-tags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{font-size:10px;border:1px solid var(--line);padding:3px 8px;border-radius:10px;color:var(--slate);letter-spacing:.04em;}
+  .entry-cond{font-size:10px;color:var(--slate);opacity:.75;margin-top:4px;}
+  .entry-actions{position:absolute;top:14px;right:16px;display:flex;gap:8px;}
+  .entry-actions button{background:none;border:none;font-family:inherit;font-size:11px;color:var(--slate);opacity:.5;cursor:pointer;}
+  .entry-actions button:hover{opacity:1;color:var(--plum);}
+
+  .empty{text-align:center;padding:50px 20px;color:var(--slate);opacity:.7;font-size:13px;line-height:1.7;}
+  .empty .big{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
+  .loading{text-align:center;padding:40px;font-size:12px;color:var(--slate);}
+  ::placeholder{color:var(--slate);opacity:.4;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Warehouse &middot; A Collection Of Collections</div>
+    <h1>Music</h1>
+    <div class="sub">CDs and vinyl, cataloged from CLZ &mdash; artist, format, condition, rating</div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="toolbar">
+    <span class="count" id="count">loading…</span>
+    <div class="toolbar-btns">
+      <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan a barcode" autocomplete="off" inputmode="none" style="min-width:220px;">
+      <button class="importbtn" id="toggleImport">Import from CLZ</button>
+      <button class="newbtn" id="toggleForm">+ New Entry</button>
+    </div>
+  </div>
+
+  <div class="import-panel" id="importPanel">
+    <p>Upload a CLZ Music export (.xml). Each album becomes an entry, keyed by its CLZ hash, so re-importing the same export updates existing records instead of duplicating them.</p>
+    <input type="file" id="importFile" accept=".xml">
+    <div class="import-status" id="importStatus"></div>
+  </div>
+
+  <div class="ticket" id="ticket">
+    <div class="field" id="barcodeField" style="display:none;">
+      <label>Barcode</label>
+      <input id="f-barcode" type="text" readonly>
+    </div>
+    <div class="field">
+      <label>Artist</label>
+      <input id="f-artist" type="text" placeholder="Cocteau Twins">
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input id="f-title" type="text" placeholder="Heaven Or Las Vegas">
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label>Format</label>
+        <input id="f-format" type="text" placeholder="LP, Album">
+      </div>
+      <div class="field">
+        <label>Year</label>
+        <input id="f-year" type="text" placeholder="1990">
+      </div>
+      <div class="field">
+        <label>Quantity</label>
+        <input id="f-quantity" type="number" min="1" value="1">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Label</label>
+        <input id="f-label" type="text" placeholder="4AD">
+      </div>
+      <div class="field">
+        <label>Catalog #</label>
+        <input id="f-labelnumber" type="text" placeholder="CAD 3420">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Sleeve Condition</label>
+        <input id="f-sleeve" type="text" placeholder="Near Mint (NM or M-)">
+      </div>
+      <div class="field">
+        <label>Media Condition</label>
+        <input id="f-media" type="text" placeholder="Near Mint (NM or M-)">
+      </div>
+    </div>
+    <div class="field">
+      <label>Genres (comma separated)</label>
+      <input id="f-genres" type="text" placeholder="Dream Pop, Ethereal, Rock">
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="stars" id="f-stars">
+        <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save Entry</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <input class="f-search" id="filterSearch" type="text" placeholder="Search artist, title, label…">
+    <select class="f-sel" id="filterFormat"><option value="">All formats</option></select>
+    <select class="f-sel" id="filterGenre"><option value="">All genres</option></select>
+    <select class="f-sel" id="filterSort">
+      <option value="artist">Sort: Artist</option>
+      <option value="year">Sort: Year</option>
+      <option value="added">Sort: Recently Added</option>
+    </select>
+  </div>
+
+  <div id="entries" class="loading">loading…</div>
+</div>
+
+<script>
+let entries = [];
+let editingId = null;
+let currentStars = 0;
+
+const $ = (id) => document.getElementById(id);
+
+// Supabase-backed storage, shared with the rest of Warehouse, so entries
+// sync across devices instead of being trapped in one browser. Falls back
+// to localStorage if Supabase can't be reached, and to Claude's
+// window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+const KEY_PREFIX = 'entry:m-';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    }
+  };
+}
+
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+let currentUser = null;
+
+function renderAuthControl(){
+  const el = document.getElementById('authControl');
+  if(!supabaseClient){
+    el.innerHTML = '';
+    return;
+  }
+  if(currentUser){
+    el.innerHTML = `<span>${currentUser.email}</span><button id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+    });
+  } else {
+    el.innerHTML = `
+      <form id="signInForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <span class="auth-error" id="authError"></span>`;
+    document.getElementById('signInForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+    });
+  }
+}
+
+function applyAuthGating(){
+  const loggedIn = !supabaseClient || !!currentUser;
+  const newBtn = document.getElementById('toggleForm');
+  const importBtn = document.getElementById('toggleImport');
+  const scanInput = document.getElementById('hwScanInput');
+  if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
+  if(importBtn) importBtn.style.display = loggedIn ? '' : 'none';
+  if(scanInput) scanInput.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.entry-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
+}
+
+if(supabaseClient){
+  supabaseClient.auth.getSession().then(({data})=>{
+    currentUser = data.session ? data.session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session ? session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+} else {
+  renderAuthControl();
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function starsHtml(n){
+  let s = '';
+  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
+  return s;
+}
+
+function slug(s){
+  return (s || 'x').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'x';
+}
+
+function condShort(c){
+  if(!c) return '';
+  const m = c.match(/\(([^)]+)\)/);
+  return m ? m[1] : c;
+}
+
+// --- filters ---
+function populateFilterOptions(){
+  const formats = new Set(), genres = new Set();
+  entries.forEach(e=>{
+    if(e.format) formats.add(e.format.split(',')[0].trim());
+    (e.genres||[]).forEach(g=>genres.add(g));
+  });
+  const fSel = $('filterFormat'), gSel = $('filterGenre');
+  const curF = fSel.value, curG = gSel.value;
+  fSel.innerHTML = '<option value="">All formats</option>' + [...formats].sort().map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+  gSel.innerHTML = '<option value="">All genres</option>' + [...genres].sort().map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+  fSel.value = curF; gSel.value = curG;
+}
+
+function getFiltered(){
+  const q = $('filterSearch').value.trim().toLowerCase();
+  const fmt = $('filterFormat').value;
+  const genre = $('filterGenre').value;
+  const sort = $('filterSort').value;
+
+  let list = entries.filter(e=>{
+    if(fmt && !(e.format||'').startsWith(fmt)) return false;
+    if(genre && !(e.genres||[]).includes(genre)) return false;
+    if(q){
+      const hay = [e.artist, e.title, e.label, e.labelNumber].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if(sort === 'artist'){
+    list.sort((a,b)=> (a.artist||'').localeCompare(b.artist||'') || (a.title||'').localeCompare(b.title||''));
+  } else if(sort === 'year'){
+    list.sort((a,b)=> (b.year||'0').localeCompare(a.year||'0'));
+  } else {
+    list.sort((a,b)=> (b.addedDate||'').localeCompare(a.addedDate||''));
+  }
+  return list;
+}
+
+function render(){
+  populateFilterOptions();
+  const wrap = $('entries');
+  const filtered = getFiltered();
+  $('count').textContent = entries.length === 0 ? 'no records yet' :
+    `${filtered.length} of ${entries.length} record${entries.length===1?'':'s'}`;
+
+  if(entries.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">The crate is empty.</span>Add a record, or import a CLZ export.</div>`;
+    applyAuthGating();
+    return;
+  }
+  if(filtered.length === 0){
+    wrap.innerHTML = `<div class="empty">No records match those filters.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  wrap.innerHTML = filtered.map(e => `
+    <div class="entry" data-id="${e.id}">
+      <div class="entry-actions">
+        <button class="editBtn">edit</button>
+        <button class="delBtn">delete</button>
+      </div>
+      <div class="entry-top">
+        <div>
+          <div class="entry-artist">${escapeHtml(e.artist || 'Unknown Artist')}</div>
+          <div class="entry-title">${escapeHtml(e.title || 'Untitled')}</div>
+          <div class="entry-meta">
+            ${e.format ? `<span>${escapeHtml(e.format)}</span>` : ''}
+            ${e.label ? `<span>${escapeHtml(e.label.split(',')[0].trim())}</span>` : ''}
+            ${e.year ? `<span>${escapeHtml(e.year)}</span>` : ''}
+            ${e.quantity && e.quantity > 1 ? `<span>×${e.quantity}</span>` : ''}
+          </div>
+        </div>
+        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
+      </div>
+      ${(e.sleeveCondition || e.mediaCondition) ? `<div class="entry-cond">${e.sleeveCondition ? 'sleeve: ' + escapeHtml(condShort(e.sleeveCondition)) : ''}${e.sleeveCondition && e.mediaCondition ? ' · ' : ''}${e.mediaCondition ? 'media: ' + escapeHtml(condShort(e.mediaCondition)) : ''}</div>` : ''}
+      ${(e.genres && e.genres.length) ? `<div class="entry-tags">${e.genres.map(g=>`<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openForEdit(e.target.closest('.entry').dataset.id);
+    });
+  });
+  wrap.querySelectorAll('.delBtn').forEach(btn=>{
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      if(confirm('Remove this record?')) await deleteEntry(id);
+    });
+  });
+  applyAuthGating();
+}
+
+['filterSearch','filterFormat','filterGenre','filterSort'].forEach(id=>{
+  $(id).addEventListener('input', render);
+  $(id).addEventListener('change', render);
+});
+
+function resetForm(){
+  $('f-barcode').value='';
+  $('barcodeField').style.display='none';
+  $('f-artist').value='';
+  $('f-title').value='';
+  $('f-format').value='';
+  $('f-year').value='';
+  $('f-quantity').value='1';
+  $('f-label').value='';
+  $('f-labelnumber').value='';
+  $('f-sleeve').value='';
+  $('f-media').value='';
+  $('f-genres').value='';
+  setStars(0);
+  editingId = null;
+}
+
+function setStars(n){
+  currentStars = n;
+  document.querySelectorAll('#f-stars span').forEach(s=>{
+    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
+  });
+}
+
+function openForEdit(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  $('f-barcode').value = e.barcode || '';
+  $('barcodeField').style.display = e.barcode ? '' : 'none';
+  $('f-artist').value = e.artist || '';
+  $('f-title').value = e.title || '';
+  $('f-format').value = e.format || '';
+  $('f-year').value = e.year || '';
+  $('f-quantity').value = e.quantity || 1;
+  $('f-label').value = e.label || '';
+  $('f-labelnumber').value = e.labelNumber || '';
+  $('f-sleeve').value = e.sleeveCondition || '';
+  $('f-media').value = e.mediaCondition || '';
+  $('f-genres').value = (e.genres||[]).join(', ');
+  setStars(e.rating || 0);
+  $('importPanel').classList.remove('open');
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function loadEntries(){
+  try{
+    const result = await storage.list(KEY_PREFIX);
+    if(!result || !result.keys || result.keys.length === 0){
+      entries = [];
+      render();
+      return;
+    }
+    const loaded = [];
+    for(const key of result.keys){
+      try{
+        const r = await storage.get(key);
+        if(r && r.value) loaded.push(JSON.parse(r.value));
+      }catch(err){ /* skip missing */ }
+    }
+    entries = loaded;
+  }catch(err){
+    entries = [];
+  }
+  render();
+}
+
+async function saveEntry(){
+  const artist = $('f-artist').value.trim();
+  const title = $('f-title').value.trim();
+  if(!artist && !title){
+    $('f-artist').focus();
+    return;
+  }
+  const id = editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
+  const genres = $('f-genres').value.split(',').map(g=>g.trim()).filter(Boolean);
+  const entry = {
+    id,
+    barcode: $('f-barcode').value.trim() || null,
+    artist,
+    title,
+    format: $('f-format').value.trim(),
+    year: $('f-year').value.trim(),
+    quantity: parseInt($('f-quantity').value) || 1,
+    label: $('f-label').value.trim(),
+    labelNumber: $('f-labelnumber').value.trim(),
+    sleeveCondition: $('f-sleeve').value.trim(),
+    mediaCondition: $('f-media').value.trim(),
+    genres,
+    rating: currentStars,
+    addedDate: (entries.find(e=>e.id===id) || {}).addedDate || new Date().toISOString().slice(0,10)
+  };
+  const key = editingId
+    ? (entries.find(e=>e.id===id) ? KEY_PREFIX + slug(artist) + '-' + slug(title) + '-' + id : KEY_PREFIX + id)
+    : KEY_PREFIX + slug(artist) + '-' + slug(title) + '-' + id;
+  try{
+    await storage.set(key, JSON.stringify(entry));
+    const idx = entries.findIndex(e=>e.id===id);
+    if(idx>-1) entries[idx] = entry; else entries.push(entry);
+    render();
+    closeForm();
+  }catch(err){
+    alert('Could not save entry. Please try again.');
+    console.error(err);
+  }
+}
+
+async function deleteEntry(id){
+  try{
+    const result = await storage.list(KEY_PREFIX);
+    const keys = (result && result.keys) || [];
+    for(const key of keys){
+      if(key.endsWith('-' + id) || key === KEY_PREFIX + id){
+        await storage.delete(key);
+        break;
+      }
+    }
+    entries = entries.filter(e=>e.id!==id);
+    render();
+  }catch(err){
+    alert('Could not delete entry. Please try again.');
+    console.error(err);
+  }
+}
+
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
+}
+
+function openNew(prefill){
+  resetForm();
+  prefill = prefill || {};
+  if(prefill.barcode){
+    $('f-barcode').value = prefill.barcode;
+    $('barcodeField').style.display = '';
+  }
+  if(prefill.artist) $('f-artist').value = prefill.artist;
+  if(prefill.title) $('f-title').value = prefill.title;
+  if(prefill.format) $('f-format').value = prefill.format;
+  if(prefill.year) $('f-year').value = prefill.year;
+  if(prefill.label) $('f-label').value = prefill.label;
+  if(prefill.labelNumber) $('f-labelnumber').value = prefill.labelNumber;
+  $('importPanel').classList.remove('open');
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+  if(!prefill.artist) $('f-artist').focus();
+}
+
+$('toggleForm').addEventListener('click', () => {
+  const t = $('ticket');
+  if(t.classList.contains('open')){
+    closeForm();
+  } else {
+    openNew();
+  }
+});
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEntry);
+document.querySelectorAll('#f-stars span').forEach(s=>{
+  s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
+});
+
+// --- CLZ XML import ---
+$('toggleImport').addEventListener('click', () => {
+  const p = $('importPanel');
+  if(p.classList.contains('open')){
+    p.classList.remove('open');
+  } else {
+    $('ticket').classList.remove('open');
+    p.classList.add('open');
+    p.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+});
+
+// --- Barcode lookup: uses MusicBrainz's free public API (no key needed)
+// to look up a release by UPC/EAN barcode and pre-fill the form. Coverage
+// is best-effort — small/independent/import pressings often aren't in
+// MusicBrainz, in which case the form just opens with the barcode filled
+// in and the rest is typed by hand. Works the same whether the code came
+// from a hardware USB/Bluetooth scanner (see hwScanInput below) or was
+// typed/pasted directly. ---
+async function processScannedBarcode(code){
+  code = (code || '').trim();
+  if(!code) return;
+  const prefill = { barcode: code };
+  try{
+    const res = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${encodeURIComponent(code)}&fmt=json&limit=5`);
+    const data = await res.json();
+    const releases = (data && data.releases) || [];
+    // Prefer a release that actually has label/media info over a bare match
+    const release = releases.find(r => (r['label-info'] && r['label-info'].length) || (r.media && r.media.length)) || releases[0];
+    if(release){
+      if(release.title) prefill.title = release.title;
+      if(release['artist-credit'] && release['artist-credit'].length){
+        prefill.artist = release['artist-credit'].map(ac => (ac.name || (ac.artist && ac.artist.name) || '') + (ac.joinphrase || '')).join('').trim();
+      }
+      if(release.date) prefill.year = release.date.slice(0,4);
+      const labelInfo = (release['label-info'] || [])[0];
+      if(labelInfo){
+        if(labelInfo.label && labelInfo.label.name) prefill.label = labelInfo.label.name;
+        if(labelInfo['catalog-number']) prefill.labelNumber = labelInfo['catalog-number'];
+      }
+      const media = (release.media || [])[0];
+      if(media && media.format) prefill.format = media.format;
+    }
+  }catch(e){
+    console.error('MusicBrainz lookup failed', e);
+    // not fatal — still open the form with the barcode filled in and
+    // let the rest be typed in by hand
+  }
+  openNew(prefill);
+}
+
+document.getElementById('hwScanInput').addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = e.target.value.trim();
+  e.target.value = '';
+  if(code) processScannedBarcode(code);
+});
+
+function txt(node, selector){
+  if(!node) return '';
+  const el = node.querySelector(selector);
+  return el && el.textContent ? el.textContent.trim() : '';
+}
+
+function parseClzXml(xmlText){
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const items = Array.from(doc.querySelectorAll('musiclist > music'));
+  return items.map(m => {
+    const artistNames = Array.from(m.querySelectorAll('artists > artist')).map(a => txt(a,'displayname')).filter(Boolean);
+    const artist = artistNames.join(' / ') || 'Unknown Artist';
+    const title = txt(m, 'title') || 'Untitled';
+    const hash = txt(m, 'hash');
+    const format = txt(m, 'format > displayname');
+    const label = txt(m, 'label > displayname');
+    const labelNumber = txt(m, 'labelnumber');
+    const year = txt(m, 'releasedate > year > displayname');
+    const genres = Array.from(m.querySelectorAll('genres > genre')).map(g => txt(g,'displayname')).filter(Boolean);
+    const sleeveCondition = txt(m, 'condition > displayname');
+    const mediaCondition = txt(m, 'mediacondition > displayname');
+    const quantity = parseInt(txt(m, 'quantity')) || 1;
+    const rating = parseInt(txt(m, 'myrating')) || 0;
+    const addedTs = txt(m, 'addeddate > timestamp');
+    const addedDate = addedTs ? new Date(parseInt(addedTs) * 1000).toISOString().slice(0,10) : '';
+    const id = hash ? hash.slice(0,8) : (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
+    return {
+      id, artist, title, format, label, labelNumber, year, genres,
+      sleeveCondition, mediaCondition, quantity, rating, addedDate
+    };
+  });
+}
+
+$('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = $('importStatus');
+  statusEl.textContent = 'Reading file…';
+  try{
+    const text = await file.text();
+    const records = parseClzXml(text);
+    if(records.length === 0){
+      statusEl.textContent = 'No <music> records found in that file.';
+      return;
+    }
+    if(!confirm(`Import ${records.length} record${records.length===1?'':'s'} from this CLZ export? Existing records with the same album will be updated.`)){
+      statusEl.textContent = '';
+      e.target.value = '';
+      return;
+    }
+    statusEl.textContent = `Importing 0 / ${records.length}…`;
+    let done = 0;
+    for(const rec of records){
+      const key = KEY_PREFIX + slug(rec.artist) + '-' + slug(rec.title) + '-' + rec.id;
+      await storage.set(key, JSON.stringify(rec));
+      done++;
+      if(done % 10 === 0 || done === records.length){
+        statusEl.textContent = `Importing ${done} / ${records.length}…`;
+      }
+    }
+    statusEl.textContent = `Done — imported ${records.length} record${records.length===1?'':'s'}.`;
+    e.target.value = '';
+    await loadEntries();
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = 'Import failed — check the file is a valid CLZ Music XML export.';
+  }
+});
+
+loadEntries();
+</script>
+</body>
+</html>
