@@ -1043,16 +1043,15 @@ async function refreshFromCheesemonger(){
 
   try{
     const added = [];
+    let quoteFound = !!data.quote;
+    let quoteAdded = false;
 
-    // The quote is the main point of this button — append it even though
-    // Comment likely already has content, with simple dedup so clicking
-    // twice doesn't paste the same quote in twice.
     if(data.quote){
       const quoteLine = `\u201C${data.quote}\u201D \u2014 ${data.quoteAttribution || $('f-cheesemonger').value.trim() || 'source site'}`;
       const existing = $('f-comment').value;
       if(!existing.includes(data.quote)){
         $('f-comment').value = existing ? `${existing}\n\n${quoteLine}` : quoteLine;
-        added.push('a quote');
+        quoteAdded = true;
       }
     }
 
@@ -1076,10 +1075,22 @@ async function refreshFromCheesemonger(){
       added.push('f-milk');
     }
 
-    statusEl.textContent = added.length
-      ? `Added ${added.length} thing${added.length>1?'s':''} from this page.`
-      : 'Fetched the page, but found nothing new (no quote found, and everything else was already filled).';
-    statusEl.className = 'field-hint' + (added.length ? ' ok' : '');
+    // Quote status is reported separately from "other fields filled" so a
+    // vague "it worked" can't paper over "but no quote was actually found"
+    // — that ambiguity was the whole reason this needed fixing.
+    let quoteMsg;
+    if(quoteAdded){
+      quoteMsg = data.quoteConfident
+        ? 'Added a quote from this page.'
+        : 'Added a quote found on this page (no clear attribution on the page itself, so it\'s credited to the site).';
+    } else if(quoteFound){
+      quoteMsg = 'Found a quote, but it was already in your notes.';
+    } else {
+      quoteMsg = 'No quote found on this page — it may not use a pull-quote style block.';
+    }
+    const otherMsg = added.length ? ` Also filled ${added.length} other field${added.length>1?'s':''}.` : '';
+    statusEl.textContent = quoteMsg + otherMsg;
+    statusEl.className = 'field-hint' + ((quoteAdded || added.length) ? ' ok' : '');
   }catch(err){
     console.error('Cheesemonger refresh apply failed', err);
     statusEl.textContent = 'Fetched the page, but hit a problem applying it — check the browser console.';
