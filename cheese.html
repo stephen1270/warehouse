@@ -145,6 +145,25 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .field-hint{font-size:10px;color:var(--sage);opacity:.8;margin-top:4px;}
 
+  .autofill-field{
+    background:var(--paper-dark);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:20px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--rind);background:var(--rind);color:var(--paper);
+  }
+  .autofill-row button:hover{background:#6e451f;}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  #autofillStatus.err{color:var(--rind);}
+  #autofillStatus.ok{color:var(--sage);}
+
   /* photo picker */
   .photo-picker{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .photo-preview{
@@ -357,6 +376,15 @@
   </div>
 
   <div class="ticket" id="ticket">
+    <div class="field autofill-field">
+      <label>Autofill from URL</label>
+      <div class="autofill-row">
+        <input id="f-autofillUrl" type="url" placeholder="https://producer-or-shop.com/this-cheese">
+        <button type="button" id="autofillBtn">Fetch</button>
+      </div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
+    </div>
+
     <div class="row2">
       <div class="field">
         <label>Name</label>
@@ -768,7 +796,88 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// --- Autofill: asks the cheese-autofill Edge Function to fetch a producer
+// or shop page server-side (browsers can't fetch arbitrary cross-origin
+// pages directly) and pull out best-guess fields. Only ever fills in
+// fields that are currently empty, so it never clobbers what's already
+// been typed — review everything it fills before saving. ---
+const AUTOFILL_URL = SUPABASE_URL + '/functions/v1/cheese-autofill';
+
+function setAutofillStatus(msg, cls){
+  const el = $('autofillStatus');
+  el.textContent = msg;
+  el.className = 'field-hint' + (cls ? ' ' + cls : '');
+}
+
+async function runAutofill(){
+  const url = $('f-autofillUrl').value.trim();
+  if(!url){
+    setAutofillStatus('Paste a URL first.', 'err');
+    return;
+  }
+  const btn = $('autofillBtn');
+  btn.disabled = true;
+  setAutofillStatus('Fetching…');
+  try{
+    const res = await fetch(AUTOFILL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.ok){
+      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
+      return;
+    }
+
+    const filled = [];
+    const fillIfEmpty = (id, value) => {
+      if(value && !$(id).value.trim()){
+        $(id).value = value;
+        filled.push(id);
+      }
+    };
+    fillIfEmpty('f-name', data.name);
+    fillIfEmpty('f-nameUrl', data.sourceUrl);
+    fillIfEmpty('f-producer', data.producer);
+    fillIfEmpty('f-age', data.age);
+    if(data.country && !$('f-country').value.trim()){
+      $('f-country').value = data.country;
+      filled.push('f-country');
+    }
+    if(data.milkType && !$('f-milk').value){
+      $('f-milk').value = data.milkType;
+      filled.push('f-milk');
+    }
+    fillIfEmpty('f-comment', data.comment);
+    if(data.photo && !currentPhoto){
+      currentPhoto = data.photo;
+      renderPhotoPreview();
+      filled.push('picture');
+    }
+
+    if(filled.length){
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially milk type, age, and region/country.`, 'ok');
+    } else {
+      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+    }
+  }catch(err){
+    console.error('Autofill failed', err);
+    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+$('autofillBtn').addEventListener('click', runAutofill);
+
 function resetForm(){
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
   $('f-name').value='';
   $('f-nameUrl').value='';
   $('f-producer').value='';
