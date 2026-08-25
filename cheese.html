@@ -484,6 +484,21 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Wrapped</label>
+      <select id="f-wrapped">
+        <option value="">&mdash;</option>
+        <option>Wax</option>
+        <option>Cloth-bound</option>
+        <option>Leaf-wrapped</option>
+        <option>Vacuum-sealed</option>
+        <option>Paper</option>
+        <option>Foil</option>
+        <option>Natural Rind</option>
+        <option>Other</option>
+      </select>
+    </div>
+
     <div class="row2">
       <div class="field">
         <label>State / Region</label>
@@ -748,6 +763,7 @@ function render(){
     if(e.cheesemonger) metaBits.push(linkOrText(e.cheesemonger, e.cheesemongerUrl));
     if(e.milkType) metaBits.push(escapeHtml(e.milkType));
     if(e.age) metaBits.push(escapeHtml(e.age));
+    if(e.wrapped) metaBits.push(escapeHtml(e.wrapped));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
     if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
@@ -826,6 +842,7 @@ function openLightbox(id){
   if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
   if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
   if(e.age) rows.push(['Age', escapeHtml(e.age)]);
+  if(e.wrapped) rows.push(['Wrapped', escapeHtml(e.wrapped)]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
   if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
@@ -1158,6 +1175,7 @@ function resetForm(){
   $('cheesemongerRefreshStatus').textContent = '';
   $('f-milk').value='';
   $('f-age').value='';
+  $('f-wrapped').value='';
   $('f-region').value='';
   $('f-country').value='';
   $('f-restaurant').value='';
@@ -1242,6 +1260,7 @@ function openForEdit(id){
   $('f-cheesemongerUrl').value = e.cheesemongerUrl || '';
   $('f-milk').value = e.milkType || '';
   $('f-age').value = e.age || '';
+  $('f-wrapped').value = e.wrapped || '';
   $('f-region').value = e.region || '';
   $('f-country').value = e.country || '';
   $('f-restaurant').value = e.restaurant || '';
@@ -1301,6 +1320,7 @@ async function saveEntry(){
     cheesemongerUrl: $('f-cheesemongerUrl').value.trim(),
     milkType: $('f-milk').value,
     age: $('f-age').value.trim(),
+    wrapped: $('f-wrapped').value,
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
     restaurant: $('f-restaurant').value.trim(),
