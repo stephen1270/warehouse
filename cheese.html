@@ -438,7 +438,8 @@
     <div class="row2">
       <div class="field">
         <label>Producer</label>
-        <input id="f-producer" type="text" placeholder="Fromagerie Berthaut">
+        <input id="f-producer" type="text" placeholder="Fromagerie Berthaut" autocomplete="off">
+        <div class="autocomplete-list" id="f-producer-options"></div>
       </div>
       <div class="field">
         <label>Producer link (optional)</label>
@@ -822,6 +823,7 @@ function render(){
     a.addEventListener('click', e => e.stopPropagation());
   });
   refreshCheesemongerOptions();
+  refreshProducerOptions();
   applyAuthGating();
 }
 
@@ -1133,10 +1135,17 @@ async function refreshFromCheesemonger(){
 }
 $('cheesemongerRefreshBtn').addEventListener('click', refreshFromCheesemonger);
 
-// Custom autocomplete dropdown for Cheesemonger (replaces native <datalist>,
-// which iOS Safari handles unreliably). Shows every known cheesemonger on
-// focus, filters as you type, still accepts any free-text value so a new
-// cheesemonger isn't blocked.
+// Custom autocomplete dropdown for Producer and Cheesemonger (replaces
+// native <datalist>, which iOS Safari handles unreliably). Shows every
+// known value on focus, filters as you type, still accepts any free-text
+// value so a new producer/cheesemonger isn't blocked.
+function allProducers(){
+  return [...new Set(entries.map(e=>e.producer).filter(Boolean))].sort();
+}
+function refreshProducerOptions(){
+  const el = $('f-producer-options');
+  if(el) el.dataset.options = JSON.stringify(allProducers());
+}
 function allCheesemongers(){
   return [...new Set(entries.map(e=>e.cheesemonger).filter(Boolean))].sort();
 }
@@ -1176,6 +1185,7 @@ function setupAutocomplete(inputId, listId){
     hide();
   });
 }
+setupAutocomplete('f-producer', 'f-producer-options');
 setupAutocomplete('f-cheesemonger', 'f-cheesemonger-options');
 
 // Shows/hides the Wrapped detail field based on whether Wrapped has a
