@@ -169,17 +169,20 @@
     padding:18px 20px;
     margin-bottom:14px;
     position:relative;
+    text-align:left;
   }
   .entry-top{
     display:flex;
     justify-content:space-between;
     align-items:flex-start;
     gap:12px;
+    text-align:left;
   }
   .entry-name{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-style:italic;
     font-size:22px;
+    text-align:left;
   }
   .entry-meta{
     font-size:11px;
@@ -270,6 +273,14 @@
     color:var(--slate);cursor:pointer;
   }
   .lightbox-close:hover{color:var(--wine);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--slate);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--wine);}
   .lightbox-name{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-style:italic;font-size:26px;margin-bottom:2px;
@@ -389,6 +400,7 @@
 <div class="lightbox" id="lightbox">
   <div class="lightbox-card">
     <button class="lightbox-close" id="lightboxClose">close ✕</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
     <div class="lightbox-photos" id="lb-photos"></div>
@@ -407,6 +419,7 @@
 let entries = [];
 let editingId = null;
 let currentStars = 0;
+let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 
 const $ = (id) => document.getElementById(id);
 
@@ -658,6 +671,7 @@ function renderNotesWithPhotos(e){
 function openLightbox(id){
   const e = entries.find(x => x.id === id);
   if(!e) return;
+  currentLightboxId = id;
 
   $('lb-name').textContent = e.name || 'Untitled';
 
@@ -701,6 +715,34 @@ function openLightbox(id){
 
 function closeLightbox(){
   $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '✓ copied';
+  }catch(err){
+    // Clipboard API can be blocked (permissions, non-HTTPS, older Safari) —
+    // fall back to showing the URL so it can be copied by hand.
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
+});
+
+// Deep link: if the page was opened with #<entryId> (e.g. pasted from
+// another Warehouse app's "link to this restaurant visit" field), open
+// that entry's lightbox automatically once entries have loaded.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 function openPhotoZoom(src){
@@ -861,7 +903,7 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
   s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
 });
 
-loadEntries();
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>
