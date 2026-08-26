@@ -438,6 +438,11 @@
       <button type="button" id="addDishBtn" class="ghost-inline">+ Add dish</button>
     </div>
     <div class="field">
+      <label>Wines had</label>
+      <div id="winesList"></div>
+      <button type="button" id="addWineBtn" class="ghost-inline">+ Add wine</button>
+    </div>
+    <div class="field">
       <label>Notes</label>
       <textarea id="f-notes" placeholder="How it was, who with, what to order next time…"></textarea>
     </div>
@@ -464,6 +469,9 @@
     <div class="lightbox-notes" id="lb-dishes-wrap" style="display:none;">
       <span class="lbl">Dishes</span><div id="lb-dishes"></div>
     </div>
+    <div class="lightbox-notes" id="lb-wines-wrap" style="display:none;">
+      <span class="lbl">Wines</span><div id="lb-wines"></div>
+    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -481,6 +489,7 @@ let editingId = null;
 let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
+let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -670,6 +679,7 @@ function render(){
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
       ${renderDishItemsHtml(e)}
+      ${renderWineItemsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -903,6 +913,182 @@ $('addDishBtn').addEventListener('click', () => {
   rows[rows.length-1].querySelector('.dish-name').focus();
 });
 
+// --- Wines had: identical structure/pattern to Dishes had above, just
+// pointed at the Wine app instead of Cheese (wine.html, 'wine:' prefix,
+// same stub-schema Wine itself writes). No photo-link field here — kept
+// out to manage scope; easy to add later by mirroring the dish-photo
+// input if wanted. ---
+let wineOptions = []; // {id, name}
+
+async function refreshWineOptions(){
+  wineOptions = [];
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'wine:' });
+    if(error) throw error;
+    wineOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^wine:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load wine list for the dropdown', err);
+  }
+}
+
+async function createNewWine(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    winemaker: '',
+    merchant: '', merchantUrl: '',
+    type: '', vintage: '',
+    region: '', country: '',
+    pairedCheese: '', pairedCheeseUrl: '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+function renderWinesList(){
+  const wrap = $('winesList');
+  wrap.innerHTML = '';
+  currentWines.forEach((w, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Wine name';
+    nameInput.value = w.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = w.note || '';
+
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links';
+
+    const wineSelect = document.createElement('select');
+    wineSelect.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83c\udf77 Wine — none';
+    wineSelect.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New wine\u2026';
+    wineSelect.appendChild(newOpt);
+    const currentId = (w.wineUrl || '').split('#')[1] || '';
+    let matched = false;
+    wineOptions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = '\ud83c\udf77 ' + v.name;
+      if(v.id && v.id === currentId){ opt.selected = true; matched = true; }
+      wineSelect.appendChild(opt);
+    });
+    if(currentId && !matched){
+      const opt = document.createElement('option');
+      opt.value = currentId;
+      opt.textContent = '\ud83c\udf77 (linked wine not in list)';
+      opt.selected = true;
+      wineSelect.appendChild(opt);
+    }
+    wineSelect.addEventListener('change', async () => {
+      if(wineSelect.value !== '__new__') return;
+      const name = prompt('Name for the new wine:');
+      if(!name || !name.trim()){
+        wineSelect.value = currentId || '';
+        return;
+      }
+      wineSelect.disabled = true;
+      try{
+        const created = await createNewWine(name.trim());
+        wineOptions.push(created);
+        wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readWinesFromDom();
+        currentWines[i].wineUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id;
+        renderWinesList();
+      }catch(err){
+        console.error('Could not create new wine', err);
+        alert('Could not create the wine — make sure you\u2019re signed in.');
+        wineSelect.disabled = false;
+        wineSelect.value = currentId || '';
+      }
+    });
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove wine';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readWinesFromDom();
+      currentWines.splice(i, 1);
+      renderWinesList();
+    });
+
+    links.append(wineSelect, rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readWinesFromDom(){
+  const rows = $('winesList').querySelectorAll('.dish-row');
+  currentWines = Array.from(rows).map(row => {
+    const wineId = row.querySelector('.dish-cheese').value;
+    return {
+      name: row.querySelector('.dish-name').value.trim(),
+      note: row.querySelector('.dish-note').value.trim(),
+      wineUrl: wineId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineId) : ''
+    };
+  });
+}
+
+$('addWineBtn').addEventListener('click', () => {
+  readWinesFromDom();
+  currentWines.push({name:'', note:'', wineUrl:''});
+  renderWinesList();
+  const rows = $('winesList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+function wineItemsOf(e){
+  return (e.wineItems && e.wineItems.length) ? e.wineItems : [];
+}
+
+function renderWineItemsHtml(e){
+  const items = wineItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(w => {
+    const wineHref = safeUrl(w.wineUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // Resolves an entry's dishes for display, whether it has the new
 // structured dishItems array or only the old flat comma-separated
 // `dishes` string (kept, never migrated in the database, so nothing
@@ -987,6 +1173,14 @@ function openLightbox(id){
     $('lb-dishes').innerHTML = renderDishItemsHtml(e);
   } else {
     $('lb-dishes-wrap').style.display = 'none';
+  }
+
+  const wineItems = wineItemsOf(e);
+  if(wineItems.length){
+    $('lb-wines-wrap').style.display = 'block';
+    $('lb-wines').innerHTML = renderWineItemsHtml(e);
+  } else {
+    $('lb-wines-wrap').style.display = 'none';
   }
 
   if(e.notes){
@@ -1089,10 +1283,14 @@ function resetForm(){
   $('f-price').value='';
   currentDishes = [];
   renderDishesList();
-  // Cheese options are fetched async so opening the form never waits on a
-  // network round trip; re-render in place once they land. Reads whatever
-  // was typed in the meantime first, so a fast typer doesn't lose input.
+  currentWines = [];
+  renderWinesList();
+  // Cheese/wine options are fetched async so opening the form never waits
+  // on a network round trip; re-render in place once they land. Reads
+  // whatever was typed in the meantime first, so a fast typer doesn't
+  // lose input.
   refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
@@ -1123,6 +1321,9 @@ function openForEdit(id){
     : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
   renderDishesList();
   refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
+  currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
+  renderWinesList();
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
@@ -1181,6 +1382,8 @@ async function saveEntry(){
   const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   readDishesFromDom();
   const dishItems = currentDishes.filter(d => d.name);
+  readWinesFromDom();
+  const wineItems = currentWines.filter(w => w.name);
   const entry = {
     id,
     name,
@@ -1189,6 +1392,7 @@ async function saveEntry(){
     price: $('f-price').value,
     rating: currentStars,
     dishItems,
+    wineItems,
     notes: $('f-notes').value.trim(),
     tags
   };

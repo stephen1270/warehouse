@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cheese</title>
+<title>Wine</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    --paper:#f6f0e2;
-    --paper-dark:#ecdfbd;
-    --ink:#2b2416;
-    --rind:#8a5a2b;
-    --gold:#c99a3d;
-    --sage:#5b6b46;
-    --line:#d9c9a0;
+    --paper:#f5efe6;
+    --paper-dark:#e6d9cc;
+    --ink:#2a1e1c;
+    --wine:#6b1f2e;
+    --gold:#a67c3d;
+    --sage:#5b5347;
+    --line:#d9c7b8;
   }
   *{box-sizing:border-box;}
   body{
@@ -34,7 +34,7 @@
   header .kicker{
     letter-spacing:.28em;
     font-size:11px;
-    color:var(--rind);
+    color:var(--wine);
     text-transform:uppercase;
   }
   header .kicker a{color:inherit;text-decoration:none;}
@@ -69,7 +69,7 @@
   }
   .toolbar .count{color:var(--sage);opacity:.85;}
   .newbtn{
-    background:var(--rind);
+    background:var(--wine);
     color:var(--paper);
     border:none;
     font-family:inherit;
@@ -96,7 +96,7 @@
     padding:6px 10px;cursor:pointer;border-radius:2px;
     border:1px solid var(--ink);background:transparent;color:var(--ink);
   }
-  .auth-error{color:var(--rind);font-size:10px;}
+  .auth-error{color:var(--wine);font-size:10px;}
 
   /* form ticket */
   .ticket{
@@ -126,7 +126,7 @@
     font-size:10px;
     letter-spacing:.14em;
     text-transform:uppercase;
-    color:var(--rind);
+    color:var(--wine);
     margin-bottom:5px;
   }
   .field input, .field textarea, .field select{
@@ -141,7 +141,7 @@
   }
   .field input:focus, .field textarea:focus, .field select:focus{
     outline:none;
-    border-bottom:1px solid var(--rind);
+    border-bottom:1px solid var(--wine);
   }
   .field textarea{resize:vertical;min-height:54px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -172,11 +172,11 @@
   .autofill-row button{
     font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
-    border:1px solid var(--rind);background:var(--rind);color:var(--paper);
+    border:1px solid var(--wine);background:var(--wine);color:var(--paper);
   }
   .autofill-row button:hover{background:#6e451f;}
   .autofill-row button:disabled{opacity:.5;cursor:default;}
-  #autofillStatus.err{color:var(--rind);}
+  #autofillStatus.err{color:var(--wine);}
   #autofillStatus.ok{color:var(--sage);}
 
   .refresh-link{
@@ -184,7 +184,7 @@
     background:none;border:none;cursor:pointer;text-decoration:underline;
     padding:0;margin-top:4px;
   }
-  .refresh-link:hover{color:var(--rind);}
+  .refresh-link:hover{color:var(--wine);}
   .refresh-link:disabled{opacity:.5;cursor:default;text-decoration:none;}
 
   /* photo gallery picker */
@@ -195,7 +195,7 @@
     border:1px solid var(--line);
     background:var(--paper);
   }
-  .gallery .thumb.cover{border-color:var(--rind);}
+  .gallery .thumb.cover{border-color:var(--wine);}
   .gallery .thumb img{width:100%;height:72px;object-fit:cover;display:block;}
   .gallery .thumb .rm{
     position:absolute;top:2px;right:2px;
@@ -212,12 +212,12 @@
     border:none;border-top:1px solid var(--line);
   }
   .gallery .thumb .cover-badge{
-    color:var(--rind);background:var(--paper);cursor:default;
+    color:var(--wine);background:var(--paper);cursor:default;
   }
   .gallery .thumb .make-cover{
     color:var(--sage);background:var(--paper-dark);cursor:pointer;
   }
-  .gallery .thumb .make-cover:hover{color:var(--rind);background:var(--paper);}
+  .gallery .thumb .make-cover:hover{color:var(--wine);background:var(--paper);}
   .gallery .addtile{
     width:76px;height:72px;
     border:1px dashed var(--line);
@@ -288,8 +288,8 @@
     gap:10px;
     flex-wrap:wrap;
   }
-  .entry-meta a{color:var(--rind);text-decoration:none;border-bottom:1px solid var(--line);}
-  .entry-meta a:hover{border-color:var(--rind);}
+  .entry-meta a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--line);}
+  .entry-meta a:hover{border-color:var(--wine);}
   .entry-comment{
     margin-top:8px;
     font-size:13px;
@@ -310,7 +310,7 @@
     opacity:.6;
     cursor:pointer;
   }
-  .entry-actions button:hover{opacity:1;color:var(--rind);}
+  .entry-actions button:hover{opacity:1;color:var(--wine);}
 
   .empty{
     text-align:center;
@@ -325,7 +325,7 @@
   .loading{text-align:center;padding:40px;font-size:12px;color:var(--sage);}
 
   .load-error{
-    background:#f6e6d9;border:1px solid var(--rind);color:var(--ink);
+    background:#f6e6d9;border:1px solid var(--wine);color:var(--ink);
     padding:14px 16px;border-radius:3px;font-size:12px;margin-bottom:16px;
     display:none;
   }
@@ -359,7 +359,7 @@
     font-family:inherit;font-size:13px;
     color:var(--sage);cursor:pointer;
   }
-  .lightbox-close:hover{color:var(--rind);}
+  .lightbox-close:hover{color:var(--wine);}
   .lightbox-copy-link{
     position:absolute;top:12px;left:14px;
     background:none;border:none;
@@ -367,7 +367,7 @@
     color:var(--sage);cursor:pointer;
     letter-spacing:.04em;
   }
-  .lightbox-copy-link:hover{color:var(--rind);}
+  .lightbox-copy-link:hover{color:var(--wine);}
   .lightbox-photos{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
@@ -387,18 +387,18 @@
     font-size:11px;color:var(--sage);opacity:.9;
     display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
   }
-  .lightbox-meta a{color:var(--rind);text-decoration:none;border-bottom:1px solid var(--line);}
+  .lightbox-meta a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--line);}
   .lightbox-fields{margin-bottom:14px;}
   .lightbox-fields .row{
     display:flex;gap:8px;font-size:12px;padding:5px 0;
     border-bottom:1px solid var(--line);
   }
   .lightbox-fields .lbl{
-    color:var(--rind);letter-spacing:.08em;text-transform:uppercase;
+    color:var(--wine);letter-spacing:.08em;text-transform:uppercase;
     font-size:10px;flex:none;width:110px;padding-top:2px;
   }
   .lightbox-comment .lbl{
-    color:var(--rind);font-size:10px;letter-spacing:.12em;
+    color:var(--wine);font-size:10px;letter-spacing:.12em;
     text-transform:uppercase;display:block;margin-bottom:4px;
   }
   .lightbox-comment{font-size:13px;line-height:1.55;white-space:pre-wrap;}
@@ -420,15 +420,15 @@
 <div class="wrap">
   <header>
     <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; Est. In Practice</div>
-    <h1>Cheese</h1>
-    <div class="sub">a running record of wheels, wedges, and rinds</div>
+    <h1>Wine</h1>
+    <div class="sub">a running record of bottles opened</div>
     <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
     <div class="rule"></div>
   </header>
 
   <div class="toolbar">
     <span class="count" id="count">loading&hellip;</span>
-    <button class="newbtn" id="toggleForm">+ New Cheese</button>
+    <button class="newbtn" id="toggleForm">+ New Wine</button>
   </div>
 
   <div class="load-error" id="loadErrorState">
@@ -437,18 +437,9 @@
   </div>
 
   <div class="ticket" id="ticket">
-    <div class="field autofill-field">
-      <label>Autofill from URL</label>
-      <div class="autofill-row">
-        <input id="f-autofillUrl" type="url" placeholder="https://producer-or-shop.com/this-cheese">
-        <button type="button" id="autofillBtn">Fetch</button>
-      </div>
-      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
-    </div>
-
     <div class="field">
       <label>Name</label>
-      <input id="f-name" type="text" placeholder="Époisses de Bourgogne">
+      <input id="f-name" type="text" placeholder="Marcobarba &quot;Barbabianca&quot;">
     </div>
 
     <div class="field">
@@ -457,13 +448,13 @@
         <div class="addtile" id="addPhotoTile">+</div>
       </div>
       <input type="file" id="f-photos" accept="image/*" multiple>
-      <div class="field-hint" id="photoHint">Add one or more photos of the wheel, wedge, or label.</div>
+      <div class="field-hint" id="photoHint">Add one or more photos of the bottle or label.</div>
     </div>
 
     <div class="row2">
       <div class="field">
         <label>Producer</label>
-        <input id="f-producer" type="text" placeholder="Fromagerie Berthaut" autocomplete="off">
+        <input id="f-producer" type="text" placeholder="Giovanni Menti Winery" autocomplete="off">
         <div class="autocomplete-list" id="f-producer-options"></div>
       </div>
       <div class="field">
@@ -473,77 +464,57 @@
     </div>
 
     <div class="field">
-      <label>Cheesemaker</label>
-      <input id="f-cheesemaker" type="text" placeholder="Veronica Pedraza">
+      <label>Winemaker</label>
+      <input id="f-winemaker" type="text" placeholder="Marco and Stefano">
     </div>
 
     <div class="row2">
       <div class="field">
-        <label>Cheesemonger</label>
-        <input id="f-cheesemonger" type="text" placeholder="Bedford Cheese Shop" autocomplete="off">
-        <div class="autocomplete-list" id="f-cheesemonger-options"></div>
+        <label>Merchant</label>
+        <input id="f-merchant" type="text" placeholder="Chambers Street Wines" autocomplete="off">
+        <div class="autocomplete-list" id="f-merchant-options"></div>
       </div>
       <div class="field">
-        <label>Cheesemonger link (optional)</label>
-        <input id="f-cheesemongerUrl" type="url" placeholder="https://&hellip;">
-        <button type="button" id="cheesemongerRefreshBtn" class="refresh-link">&#8635; Pull comments from this link</button>
-        <div class="field-hint" id="cheesemongerRefreshStatus"></div>
+        <label>Merchant link (optional)</label>
+        <input id="f-merchantUrl" type="url" placeholder="https://&hellip;">
       </div>
     </div>
 
     <div class="row2">
       <div class="field">
-        <label>Milk Type</label>
-        <select id="f-milk">
+        <label>Type</label>
+        <select id="f-type">
           <option value="">&mdash;</option>
-          <option>Cow</option>
-          <option>Goat</option>
-          <option>Sheep</option>
-          <option>Buffalo</option>
-          <option>Mixed</option>
+          <option>Red</option>
+          <option>White</option>
+          <option>Ros&eacute;</option>
+          <option>Orange</option>
+          <option>Sparkling</option>
+          <option>Dessert</option>
+          <option>Fortified</option>
           <option>Other</option>
         </select>
       </div>
       <div class="field">
-        <label>Age</label>
-        <input id="f-age" type="text" placeholder="6 weeks / 18 months">
+        <label>Vintage</label>
+        <input id="f-vintage" type="text" placeholder="2023 / NV">
       </div>
-    </div>
-
-    <div class="field">
-      <label>Wrapped</label>
-      <select id="f-wrapped">
-        <option value="">&mdash;</option>
-        <option>Wax</option>
-        <option>Cloth-bound</option>
-        <option>Leaf-wrapped</option>
-        <option>Vacuum-sealed</option>
-        <option>Paper</option>
-        <option>Foil</option>
-        <option>Natural Rind</option>
-        <option>Other</option>
-      </select>
-    </div>
-
-    <div class="field" id="wrappedDescField" style="display:none;">
-      <label>Wrapped detail (optional)</label>
-      <input id="f-wrappedDesc" type="text" placeholder="Hand-dipped in black wax, cave-aged 3 months&hellip;">
     </div>
 
     <div class="row2">
       <div class="field">
         <label>State / Region</label>
-        <input id="f-region" type="text" placeholder="Burgundy">
+        <input id="f-region" type="text" placeholder="Veneto">
       </div>
       <div class="field">
         <label>Country</label>
-        <input id="f-country" type="text" placeholder="France">
+        <input id="f-country" type="text" placeholder="Italy">
       </div>
     </div>
 
     <div class="field">
-      <label>Paired Wine</label>
-      <select id="f-wine">
+      <label>Paired Cheese</label>
+      <select id="f-cheese">
         <option value="">&mdash;</option>
       </select>
     </div>
@@ -567,7 +538,7 @@
 
     <div class="form-actions">
       <button id="cancelBtn">Cancel</button>
-      <button class="save" id="saveBtn">Save Cheese</button>
+      <button class="save" id="saveBtn">Save Wine</button>
     </div>
   </div>
 
@@ -796,11 +767,11 @@ function fmtDate(d){
 
 function render(){
   const wrap = $('entries');
-  $('count').textContent = entries.length === 0 ? 'no cheeses yet' :
-    entries.length + (entries.length === 1 ? ' cheese logged' : ' cheeses logged');
+  $('count').textContent = entries.length === 0 ? 'no wines yet' :
+    entries.length + (entries.length === 1 ? ' wine logged' : ' wines logged');
 
   if(entries.length === 0){
-    wrap.innerHTML = `<div class="empty"><span class="big">The board is empty.</span>Log the first cheese.</div>`;
+    wrap.innerHTML = `<div class="empty"><span class="big">The cellar is empty.</span>Log the first bottle.</div>`;
     applyAuthGating();
     return;
   }
@@ -810,15 +781,14 @@ function render(){
   wrap.innerHTML = sorted.map(e => {
     const metaBits = [];
     if(e.producer) metaBits.push(linkOrText(e.producer, e.producerUrl));
-    if(e.cheesemaker) metaBits.push(escapeHtml(e.cheesemaker));
-    if(e.cheesemonger) metaBits.push(linkOrText(e.cheesemonger, e.cheesemongerUrl));
-    if(e.milkType) metaBits.push(escapeHtml(e.milkType));
-    if(e.age) metaBits.push(escapeHtml(e.age));
-    if(e.wrapped) metaBits.push(escapeHtml(e.wrapped));
+    if(e.winemaker) metaBits.push(escapeHtml(e.winemaker));
+    if(e.merchant) metaBits.push(linkOrText(e.merchant, e.merchantUrl));
+    if(e.type) metaBits.push(escapeHtml(e.type));
+    if(e.vintage) metaBits.push(escapeHtml(e.vintage));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
+    if(e.pairedCheese) metaBits.push(linkOrText('\ud83e\uddc0 ' + e.pairedCheese, e.pairedCheeseUrl));
     if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
-    if(e.pairedWine) metaBits.push(linkOrText('\ud83c\udf77 ' + e.pairedWine, e.pairedWineUrl));
     if(e.date) metaBits.push(fmtDate(e.date));
 
     return `
@@ -829,7 +799,7 @@ function render(){
       </div>
       ${entryPhotos(e).length
         ? `<img class="entry-thumb" src="${entryPhotos(e)[0]}" alt="">`
-        : `<div class="entry-thumb empty">c</div>`}
+        : `<div class="entry-thumb empty">w</div>`}
       <div class="entry-body">
         <div class="entry-top">
           <div>
@@ -853,7 +823,7 @@ function render(){
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      if(confirm('Remove this cheese?')){
+      if(confirm('Remove this wine?')){
         await deleteEntry(id);
       }
     });
@@ -864,11 +834,11 @@ function render(){
     });
   });
   wrap.querySelectorAll('.entry-meta a').forEach(a=>{
-    // Let a Producer/Cheesemonger/Restaurant link just navigate on its own,
+    // Let a Producer/Merchant/Cheese/Restaurant link just navigate on its own,
     // instead of also popping the detail lightbox open behind it.
     a.addEventListener('click', e => e.stopPropagation());
   });
-  refreshCheesemongerOptions();
+  refreshMerchantOptions();
   refreshProducerOptions();
   applyAuthGating();
 }
@@ -892,15 +862,14 @@ function openLightbox(id){
 
   const rows = [];
   if(e.producer) rows.push(['Producer', linkOrText(e.producer, e.producerUrl)]);
-  if(e.cheesemaker) rows.push(['Cheesemaker', escapeHtml(e.cheesemaker)]);
-  if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
-  if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
-  if(e.age) rows.push(['Age', escapeHtml(e.age)]);
-  if(e.wrapped) rows.push(['Wrapped', escapeHtml(e.wrapped) + (e.wrappedDesc ? ' — ' + escapeHtml(e.wrappedDesc) : '')]);
+  if(e.winemaker) rows.push(['Winemaker', escapeHtml(e.winemaker)]);
+  if(e.merchant) rows.push(['Merchant', linkOrText(e.merchant, e.merchantUrl)]);
+  if(e.type) rows.push(['Type', escapeHtml(e.type)]);
+  if(e.vintage) rows.push(['Vintage', escapeHtml(e.vintage)]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
+  if(e.pairedCheese) rows.push(['Paired Cheese', linkOrText(e.pairedCheese, e.pairedCheeseUrl)]);
   if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
-  if(e.pairedWine) rows.push(['Paired Wine', linkOrText(e.pairedWine, e.pairedWineUrl)]);
   if(e.date) rows.push(['Date', escapeHtml(fmtDate(e.date))]);
 
   $('lb-fields').innerHTML = rows.map(([label, val]) =>
@@ -973,248 +942,11 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// --- Autofill: asks the cheese-autofill Edge Function to fetch a producer
-// or shop page server-side (browsers can't fetch arbitrary cross-origin
-// pages directly) and pull out best-guess fields. Only ever fills in
-// fields that are currently empty, so it never clobbers what's already
-// been typed — review everything it fills before saving. ---
-const AUTOFILL_URL = SUPABASE_URL + '/functions/v1/cheese-autofill';
 
-function setAutofillStatus(msg, cls){
-  const el = $('autofillStatus');
-  el.textContent = msg;
-  el.className = 'field-hint' + (cls ? ' ' + cls : '');
-}
-
-// Resizes a data: URL image the same way resizeImage() handles a File —
-// used to compress the photo an autofill fetch hands back, so it goes
-// through the same size/quality pipeline as a manually uploaded photo
-// instead of storing the producer site's raw (often much larger) image.
-function resizeDataUrl(dataUrl, maxDim, quality){
-  return new Promise((resolve, reject)=>{
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
-      else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
-
-async function runAutofill(){
-  const url = $('f-autofillUrl').value.trim();
-  if(!url){
-    setAutofillStatus('Paste a URL first.', 'err');
-    return;
-  }
-  const btn = $('autofillBtn');
-  btn.disabled = true;
-  setAutofillStatus('Fetching…');
-
-  // Fetch + parse are their own try/catch: a failure here really is a
-  // network/URL problem. Applying the result to the form is separate, so a
-  // bug in that step reports honestly instead of being mislabeled as
-  // "check the URL" — which was masking a real problem with large photos.
-  let data;
-  try{
-    const res = await fetch(AUTOFILL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'apikey': SUPABASE_KEY
-      },
-      body: JSON.stringify({ url })
-    });
-    data = await res.json();
-    if(!res.ok || !data.ok){
-      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
-      btn.disabled = false;
-      return;
-    }
-  }catch(err){
-    console.error('Autofill fetch failed', err);
-    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
-    btn.disabled = false;
-    return;
-  }
-
-  try{
-    const filled = [];
-    const fillIfEmpty = (id, value) => {
-      if(value && !$(id).value.trim()){
-        $(id).value = value;
-        filled.push(id);
-      }
-    };
-    fillIfEmpty('f-name', data.name);
-    fillIfEmpty('f-producer', data.producer);
-    fillIfEmpty('f-producerUrl', data.producerUrl);
-    fillIfEmpty('f-cheesemaker', data.cheesemaker);
-    fillIfEmpty('f-cheesemonger', data.cheesemonger);
-    fillIfEmpty('f-cheesemongerUrl', data.cheesemongerUrl);
-    fillIfEmpty('f-age', data.age);
-    fillIfEmpty('f-region', data.region);
-    if(data.country && !$('f-country').value.trim()){
-      $('f-country').value = data.country;
-      filled.push('f-country');
-    }
-    if(data.milkType && !$('f-milk').value){
-      $('f-milk').value = data.milkType;
-      filled.push('f-milk');
-    }
-    if(data.wrapped && !$('f-wrapped').value){
-      $('f-wrapped').value = data.wrapped;
-      filled.push('f-wrapped');
-      toggleWrappedDescField();
-    }
-    fillIfEmpty('f-comment', data.comment);
-    if(data.photo && currentPhotos.length === 0){
-      try{
-        currentPhotos.push(await resizeDataUrl(data.photo, 1000, 0.72));
-      }catch(err){
-        console.error('Could not compress autofilled photo, using it as-is', err);
-        currentPhotos.push(data.photo);
-      }
-      renderGallery();
-      filled.push('picture');
-    }
-
-    if(filled.length){
-      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially milk type, age, and region/country.`, 'ok');
-    } else {
-      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
-    }
-  }catch(err){
-    console.error('Autofill fetched OK but applying it to the form failed', err);
-    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-$('autofillBtn').addEventListener('click', runAutofill);
-
-// --- Refresh from Cheesemonger link: for when the Cheesemonger link is
-// entered or corrected AFTER the initial autofill (or entered by hand with
-// no autofill at all). Unlike the main autofill, this doesn't skip fields
-// that already have a value — the whole point is to pull whatever's new
-// from that specific page, especially a pull-quote, and APPEND it to
-// Comment rather than silently drop it because Comment isn't empty. ---
-async function refreshFromCheesemonger(){
-  const url = $('f-cheesemongerUrl').value.trim();
-  const statusEl = $('cheesemongerRefreshStatus');
-  if(!url){
-    statusEl.textContent = 'Add a Cheesemonger link first.';
-    statusEl.className = 'field-hint err';
-    return;
-  }
-  const btn = $('cheesemongerRefreshBtn');
-  btn.disabled = true;
-  statusEl.textContent = 'Fetching…';
-  statusEl.className = 'field-hint';
-
-  let data;
-  try{
-    const res = await fetch(AUTOFILL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'apikey': SUPABASE_KEY
-      },
-      body: JSON.stringify({ url })
-    });
-    data = await res.json();
-    if(!res.ok || !data.ok){
-      statusEl.textContent = data.error || `Could not fetch that page (HTTP ${res.status}).`;
-      statusEl.className = 'field-hint err';
-      btn.disabled = false;
-      return;
-    }
-  }catch(err){
-    console.error('Cheesemonger refresh fetch failed', err);
-    statusEl.textContent = 'Request failed — check the link and try again.';
-    statusEl.className = 'field-hint err';
-    btn.disabled = false;
-    return;
-  }
-
-  try{
-    const added = [];
-    let quoteFound = !!data.quote;
-    let quoteAdded = false;
-
-    if(data.quote){
-      const quoteLine = `\u201C${data.quote}\u201D \u2014 ${data.quoteAttribution || $('f-cheesemonger').value.trim() || 'source site'}`;
-      const existing = $('f-comment').value;
-      if(!existing.includes(data.quote)){
-        $('f-comment').value = existing ? `${existing}\n\n${quoteLine}` : quoteLine;
-        quoteAdded = true;
-      }
-    }
-
-    // Anything else this page reveals that's still blank is fair game too,
-    // same fill-blanks-only behavior as the main autofill.
-    const fillIfEmpty = (id, value) => {
-      if(value && !$(id).value.trim()){
-        $(id).value = value;
-        added.push(id);
-      }
-    };
-    fillIfEmpty('f-cheesemaker', data.cheesemaker);
-    fillIfEmpty('f-age', data.age);
-    fillIfEmpty('f-region', data.region);
-    if(data.country && !$('f-country').value.trim()){
-      $('f-country').value = data.country;
-      added.push('f-country');
-    }
-    if(data.milkType && !$('f-milk').value){
-      $('f-milk').value = data.milkType;
-      added.push('f-milk');
-    }
-    if(data.wrapped && !$('f-wrapped').value){
-      $('f-wrapped').value = data.wrapped;
-      added.push('f-wrapped');
-      toggleWrappedDescField();
-    }
-
-    // Quote status is reported separately from "other fields filled" so a
-    // vague "it worked" can't paper over "but no quote was actually found"
-    // — that ambiguity was the whole reason this needed fixing.
-    let quoteMsg;
-    if(quoteAdded){
-      quoteMsg = data.quoteConfident
-        ? 'Added a quote from this page.'
-        : 'Added a quote found on this page (no clear attribution on the page itself, so it\'s credited to the site).';
-    } else if(quoteFound){
-      quoteMsg = 'Found a quote, but it was already in your notes.';
-    } else {
-      quoteMsg = 'No quote found on this page — it may not use a pull-quote style block.';
-    }
-    const otherMsg = added.length ? ` Also filled ${added.length} other field${added.length>1?'s':''}.` : '';
-    statusEl.textContent = quoteMsg + otherMsg;
-    statusEl.className = 'field-hint' + ((quoteAdded || added.length) ? ' ok' : '');
-  }catch(err){
-    console.error('Cheesemonger refresh apply failed', err);
-    statusEl.textContent = 'Fetched the page, but hit a problem applying it — check the browser console.';
-    statusEl.className = 'field-hint err';
-  }finally{
-    btn.disabled = false;
-  }
-}
-$('cheesemongerRefreshBtn').addEventListener('click', refreshFromCheesemonger);
-
-// Custom autocomplete dropdown for Producer and Cheesemonger (replaces
+// Custom autocomplete dropdown for Producer and Merchant (replaces
 // native <datalist>, which iOS Safari handles unreliably). Shows every
 // known value on focus, filters as you type, still accepts any free-text
-// value so a new producer/cheesemonger isn't blocked.
+// value so a new producer/merchant isn't blocked.
 function allProducers(){
   return [...new Set(entries.map(e=>e.producer).filter(Boolean))].sort();
 }
@@ -1222,12 +954,12 @@ function refreshProducerOptions(){
   const el = $('f-producer-options');
   if(el) el.dataset.options = JSON.stringify(allProducers());
 }
-function allCheesemongers(){
-  return [...new Set(entries.map(e=>e.cheesemonger).filter(Boolean))].sort();
+function allMerchants(){
+  return [...new Set(entries.map(e=>e.merchant).filter(Boolean))].sort();
 }
-function refreshCheesemongerOptions(){
-  const el = $('f-cheesemonger-options');
-  if(el) el.dataset.options = JSON.stringify(allCheesemongers());
+function refreshMerchantOptions(){
+  const el = $('f-merchant-options');
+  if(el) el.dataset.options = JSON.stringify(allMerchants());
 }
 function setupAutocomplete(inputId, listId){
   const input = $(inputId);
@@ -1262,38 +994,37 @@ function setupAutocomplete(inputId, listId){
   });
 }
 setupAutocomplete('f-producer', 'f-producer-options');
-setupAutocomplete('f-cheesemonger', 'f-cheesemonger-options');
+setupAutocomplete('f-merchant', 'f-merchant-options');
 
-// --- Cross-app cross-links: Paired Wine and Restaurant are dropdowns
+// --- Cross-app cross-links: Paired Cheese and Restaurant are dropdowns
 // sourced from the shared kv_store via the lightweight list_kv_names()
-// RPC (name + key only — never the full record, which can carry large
-// embedded photos). Both support inline "+ New ..." creation, writing a
-// real stub entry directly into the other app's data with the same
-// schema/id-scheme that app itself writes, so it's a genuine entry
-// there, not just a local label. Mirrors the identical pattern in
-// wine.html and in Restaurants' dish-row Cheese dropdown. ---
-let wineOptions = []; // {id, name}
+// RPC (name + key only — never the full record, which for Cheese can
+// carry large embedded photos). Both support inline "+ New ..." creation,
+// writing a real stub entry directly into the other app's data with the
+// same schema/id-scheme that app itself writes, so it's a genuine entry
+// there, not just a local label. ---
+let cheeseOptions = []; // {id, name}
 let restaurantOptions = []; // {id, name}
 
 async function refreshCrossLinkOptions(){
-  wineOptions = [];
+  cheeseOptions = [];
   restaurantOptions = [];
   if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdowns stay empty, still usable
   try{
-    const [wineRes, restRes] = await Promise.all([
-      supabaseClient.rpc('list_kv_names', { prefix: 'wine:' }),
+    const [cheeseRes, restRes] = await Promise.all([
+      supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' }),
       supabaseClient.rpc('list_kv_names', { prefix: 'entry:e' })
     ]);
-    if(wineRes.error) throw wineRes.error;
+    if(cheeseRes.error) throw cheeseRes.error;
     if(restRes.error) throw restRes.error;
-    wineOptions = (wineRes.data || [])
-      .map(r => ({ id: r.key.replace(/^wine:/, ''), name: r.name || 'Untitled' }))
+    cheeseOptions = (cheeseRes.data || [])
+      .map(r => ({ id: r.key.replace(/^cheese:/, ''), name: r.name || 'Untitled' }))
       .sort((a,b) => a.name.localeCompare(b.name));
     restaurantOptions = (restRes.data || [])
       .map(r => ({ id: r.key.replace(/^entry:/, ''), name: r.name || 'Untitled' }))
       .sort((a,b) => a.name.localeCompare(b.name));
   }catch(err){
-    console.error('Could not load wine/restaurant lists for the pickers', err);
+    console.error('Could not load cheese/restaurant lists for the pickers', err);
   }
 }
 
@@ -1324,50 +1055,53 @@ function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel)
   }
 }
 
-let currentWineId = '';
+// currentCheeseId/currentRestaurantId track the entry-being-edited's
+// linked ids across re-renders of the two selects (e.g. after creating a
+// new linked entry inline), since the <select>'s own DOM state gets wiped
+// each time buildLinkedSelect() rebuilds its options.
+let currentCheeseId = '';
 let currentRestaurantId = '';
 
 function renderCrossLinkSelects(){
-  buildLinkedSelect($('f-wine'), wineOptions, currentWineId, 'wine', '\ud83c\udf77 + New wine\u2026');
+  buildLinkedSelect($('f-cheese'), cheeseOptions, currentCheeseId, 'cheese', '\ud83e\uddc0 + New cheese\u2026');
   buildLinkedSelect($('f-restaurant'), restaurantOptions, currentRestaurantId, 'restaurant', '+ New restaurant visit\u2026');
 }
 
-async function handleNewWineSelection(){
-  const select = $('f-wine');
-  const name = prompt('Name for the new wine:');
+async function handleNewCheeseSelection(){
+  const select = $('f-cheese');
+  const name = prompt('Name for the new cheese:');
   if(!name || !name.trim()){
-    select.value = currentWineId || '';
+    select.value = currentCheeseId || '';
     return;
   }
   select.disabled = true;
   try{
-    const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
+    const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
     const entry = {
       id, name: name.trim(),
       photos: [],
       producer: '', producerUrl: '',
-      winemaker: '',
-      merchant: '', merchantUrl: '',
-      type: '', vintage: '',
+      cheesemaker: '',
+      cheesemonger: '', cheesemongerUrl: '',
+      milkType: '', age: '', wrapped: '', wrappedDesc: '',
       region: '', country: '',
-      pairedCheese: '', pairedCheeseUrl: '',
       restaurant: '', restaurantUrl: '',
       date: new Date().toISOString().slice(0,10),
       comment: ''
     };
     const { error } = await supabaseClient
       .from('kv_store')
-      .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+      .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
     if(error) throw error;
-    wineOptions.push({ id, name: name.trim() });
-    wineOptions.sort((a,b) => a.name.localeCompare(b.name));
-    currentWineId = id;
+    cheeseOptions.push({ id, name: name.trim() });
+    cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+    currentCheeseId = id;
     renderCrossLinkSelects();
   }catch(err){
-    console.error('Could not create new wine', err);
-    alert('Could not create the wine — make sure you\u2019re signed in.');
+    console.error('Could not create new cheese', err);
+    alert('Could not create the cheese — make sure you\u2019re signed in.');
     select.disabled = false;
-    select.value = currentWineId || '';
+    select.value = currentCheeseId || '';
   }
 }
 
@@ -1398,42 +1132,27 @@ async function handleNewRestaurantSelection(){
   }
 }
 
-$('f-wine').addEventListener('change', () => {
-  if($('f-wine').value === '__new__') handleNewWineSelection();
-  else currentWineId = $('f-wine').value;
+$('f-cheese').addEventListener('change', () => {
+  if($('f-cheese').value === '__new__') handleNewCheeseSelection();
+  else currentCheeseId = $('f-cheese').value;
 });
 $('f-restaurant').addEventListener('change', () => {
   if($('f-restaurant').value === '__new__') handleNewRestaurantSelection();
   else currentRestaurantId = $('f-restaurant').value;
 });
 
-// Shows/hides the Wrapped detail field based on whether Wrapped has a
-// value — covers manual selection (change event) and programmatic sets
-// from autofill (called directly after those assignments, since setting
-// .value in JS doesn't fire 'change' on its own).
-function toggleWrappedDescField(){
-  $('wrappedDescField').style.display = $('f-wrapped').value ? '' : 'none';
-}
-$('f-wrapped').addEventListener('change', toggleWrappedDescField);
-
 function resetForm(){
-  $('f-autofillUrl').value='';
-  setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
   $('f-name').value='';
   $('f-producer').value='';
   $('f-producerUrl').value='';
-  $('f-cheesemaker').value='';
-  $('f-cheesemonger').value='';
-  $('f-cheesemongerUrl').value='';
-  $('cheesemongerRefreshStatus').textContent = '';
-  $('f-milk').value='';
-  $('f-age').value='';
-  $('f-wrapped').value='';
-  $('f-wrappedDesc').value='';
-  toggleWrappedDescField();
+  $('f-winemaker').value='';
+  $('f-merchant').value='';
+  $('f-merchantUrl').value='';
+  $('f-type').value='';
+  $('f-vintage').value='';
   $('f-region').value='';
   $('f-country').value='';
-  currentWineId = '';
+  currentCheeseId = '';
   currentRestaurantId = '';
   renderCrossLinkSelects();
   refreshCrossLinkOptions().then(renderCrossLinkSelects);
@@ -1526,17 +1245,14 @@ function openForEdit(id){
   $('f-name').value = e.name || '';
   $('f-producer').value = e.producer || '';
   $('f-producerUrl').value = e.producerUrl || '';
-  $('f-cheesemaker').value = e.cheesemaker || '';
-  $('f-cheesemonger').value = e.cheesemonger || '';
-  $('f-cheesemongerUrl').value = e.cheesemongerUrl || '';
-  $('f-milk').value = e.milkType || '';
-  $('f-age').value = e.age || '';
-  $('f-wrapped').value = e.wrapped || '';
-  $('f-wrappedDesc').value = e.wrappedDesc || '';
-  toggleWrappedDescField();
+  $('f-winemaker').value = e.winemaker || '';
+  $('f-merchant').value = e.merchant || '';
+  $('f-merchantUrl').value = e.merchantUrl || '';
+  $('f-type').value = e.type || '';
+  $('f-vintage').value = e.vintage || '';
   $('f-region').value = e.region || '';
   $('f-country').value = e.country || '';
-  currentWineId = (e.pairedWineUrl || '').split('#')[1] || '';
+  currentCheeseId = (e.pairedCheeseUrl || '').split('#')[1] || '';
   currentRestaurantId = (e.restaurantUrl || '').split('#')[1] || '';
   renderCrossLinkSelects();
   refreshCrossLinkOptions().then(renderCrossLinkSelects);
@@ -1552,7 +1268,7 @@ async function loadEntries(){
   try{
     if(storage.listWithValues){
       // Fast path: one request for everything.
-      const result = await storage.listWithValues('cheese:');
+      const result = await storage.listWithValues('wine:');
       entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
@@ -1562,7 +1278,7 @@ async function loadEntries(){
     }
     // Fallback for storage backends without a batch method (Claude artifact
     // storage, plain localStorage) — one request per entry.
-    const result = await storage.list('cheese:');
+    const result = await storage.list('wine:');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
       setLoadError(supabaseInitError);
@@ -1581,7 +1297,7 @@ async function loadEntries(){
     entries = loaded;
     setLoadError(supabaseInitError);
   }catch(err){
-    console.error('Cheese Collection: failed to load entries', err);
+    console.error('Wine Collection: failed to load entries', err);
     setLoadError(supabaseInitError ||
       `Couldn't load your entries (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
   }
@@ -1595,8 +1311,8 @@ async function saveEntry(){
     $('f-name').focus();
     return;
   }
-  const id = editingId || ('c' + Date.now() + Math.random().toString(36).slice(2,7));
-  const pairedWine = wineOptions.find(w => w.id === currentWineId);
+  const id = editingId || ('w' + Date.now() + Math.random().toString(36).slice(2,7));
+  const pairedCheese = cheeseOptions.find(c => c.id === currentCheeseId);
   const linkedRestaurant = restaurantOptions.find(r => r.id === currentRestaurantId);
   const entry = {
     id,
@@ -1604,24 +1320,22 @@ async function saveEntry(){
     photos: currentPhotos,
     producer: $('f-producer').value.trim(),
     producerUrl: $('f-producerUrl').value.trim(),
-    cheesemaker: $('f-cheesemaker').value.trim(),
-    cheesemonger: $('f-cheesemonger').value.trim(),
-    cheesemongerUrl: $('f-cheesemongerUrl').value.trim(),
-    milkType: $('f-milk').value,
-    age: $('f-age').value.trim(),
-    wrapped: $('f-wrapped').value,
-    wrappedDesc: $('f-wrappedDesc').value.trim(),
+    winemaker: $('f-winemaker').value.trim(),
+    merchant: $('f-merchant').value.trim(),
+    merchantUrl: $('f-merchantUrl').value.trim(),
+    type: $('f-type').value,
+    vintage: $('f-vintage').value.trim(),
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
-    pairedWine: pairedWine ? pairedWine.name : '',
-    pairedWineUrl: currentWineId ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'wine.html#' + currentWineId) : '',
+    pairedCheese: pairedCheese ? pairedCheese.name : '',
+    pairedCheeseUrl: currentCheeseId ? (location.origin + location.pathname.replace(/wine\.html$/, '') + 'cheese.html#' + currentCheeseId) : '',
     restaurant: linkedRestaurant ? linkedRestaurant.name : '',
-    restaurantUrl: currentRestaurantId ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'restaurants.html#' + currentRestaurantId) : '',
+    restaurantUrl: currentRestaurantId ? (location.origin + location.pathname.replace(/wine\.html$/, '') + 'restaurants.html#' + currentRestaurantId) : '',
     date: $('f-date').value,
     comment: $('f-comment').value.trim()
   };
   try{
-    await storage.set('cheese:' + id, JSON.stringify(entry));
+    await storage.set('wine:' + id, JSON.stringify(entry));
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);
@@ -1638,7 +1352,7 @@ async function saveEntry(){
 
 async function deleteEntry(id){
   try{
-    await storage.delete('cheese:' + id);
+    await storage.delete('wine:' + id);
     entries = entries.filter(e=>e.id!==id);
     render();
   }catch(err){
