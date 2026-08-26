@@ -175,6 +175,26 @@
   }
   .dish-row-links-2{grid-template-columns:1fr auto;}
   .dish-row-links-1{display:flex;justify-content:flex-end;}
+
+  .dish-photo-wrap{
+    display:flex;align-items:center;gap:6px;
+    min-width:0;
+  }
+  .dish-photo-wrap input.dish-photo{flex:1;min-width:0;}
+  .dish-photo-upload{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;flex:none;
+  }
+  .dish-photo-upload:hover{color:var(--wine);}
+  .dish-photo-thumb-preview{
+    width:26px;height:26px;object-fit:cover;border-radius:2px;
+    border:1px solid var(--line);flex:none;
+  }
+  .dish-photo-clear{
+    background:none;border:none;color:var(--slate);
+    font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex:none;
+  }
+  .dish-photo-clear:hover{color:var(--wine);}
   .dish-row input, .dish-row select{
     font-family:inherit;font-size:13px;
     background:transparent;border:none;border-bottom:1px solid var(--line);
@@ -757,6 +777,19 @@ function safeUrl(u){
   return null;
 }
 
+// For photo sources specifically: accepts either a real http(s) URL
+// (pasted link) or a data: image URI (uploaded + resized locally) — kept
+// separate from safeUrl() above, which stays link-field-only (http/https),
+// since a data: URI has no business being used as a clickable <a href>
+// for a cheese/wine/restaurant link, only as an <img src>.
+function safePhotoSrc(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  if(/^data:image\//i.test(s)) return s;
+  return null;
+}
+
 // Dish rows are built via DOM APIs (createElement + .value), not innerHTML
 // string interpolation — escapeHtml() below doesn't escape quote
 // characters, which is fine for text nodes but unsafe inside a value="..."
@@ -818,6 +851,32 @@ async function createNewCheese(name){
   return { id, name };
 }
 
+// Resizes/compresses an uploaded photo before storing it as base64 —
+// mirrors cheese.html/wine.html's gallery upload pipeline. Restaurants
+// never had a photo-upload mechanism before this (only paste-a-URL), so
+// this is new here.
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderDishesList(){
   const wrap = $('dishesList');
   wrap.innerHTML = '';
@@ -845,11 +904,65 @@ function renderDishesList(){
     const links = document.createElement('div');
     links.className = 'dish-row-links dish-row-links-2';
 
+    // Photo control: either a paste-a-URL text input (no photo set yet),
+    // or a small thumbnail + clear button (photo set, whichever way it
+    // got there) — showing the raw base64 of an uploaded photo in a plain
+    // text input would be unreadable, so this swaps view once something's
+    // attached. A hidden input still carries the value either way, so
+    // readDishesFromDom() below needs no special-casing.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+
     const photoInput = document.createElement('input');
-    photoInput.type = 'url';
+    photoInput.type = d.photoUrl ? 'hidden' : 'url';
     photoInput.className = 'dish-photo';
     photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
     photoInput.value = d.photoUrl || '';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readDishesFromDom();
+        currentDishes[i].photoUrl = dataUrl;
+        renderDishesList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+
+    photoWrap.append(uploadBtn, fileInput);
+    if(d.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = d.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readDishesFromDom();
+        currentDishes[i].photoUrl = '';
+        renderDishesList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
 
     const rmBtn = document.createElement('button');
     rmBtn.type = 'button';
@@ -862,7 +975,7 @@ function renderDishesList(){
       renderDishesList();
     });
 
-    links.append(photoInput, rmBtn);
+    links.append(photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -1211,7 +1324,7 @@ function renderDishItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(d => {
     const cheeseHref = safeUrl(d.cheeseUrl);
-    const photoHref = safeUrl(d.photoUrl);
+    const photoHref = safePhotoSrc(d.photoUrl);
     return `<div class="dish-item">
       <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
