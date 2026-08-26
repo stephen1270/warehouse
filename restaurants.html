@@ -739,6 +739,41 @@ async function refreshCheeseOptions(){
   }
 }
 
+// Creates a genuinely new Cheese entry (same schema cheese.html writes,
+// same 'cheese:' key prefix) directly in the shared kv_store — not just a
+// local label in this dropdown. Requires being signed in, same as every
+// other write in this suite (RLS: public SELECT, authenticated
+// INSERT/UPDATE/DELETE), so a failure here is most likely an auth issue.
+async function createNewCheese(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    cheesemaker: '',
+    cheesemonger: '', cheesemongerUrl: '',
+    milkType: '', age: '', wrapped: '', wrappedDesc: '',
+    region: '', country: '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  // If this restaurant entry has already been saved (has a stable id), fill
+  // in the new cheese's Restaurant back-link automatically — it completes
+  // the reciprocal connection for free. A brand-new, not-yet-saved entry
+  // has no stable URL to give it yet, so this is skipped in that case.
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
 function renderDishesList(){
   const wrap = $('dishesList');
   wrap.innerHTML = '';
@@ -772,6 +807,10 @@ function renderDishesList(){
     blankOpt.value = '';
     blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
     cheeseSelect.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New cheese\u2026';
+    cheeseSelect.appendChild(newOpt);
     // Current value might be a link to a cheese that's since been
     // deleted, or one this dropdown hasn't loaded (e.g. Supabase
     // unavailable) — add it as a fallback option so it isn't silently
@@ -792,6 +831,28 @@ function renderDishesList(){
       opt.selected = true;
       cheeseSelect.appendChild(opt);
     }
+    cheeseSelect.addEventListener('change', async () => {
+      if(cheeseSelect.value !== '__new__') return;
+      const name = prompt('Name for the new cheese:');
+      if(!name || !name.trim()){
+        cheeseSelect.value = currentId || '';
+        return;
+      }
+      cheeseSelect.disabled = true;
+      try{
+        const created = await createNewCheese(name.trim());
+        cheeseOptions.push(created);
+        cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readDishesFromDom(); // capture any other in-progress edits first
+        currentDishes[i].cheeseUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id;
+        renderDishesList();
+      }catch(err){
+        console.error('Could not create new cheese', err);
+        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        cheeseSelect.disabled = false;
+        cheeseSelect.value = currentId || '';
+      }
+    });
 
     const photoInput = document.createElement('input');
     photoInput.type = 'url';
