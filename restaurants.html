@@ -173,6 +173,8 @@
     gap:8px;
     align-items:center;
   }
+  .dish-row-links-2{grid-template-columns:1fr auto;}
+  .dish-row-links-1{display:flex;justify-content:flex-end;}
   .dish-row input, .dish-row select{
     font-family:inherit;font-size:13px;
     background:transparent;border:none;border-bottom:1px solid var(--line);
@@ -465,6 +467,11 @@
       <button type="button" id="addWineBtn" class="ghost-inline">+ Add wine</button>
     </div>
     <div class="field">
+      <label>Cheeses had</label>
+      <div id="cheesesList"></div>
+      <button type="button" id="addCheeseBtn" class="ghost-inline">+ Add cheese</button>
+    </div>
+    <div class="field">
       <label>Notes</label>
       <textarea id="f-notes" placeholder="How it was, who with, what to order next time…"></textarea>
     </div>
@@ -494,6 +501,9 @@
     <div class="lightbox-notes" id="lb-wines-wrap" style="display:none;">
       <span class="lbl">Wines</span><div id="lb-wines"></div>
     </div>
+    <div class="lightbox-notes" id="lb-cheeses-wrap" style="display:none;">
+      <span class="lbl">Cheeses</span><div id="lb-cheeses"></div>
+    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -512,6 +522,7 @@ let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
 let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
+let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -702,6 +713,7 @@ function render(){
       </div>
       ${renderDishItemsHtml(e)}
       ${renderWineItemsHtml(e)}
+      ${renderCheeseItemsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -831,60 +843,7 @@ function renderDishesList(){
     main.append(nameInput, noteInput);
 
     const links = document.createElement('div');
-    links.className = 'dish-row-links';
-
-    const cheeseSelect = document.createElement('select');
-    cheeseSelect.className = 'dish-cheese';
-    const blankOpt = document.createElement('option');
-    blankOpt.value = '';
-    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
-    cheeseSelect.appendChild(blankOpt);
-    const newOpt = document.createElement('option');
-    newOpt.value = '__new__';
-    newOpt.textContent = '+ New cheese\u2026';
-    cheeseSelect.appendChild(newOpt);
-    // Current value might be a link to a cheese that's since been
-    // deleted, or one this dropdown hasn't loaded (e.g. Supabase
-    // unavailable) — add it as a fallback option so it isn't silently
-    // dropped just because it's not in cheeseOptions.
-    const currentId = (d.cheeseUrl || '').split('#')[1] || '';
-    let matched = false;
-    cheeseOptions.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = '\ud83e\uddc0 ' + c.name;
-      if(c.id && c.id === currentId){ opt.selected = true; matched = true; }
-      cheeseSelect.appendChild(opt);
-    });
-    if(currentId && !matched){
-      const opt = document.createElement('option');
-      opt.value = currentId;
-      opt.textContent = '\ud83e\uddc0 (linked cheese not in list)';
-      opt.selected = true;
-      cheeseSelect.appendChild(opt);
-    }
-    cheeseSelect.addEventListener('change', async () => {
-      if(cheeseSelect.value !== '__new__') return;
-      const name = prompt('Name for the new cheese:');
-      if(!name || !name.trim()){
-        cheeseSelect.value = currentId || '';
-        return;
-      }
-      cheeseSelect.disabled = true;
-      try{
-        const created = await createNewCheese(name.trim());
-        cheeseOptions.push(created);
-        cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
-        readDishesFromDom(); // capture any other in-progress edits first
-        currentDishes[i].cheeseUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id;
-        renderDishesList();
-      }catch(err){
-        console.error('Could not create new cheese', err);
-        alert('Could not create the cheese — make sure you\u2019re signed in.');
-        cheeseSelect.disabled = false;
-        cheeseSelect.value = currentId || '';
-      }
-    });
+    links.className = 'dish-row-links dish-row-links-2';
 
     const photoInput = document.createElement('input');
     photoInput.type = 'url';
@@ -903,7 +862,7 @@ function renderDishesList(){
       renderDishesList();
     });
 
-    links.append(cheeseSelect, photoInput, rmBtn);
+    links.append(photoInput, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -911,20 +870,18 @@ function renderDishesList(){
 
 // Captures whatever's currently typed into the dish rows back into
 // currentDishes — called before any add/remove (so in-progress edits
-// aren't lost) and at save time. The cheese select's value is just the
-// bare cheese id; stored (and rendered) as a full cheese.html#<id> link,
-// consistent with every other link field in this app suite.
+// aren't lost) and at save time. A dish's own cheeseUrl (if any) is
+// preserved as-is here for backward compat with entries saved before
+// Cheese moved out into its own top-level "Cheeses had" section — new
+// dishes never get one assigned again.
 function readDishesFromDom(){
   const rows = $('dishesList').querySelectorAll('.dish-row');
-  currentDishes = Array.from(rows).map(row => {
-    const cheeseId = row.querySelector('.dish-cheese').value;
-    return {
-      name: row.querySelector('.dish-name').value.trim(),
-      note: row.querySelector('.dish-note').value.trim(),
-      cheeseUrl: cheeseId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + cheeseId) : '',
-      photoUrl: row.querySelector('.dish-photo').value.trim()
-    };
-  });
+  currentDishes = Array.from(rows).map((row, i) => ({
+    name: row.querySelector('.dish-name').value.trim(),
+    note: row.querySelector('.dish-note').value.trim(),
+    cheeseUrl: currentDishes[i] ? (currentDishes[i].cheeseUrl || '') : '',
+    photoUrl: row.querySelector('.dish-photo').value.trim()
+  }));
 }
 
 $('addDishBtn').addEventListener('click', () => {
@@ -1008,7 +965,7 @@ function renderWinesList(){
     main.append(nameInput, noteInput);
 
     const links = document.createElement('div');
-    links.className = 'dish-row-links';
+    links.className = 'dish-row-links dish-row-links-2';
 
     const wineSelect = document.createElement('select');
     wineSelect.className = 'dish-cheese';
@@ -1111,6 +1068,134 @@ function renderWineItemsHtml(e){
   }).join('')}</div>`;
 }
 
+// --- Cheeses had: same repeatable-row pattern as Wines had above, using
+// the cheeseOptions/refreshCheeseOptions/createNewCheese machinery
+// defined earlier (previously wired to a per-dish cheese select; now
+// powers this standalone section instead, since a cheese course doesn't
+// always map 1:1 to a single dish). ---
+function renderCheesesList(){
+  const wrap = $('cheesesList');
+  wrap.innerHTML = '';
+  currentCheeses.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const select = document.createElement('select');
+    select.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    select.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New cheese\u2026';
+    select.appendChild(newOpt);
+    const currentId = (c.cheeseUrl || '').split('#')[1] || '';
+    let matched = false;
+    cheeseOptions.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = '\ud83e\uddc0 ' + opt.name;
+      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
+      select.appendChild(o);
+    });
+    if(currentId && !matched){
+      const o = document.createElement('option');
+      o.value = currentId;
+      o.textContent = '\ud83e\uddc0 (linked cheese not in list)';
+      o.selected = true;
+      select.appendChild(o);
+    }
+    select.addEventListener('change', async () => {
+      if(select.value !== '__new__') return;
+      const name = prompt('Name for the new cheese:');
+      if(!name || !name.trim()){
+        select.value = currentId || '';
+        return;
+      }
+      select.disabled = true;
+      try{
+        const created = await createNewCheese(name.trim());
+        cheeseOptions.push(created);
+        cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readCheesesFromDom();
+        currentCheeses[i].cheeseUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id;
+        currentCheeses[i].name = created.name;
+        renderCheesesList();
+      }catch(err){
+        console.error('Could not create new cheese', err);
+        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        select.disabled = false;
+        select.value = currentId || '';
+      }
+    });
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = c.note || '';
+
+    main.append(select, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links dish-row-links-1';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove cheese';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readCheesesFromDom();
+      currentCheeses.splice(i, 1);
+      renderCheesesList();
+    });
+
+    links.append(rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readCheesesFromDom(){
+  const rows = $('cheesesList').querySelectorAll('.dish-row');
+  currentCheeses = Array.from(rows).map((row, i) => {
+    const select = row.querySelector('.dish-cheese');
+    const cheeseId = select.value;
+    const opt = cheeseOptions.find(o => o.id === cheeseId);
+    return {
+      name: opt ? opt.name : (currentCheeses[i] ? currentCheeses[i].name : ''),
+      cheeseUrl: cheeseId && cheeseId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + cheeseId) : '',
+      note: row.querySelector('.dish-note').value.trim()
+    };
+  });
+}
+
+$('addCheeseBtn').addEventListener('click', () => {
+  readCheesesFromDom();
+  currentCheeses.push({name:'', note:'', cheeseUrl:''});
+  renderCheesesList();
+});
+
+function cheeseItemsOf(e){
+  return (e.cheeseItems && e.cheeseItems.length) ? e.cheeseItems : [];
+}
+
+function renderCheeseItemsHtml(e){
+  const items = cheeseItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(c => {
+    const cheeseHref = safeUrl(c.cheeseUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // Resolves an entry's dishes for display, whether it has the new
 // structured dishItems array or only the old flat comma-separated
 // `dishes` string (kept, never migrated in the database, so nothing
@@ -1203,6 +1288,14 @@ function openLightbox(id){
     $('lb-wines').innerHTML = renderWineItemsHtml(e);
   } else {
     $('lb-wines-wrap').style.display = 'none';
+  }
+
+  const cheeseItems = cheeseItemsOf(e);
+  if(cheeseItems.length){
+    $('lb-cheeses-wrap').style.display = 'block';
+    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
+  } else {
+    $('lb-cheeses-wrap').style.display = 'none';
   }
 
   if(e.notes){
@@ -1307,11 +1400,13 @@ function resetForm(){
   renderDishesList();
   currentWines = [];
   renderWinesList();
+  currentCheeses = [];
+  renderCheesesList();
   // Cheese/wine options are fetched async so opening the form never waits
   // on a network round trip; re-render in place once they land. Reads
   // whatever was typed in the meantime first, so a fast typer doesn't
   // lose input.
-  refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
   $('f-notes').value='';
   $('f-tags').value='';
@@ -1342,9 +1437,16 @@ function openForEdit(id){
     ? e.dishItems.map(d => ({...d}))
     : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
   renderDishesList();
-  refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
   currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
   renderWinesList();
+  // Structured cheeseItems if present; otherwise pull forward any cheese
+  // links still sitting on individual dishes from before Cheese moved out
+  // into its own section, so the connection isn't lost on first re-edit.
+  currentCheeses = (e.cheeseItems && e.cheeseItems.length)
+    ? e.cheeseItems.map(c => ({...c}))
+    : (e.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
+  renderCheesesList();
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
@@ -1406,6 +1508,8 @@ async function saveEntry(){
   const dishItems = currentDishes.filter(d => d.name);
   readWinesFromDom();
   const wineItems = currentWines.filter(w => w.name);
+  readCheesesFromDom();
+  const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
   const entry = {
     id,
     name,
@@ -1415,6 +1519,7 @@ async function saveEntry(){
     rating: currentStars,
     dishItems,
     wineItems,
+    cheeseItems,
     notes: $('f-notes').value.trim(),
     tags
   };
