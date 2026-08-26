@@ -226,6 +226,7 @@
     text-decoration:underline;padding:2px 0;
   }
   .ghost-inline:hover{color:var(--wine);}
+  .add-row-choices{display:flex;gap:14px;flex-wrap:wrap;}
 
   .dish-list{margin-top:6px;}
   .dish-item{
@@ -484,7 +485,12 @@
     <div class="field">
       <label>Wines had</label>
       <div id="winesList"></div>
-      <button type="button" id="addWineBtn" class="ghost-inline">+ Add wine</button>
+      <div class="add-row-choices">
+        <button type="button" id="addWineByNameBtn" class="ghost-inline">+ Add by name</button>
+        <button type="button" id="addWineByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addWineByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="wineByPhotoInput" accept="image/*" style="display:none;">
+      </div>
     </div>
     <div class="field">
       <label>Cheeses had</label>
@@ -1078,7 +1084,7 @@ function renderWinesList(){
     main.append(nameInput, noteInput);
 
     const links = document.createElement('div');
-    links.className = 'dish-row-links dish-row-links-2';
+    links.className = 'dish-row-links';
 
     const wineSelect = document.createElement('select');
     wineSelect.className = 'dish-cheese';
@@ -1140,7 +1146,58 @@ function renderWinesList(){
       renderWinesList();
     });
 
-    links.append(wineSelect, rmBtn);
+    // Photo control: same paste-or-upload pattern as Dishes had.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+    const photoInput = document.createElement('input');
+    photoInput.type = w.photoUrl ? 'hidden' : 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = w.photoUrl || '';
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readWinesFromDom();
+        currentWines[i].photoUrl = dataUrl;
+        renderWinesList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    photoWrap.append(uploadBtn, fileInput);
+    if(w.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = w.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readWinesFromDom();
+        currentWines[i].photoUrl = '';
+        renderWinesList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
+
+    links.append(wineSelect, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -1153,18 +1210,115 @@ function readWinesFromDom(){
     return {
       name: row.querySelector('.dish-name').value.trim(),
       note: row.querySelector('.dish-note').value.trim(),
-      wineUrl: wineId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineId) : ''
+      wineUrl: wineId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineId) : '',
+      photoUrl: row.querySelector('.dish-photo').value.trim()
     };
   });
 }
 
-$('addWineBtn').addEventListener('click', () => {
+$('addWineByNameBtn').addEventListener('click', () => {
   readWinesFromDom();
-  currentWines.push({name:'', note:'', wineUrl:''});
+  currentWines.push({name:'', note:'', wineUrl:'', photoUrl:''});
   renderWinesList();
   const rows = $('winesList').querySelectorAll('.dish-row');
   rows[rows.length-1].querySelector('.dish-name').focus();
 });
+
+$('addWineByPhotoBtn').addEventListener('click', () => $('wineByPhotoInput').click());
+$('wineByPhotoInput').addEventListener('change', async () => {
+  const file = $('wineByPhotoInput').files[0];
+  $('wineByPhotoInput').value = '';
+  if(!file) return;
+  try{
+    const dataUrl = await resizeImage(file, 900, 0.7);
+    readWinesFromDom();
+    currentWines.push({name:'', note:'', wineUrl:'', photoUrl:dataUrl});
+    renderWinesList();
+    const rows = $('winesList').querySelectorAll('.dish-row');
+    // No automatic label recognition yet (that needs a vision-capable AI
+    // call — see the chat for why this is a separate ask) — focus Name so
+    // it's easy to type what the bottle actually is.
+    rows[rows.length-1].querySelector('.dish-name').focus();
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+  }
+});
+
+// Adding a wine by URL runs it straight through wine-autofill and creates
+// a real, fully-populated Wine entry from whatever was found — not just a
+// bare-name stub like the dropdown's "+ New wine…" option, since we
+// already have the URL in hand and might as well use it.
+$('addWineByUrlBtn').addEventListener('click', async () => {
+  const url = prompt('Paste a link to the wine (producer or shop page):');
+  if(!url || !url.trim()) return;
+  const btn = $('addWineByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createWineFromUrl(url.trim());
+    wineOptions.push({ id: created.id, name: created.name });
+    wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readWinesFromDom();
+    currentWines.push({
+      name: created.name,
+      note: '',
+      wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+      photoUrl: ''
+    });
+    renderWinesList();
+  }catch(err){
+    console.error('Could not add wine from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// Fetches wine-autofill for a URL and writes a real, populated Wine entry
+// directly into the shared kv_store (not just a name stub) — reuses the
+// exact same edge function wine.html's own Autofill button calls.
+async function createWineFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a wine name on that page.');
+
+  const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    winemaker: data.winemaker || '',
+    merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
+    type: data.type || '', vintage: data.vintage || '',
+    region: data.region || '', country: data.country || '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: data.comment || ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
 
 function wineItemsOf(e){
   return (e.wineItems && e.wineItems.length) ? e.wineItems : [];
@@ -1175,8 +1329,9 @@ function renderWineItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(w => {
     const wineHref = safeUrl(w.wineUrl);
+    const photoHref = safePhotoSrc(w.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}
+      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -1618,9 +1773,9 @@ async function saveEntry(){
   const id = editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7));
   const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   readDishesFromDom();
-  const dishItems = currentDishes.filter(d => d.name);
+  const dishItems = currentDishes.filter(d => d.name || d.photoUrl);
   readWinesFromDom();
-  const wineItems = currentWines.filter(w => w.name);
+  const wineItems = currentWines.filter(w => w.name || w.wineUrl || w.photoUrl);
   readCheesesFromDom();
   const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
   const entry = {
