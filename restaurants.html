@@ -145,6 +145,41 @@
   .field textarea{resize:vertical;min-height:54px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 
+  .dish-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .dish-row input{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+  }
+  .dish-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .dish-row input.dish-name{font-weight:600;}
+  .dish-rm{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .dish-rm:hover{color:var(--wine);}
+  .ghost-inline{
+    font-family:inherit;font-size:11px;letter-spacing:.04em;
+    color:var(--slate);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:2px 0;
+  }
+  .ghost-inline:hover{color:var(--wine);}
+
+  .dish-list{margin-top:6px;}
+  .dish-item{
+    font-size:13px;line-height:1.6;color:var(--ink);
+  }
+  .dish-item .dish-item-note{color:var(--slate);}
+  .dish-item .dish-cheese-link{
+    margin-left:5px;text-decoration:none;font-size:12px;
+  }
+
   .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;user-select:none;}
   .stars span{opacity:.25;transition:opacity .1s;}
   .stars span.on{opacity:1;color:var(--wine);}
@@ -380,7 +415,8 @@
     </div>
     <div class="field">
       <label>Dishes had</label>
-      <textarea id="f-dishes" placeholder="Marcona almonds, endive & radicchio salad, prosciutto board…"></textarea>
+      <div id="dishesList"></div>
+      <button type="button" id="addDishBtn" class="ghost-inline">+ Add dish</button>
     </div>
     <div class="field">
       <label>Notes</label>
@@ -406,6 +442,9 @@
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
     <div class="lightbox-photos" id="lb-photos"></div>
+    <div class="lightbox-notes" id="lb-dishes-wrap" style="display:none;">
+      <span class="lbl">Dishes</span><div id="lb-dishes"></div>
+    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -422,6 +461,7 @@ let entries = [];
 let editingId = null;
 let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
+let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -610,6 +650,7 @@ function render(){
         </div>
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
+      ${renderDishItemsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -642,6 +683,101 @@ function render(){
 
 function photoUrl(p){
   return (p && typeof p === 'object') ? p.url : p;
+}
+
+// Only allow http(s) URLs through as href values — guards against
+// javascript: or other schemes sneaking into a pasted link field.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
+// Dish rows are built via DOM APIs (createElement + .value), not innerHTML
+// string interpolation — escapeHtml() below doesn't escape quote
+// characters, which is fine for text nodes but unsafe inside a value="..."
+// attribute, so building elements directly sidesteps that entirely.
+function renderDishesList(){
+  const wrap = $('dishesList');
+  wrap.innerHTML = '';
+  currentDishes.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Dish name';
+    nameInput.value = d.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = d.note || '';
+
+    const cheeseInput = document.createElement('input');
+    cheeseInput.type = 'url';
+    cheeseInput.className = 'dish-cheese';
+    cheeseInput.placeholder = 'Cheese link (optional)';
+    cheeseInput.value = d.cheeseUrl || '';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove dish';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readDishesFromDom();
+      currentDishes.splice(i, 1);
+      renderDishesList();
+    });
+
+    row.append(nameInput, noteInput, cheeseInput, rmBtn);
+    wrap.appendChild(row);
+  });
+}
+
+// Captures whatever's currently typed into the dish rows back into
+// currentDishes — called before any add/remove (so in-progress edits
+// aren't lost) and at save time.
+function readDishesFromDom(){
+  const rows = $('dishesList').querySelectorAll('.dish-row');
+  currentDishes = Array.from(rows).map(row => ({
+    name: row.querySelector('.dish-name').value.trim(),
+    note: row.querySelector('.dish-note').value.trim(),
+    cheeseUrl: row.querySelector('.dish-cheese').value.trim()
+  }));
+}
+
+$('addDishBtn').addEventListener('click', () => {
+  readDishesFromDom();
+  currentDishes.push({name:'', note:'', cheeseUrl:''});
+  renderDishesList();
+  const rows = $('dishesList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+// Resolves an entry's dishes for display, whether it has the new
+// structured dishItems array or only the old flat comma-separated
+// `dishes` string (kept, never migrated in the database, so nothing
+// existing is lost or silently rewritten).
+function dishItemsOf(e){
+  if(e.dishItems && e.dishItems.length) return e.dishItems;
+  if(e.dishes) return e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name}));
+  return [];
+}
+
+function renderDishItemsHtml(e){
+  const items = dishItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(d => {
+    const cheeseHref = safeUrl(d.cheeseUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function stripPhotoTags(notes){
@@ -699,6 +835,14 @@ function openLightbox(id){
   $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
 
   const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(e);
+
+  const dishItems = dishItemsOf(e);
+  if(dishItems.length){
+    $('lb-dishes-wrap').style.display = 'block';
+    $('lb-dishes').innerHTML = renderDishItemsHtml(e);
+  } else {
+    $('lb-dishes-wrap').style.display = 'none';
+  }
 
   if(e.notes){
     $('lb-notes-wrap').style.display = 'block';
@@ -798,7 +942,8 @@ function resetForm(){
   $('f-place').value='';
   $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-price').value='';
-  $('f-dishes').value='';
+  currentDishes = [];
+  renderDishesList();
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
@@ -820,7 +965,14 @@ function openForEdit(id){
   $('f-place').value = e.place || '';
   $('f-date').value = e.date || '';
   $('f-price').value = e.price || '';
-  $('f-dishes').value = e.dishes || '';
+  // Structured dishItems if present; otherwise convert the legacy flat
+  // `dishes` string into rows as an editable starting point — nothing is
+  // silently discarded or auto-migrated in the database, this only
+  // affects what you see when you open the form.
+  currentDishes = (e.dishItems && e.dishItems.length)
+    ? e.dishItems.map(d => ({...d}))
+    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:''})) : []);
+  renderDishesList();
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
@@ -871,6 +1023,8 @@ async function saveEntry(){
   }
   const id = editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7));
   const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  readDishesFromDom();
+  const dishItems = currentDishes.filter(d => d.name);
   const entry = {
     id,
     name,
@@ -878,7 +1032,7 @@ async function saveEntry(){
     date: $('f-date').value,
     price: $('f-price').value,
     rating: currentStars,
-    dishes: $('f-dishes').value.trim(),
+    dishItems,
     notes: $('f-notes').value.trim(),
     tags
   };

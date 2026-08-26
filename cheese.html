@@ -360,6 +360,14 @@
     color:var(--sage);cursor:pointer;
   }
   .lightbox-close:hover{color:var(--rind);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--sage);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--rind);}
   .lightbox-photos{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
@@ -566,6 +574,7 @@
 <div class="lightbox" id="lightbox">
   <div class="lightbox-card">
     <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">&#128279; copy link</button>
     <div class="lightbox-photos" id="lb-photos"></div>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-fields" id="lb-fields"></div>
@@ -583,6 +592,7 @@
 let entries = [];
 let editingId = null;
 let currentPhotos = []; // data URLs of the photos attached to the entry currently being edited
+let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 
 const $ = (id) => document.getElementById(id);
 
@@ -862,6 +872,7 @@ function render(){
 function openLightbox(id){
   const e = entries.find(x => x.id === id);
   if(!e) return;
+  currentLightboxId = id;
 
   const photos = entryPhotos(e);
   const photosEl = $('lb-photos');
@@ -903,6 +914,34 @@ function openLightbox(id){
 
 function closeLightbox(){
   $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '\u2713 copied';
+  }catch(err){
+    // Clipboard API can be blocked (permissions, non-HTTPS, older Safari) —
+    // fall back to showing the URL so it can be copied by hand.
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '\ud83d\udd17 copy link'; }, 1500);
+});
+
+// Deep link: if the page was opened with #<entryId> (e.g. pasted from a
+// restaurant entry's "link to this dish's cheese" field), open that
+// entry's lightbox automatically once entries have loaded.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 function openPhotoZoom(src){
@@ -1471,7 +1510,7 @@ $('toggleForm').addEventListener('click', () => {
 $('cancelBtn').addEventListener('click', closeForm);
 $('saveBtn').addEventListener('click', saveEntry);
 
-loadEntries();
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>
