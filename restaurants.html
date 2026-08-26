@@ -1229,19 +1229,73 @@ $('wineByPhotoInput').addEventListener('change', async () => {
   const file = $('wineByPhotoInput').files[0];
   $('wineByPhotoInput').value = '';
   if(!file) return;
+  const btn = $('addWineByPhotoBtn');
+  const originalText = btn.textContent;
+  let dataUrl;
   try{
-    const dataUrl = await resizeImage(file, 900, 0.7);
+    dataUrl = await resizeImage(file, 900, 0.7);
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+    return;
+  }
+
+  // Try to identify the wine from the label (vision + web search), then
+  // hand any URL it finds straight to wine-autofill for the full extract.
+  // If identification isn't set up yet, fails, or comes back low-confidence,
+  // this falls back to the original behavior: just attach the photo and
+  // let the person type the name themselves.
+  btn.textContent = 'Identifying…';
+  btn.disabled = true;
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createWineFromUrl(lookup.url);
+      wineOptions.push({ id: created.id, name: created.name });
+      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readWinesFromDom();
+      currentWines.push({
+        name: created.name,
+        note: '',
+        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderWinesList();
+    } else {
+      // Couldn't confidently identify it (or lookup isn't configured) —
+      // fall back to attaching just the photo, same as before.
+      if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
+      readWinesFromDom();
+      currentWines.push({name: lookup.name || '', note:'', wineUrl:'', photoUrl:dataUrl});
+      renderWinesList();
+      if(!lookup.name){
+        const rows = $('winesList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
+    }
+  }catch(err){
+    console.error('Wine photo lookup/autofill failed', err);
+    // Still attach the photo even if identification broke entirely —
+    // never lose the photo the person just took.
     readWinesFromDom();
     currentWines.push({name:'', note:'', wineUrl:'', photoUrl:dataUrl});
     renderWinesList();
     const rows = $('winesList').querySelectorAll('.dish-row');
-    // No automatic label recognition yet (that needs a vision-capable AI
-    // call — see the chat for why this is a separate ask) — focus Name so
-    // it's easy to type what the bottle actually is.
     rows[rows.length-1].querySelector('.dish-name').focus();
-  }catch(err){
-    console.error('Could not process photo', err);
-    alert('Could not read that photo — please try another.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 });
 
