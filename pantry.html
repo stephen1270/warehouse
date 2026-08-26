@@ -1072,7 +1072,11 @@ async function openDetail(id){
     ['Barcode', p.barcode],
   ].filter(([,v])=>v);
 
+  const isOnHand = p.onHand !== false; // undefined (older entries) counts as on-hand
+  const onHandBadge = isOnHand ? '' : `<div class="tag" style="border-color:var(--rust);color:var(--rust);margin-bottom:6px;display:inline-block;">OUT</div>`;
+
   document.getElementById('detailBody').innerHTML = `
+    ${onHandBadge}
     <h2 style="margin-bottom:4px;">${esc(p.name)}</h2>
     <div id="detailGallery" style="margin:12px 0;"></div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
@@ -1087,14 +1091,21 @@ async function openDetail(id){
     ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
   `;
 
-  // owner-only edit shortcut inside the detail view
+  // owner-only edit/mark-out shortcuts inside the detail view
   const editWrap = document.getElementById('detailEditWrap');
   const loggedIn = !supabaseClient || !!currentUser;
-  editWrap.innerHTML = loggedIn ? `<button class="ghost" id="detailEditBtn">Edit</button>` : '';
+  editWrap.innerHTML = loggedIn
+    ? `<button class="ghost" id="detailEditBtn">Edit</button>
+       <button class="ghost" id="detailMarkOutBtn">${isOnHand ? 'Mark Out' : 'Mark On-Hand'}</button>`
+    : '';
   if(loggedIn){
     document.getElementById('detailEditBtn').addEventListener('click', ()=>{
       closeDetail();
       openEdit(p.id);
+    });
+    document.getElementById('detailMarkOutBtn').addEventListener('click', async ()=>{
+      await toggleOnHand(p.id);
+      openDetail(p.id); // refresh the open detail view in place (toggleOnHand only re-renders the grid)
     });
   }
 
