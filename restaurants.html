@@ -146,19 +146,31 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 
   .dish-row{
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+    margin-bottom:10px;
+  }
+  .dish-row-main{
     display:grid;
-    grid-template-columns:1fr 1fr 1fr auto;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .dish-row-links{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
     gap:8px;
     align-items:center;
-    margin-bottom:8px;
   }
-  .dish-row input{
+  .dish-row input, .dish-row select{
     font-family:inherit;font-size:13px;
     background:transparent;border:none;border-bottom:1px solid var(--line);
     padding:5px 2px;color:var(--ink);
+    width:100%;
   }
-  .dish-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .dish-row input:focus, .dish-row select:focus{outline:none;border-bottom:1px solid var(--wine);}
   .dish-row input.dish-name{font-weight:600;}
+  .dish-row select.dish-cheese{color:var(--slate);}
   .dish-rm{
     background:none;border:none;color:var(--slate);
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
@@ -178,6 +190,13 @@
   .dish-item .dish-item-note{color:var(--slate);}
   .dish-item .dish-cheese-link{
     margin-left:5px;text-decoration:none;font-size:12px;
+  }
+  .dish-item .dish-photo-link{
+    display:inline-block;vertical-align:middle;margin-left:5px;
+  }
+  .dish-item .dish-photo-thumb{
+    width:22px;height:22px;object-fit:cover;border-radius:2px;
+    vertical-align:middle;border:1px solid var(--line);cursor:zoom-in;
   }
 
   .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;user-select:none;}
@@ -698,12 +717,37 @@ function safeUrl(u){
 // string interpolation — escapeHtml() below doesn't escape quote
 // characters, which is fine for text nodes but unsafe inside a value="..."
 // attribute, so building elements directly sidesteps that entirely.
+
+// Cheese options for the dish-row dropdown, fetched via the lightweight
+// list_kv_names() RPC (name + key only — no photos, unlike a full cheese
+// entry) so opening this form doesn't pull every cheese photo over the
+// wire just to build a picker. Refetched each time the form opens, so a
+// just-added cheese shows up without a full page reload.
+let cheeseOptions = []; // {id, name}
+
+async function refreshCheeseOptions(){
+  cheeseOptions = [];
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdown stays empty, still usable
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' });
+    if(error) throw error;
+    cheeseOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^cheese:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load cheese list for the dish dropdown', err);
+  }
+}
+
 function renderDishesList(){
   const wrap = $('dishesList');
   wrap.innerHTML = '';
   currentDishes.forEach((d, i) => {
     const row = document.createElement('div');
     row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
@@ -717,11 +761,43 @@ function renderDishesList(){
     noteInput.placeholder = 'Note (optional)';
     noteInput.value = d.note || '';
 
-    const cheeseInput = document.createElement('input');
-    cheeseInput.type = 'url';
-    cheeseInput.className = 'dish-cheese';
-    cheeseInput.placeholder = 'Cheese link (optional)';
-    cheeseInput.value = d.cheeseUrl || '';
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links';
+
+    const cheeseSelect = document.createElement('select');
+    cheeseSelect.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    cheeseSelect.appendChild(blankOpt);
+    // Current value might be a link to a cheese that's since been
+    // deleted, or one this dropdown hasn't loaded (e.g. Supabase
+    // unavailable) — add it as a fallback option so it isn't silently
+    // dropped just because it's not in cheeseOptions.
+    const currentId = (d.cheeseUrl || '').split('#')[1] || '';
+    let matched = false;
+    cheeseOptions.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = '\ud83e\uddc0 ' + c.name;
+      if(c.id && c.id === currentId){ opt.selected = true; matched = true; }
+      cheeseSelect.appendChild(opt);
+    });
+    if(currentId && !matched){
+      const opt = document.createElement('option');
+      opt.value = currentId;
+      opt.textContent = '\ud83e\uddc0 (linked cheese not in list)';
+      opt.selected = true;
+      cheeseSelect.appendChild(opt);
+    }
+
+    const photoInput = document.createElement('input');
+    photoInput.type = 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = d.photoUrl || '';
 
     const rmBtn = document.createElement('button');
     rmBtn.type = 'button';
@@ -734,26 +810,33 @@ function renderDishesList(){
       renderDishesList();
     });
 
-    row.append(nameInput, noteInput, cheeseInput, rmBtn);
+    links.append(cheeseSelect, photoInput, rmBtn);
+    row.append(main, links);
     wrap.appendChild(row);
   });
 }
 
 // Captures whatever's currently typed into the dish rows back into
 // currentDishes — called before any add/remove (so in-progress edits
-// aren't lost) and at save time.
+// aren't lost) and at save time. The cheese select's value is just the
+// bare cheese id; stored (and rendered) as a full cheese.html#<id> link,
+// consistent with every other link field in this app suite.
 function readDishesFromDom(){
   const rows = $('dishesList').querySelectorAll('.dish-row');
-  currentDishes = Array.from(rows).map(row => ({
-    name: row.querySelector('.dish-name').value.trim(),
-    note: row.querySelector('.dish-note').value.trim(),
-    cheeseUrl: row.querySelector('.dish-cheese').value.trim()
-  }));
+  currentDishes = Array.from(rows).map(row => {
+    const cheeseId = row.querySelector('.dish-cheese').value;
+    return {
+      name: row.querySelector('.dish-name').value.trim(),
+      note: row.querySelector('.dish-note').value.trim(),
+      cheeseUrl: cheeseId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + cheeseId) : '',
+      photoUrl: row.querySelector('.dish-photo').value.trim()
+    };
+  });
 }
 
 $('addDishBtn').addEventListener('click', () => {
   readDishesFromDom();
-  currentDishes.push({name:'', note:'', cheeseUrl:''});
+  currentDishes.push({name:'', note:'', cheeseUrl:'', photoUrl:''});
   renderDishesList();
   const rows = $('dishesList').querySelectorAll('.dish-row');
   rows[rows.length-1].querySelector('.dish-name').focus();
@@ -774,8 +857,9 @@ function renderDishItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(d => {
     const cheeseHref = safeUrl(d.cheeseUrl);
+    const photoHref = safeUrl(d.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -944,6 +1028,10 @@ function resetForm(){
   $('f-price').value='';
   currentDishes = [];
   renderDishesList();
+  // Cheese options are fetched async so opening the form never waits on a
+  // network round trip; re-render in place once they land. Reads whatever
+  // was typed in the meantime first, so a fast typer doesn't lose input.
+  refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
@@ -971,8 +1059,9 @@ function openForEdit(id){
   // affects what you see when you open the form.
   currentDishes = (e.dishItems && e.dishItems.length)
     ? e.dishItems.map(d => ({...d}))
-    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:''})) : []);
+    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
   renderDishesList();
+  refreshCheeseOptions().then(() => { readDishesFromDom(); renderDishesList(); });
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
