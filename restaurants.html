@@ -982,9 +982,15 @@ function openForEdit(id){
 
 async function loadEntries(){
   try{
+    // Scoped to 'entry:e' — NOT the bare 'entry:' prefix. Restaurant entry
+    // ids always start with 'e' (see saveEntry's id generation below), but
+    // Music's entries also live in this same shared kv_store table under
+    // 'entry:m-...'. A bare 'entry:' prefix here would match both, silently
+    // pulling every Music track into this app's own entry list (this
+    // actually happened — it's what was surfacing as "Untitled" cards).
     if(storage.listWithValues){
       // Fast path: one request for everything.
-      const result = await storage.listWithValues('entry:');
+      const result = await storage.listWithValues('entry:e');
       entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
@@ -993,7 +999,7 @@ async function loadEntries(){
     }
     // Fallback for storage backends without a batch method (Claude artifact
     // storage, plain localStorage) — one request per entry.
-    const result = await storage.list('entry:');
+    const result = await storage.list('entry:e');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
       render();
