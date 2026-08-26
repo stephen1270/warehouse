@@ -655,6 +655,21 @@ function makeSupabaseAdapter(){
       const { data, error } = await query;
       if(error) throw error;
       return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
 }
@@ -1342,6 +1357,18 @@ function openForEdit(id){
 
 async function loadEntries(){
   try{
+    if(storage.listWithValues){
+      // Fast path: one request for everything.
+      const result = await storage.listWithValues('cheese:');
+      entries = (result.items || [])
+        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .filter(Boolean);
+      setLoadError(supabaseInitError);
+      render();
+      return;
+    }
+    // Fallback for storage backends without a batch method (Claude artifact
+    // storage, plain localStorage) — one request per entry.
     const result = await storage.list('cheese:');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
