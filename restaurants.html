@@ -580,7 +580,10 @@
     <div class="field">
       <label>Cheeses had</label>
       <div id="cheesesList"></div>
-      <button type="button" id="addCheeseBtn" class="ghost-inline">+ Add cheese</button>
+      <div class="add-row-choices">
+        <button type="button" id="addCheeseBtn" class="ghost-inline">+ Add cheese</button>
+        <button type="button" id="addCheeseByUrlBtn" class="ghost-inline">+ Add by URL</button>
+      </div>
     </div>
     <div class="field">
       <label>Notes</label>
@@ -939,6 +942,47 @@ async function refreshCheeseOptions(){
 // local label in this dropdown. Requires being signed in, same as every
 // other write in this suite (RLS: public SELECT, authenticated
 // INSERT/UPDATE/DELETE), so a failure here is most likely an auth issue.
+async function createCheeseFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/cheese-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a cheese name on that page.');
+
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
+  const comment = [data.comment, data.quote ? `\u201c${data.quote}\u201d \u2014 ${data.quoteAttribution || ''}`.trim() : '']
+    .filter(Boolean).join('\n\n');
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    cheesemaker: data.cheesemaker || '',
+    cheesemonger: data.cheesemonger || '', cheesemongerUrl: data.cheesemongerUrl || '',
+    milkType: data.milkType || '', age: data.age || '', wrapped: '', wrappedDesc: '',
+    region: data.region || '', country: data.country || '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
+
 async function createNewCheese(name){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
@@ -1782,6 +1826,37 @@ $('addCheeseBtn').addEventListener('click', () => {
   readCheesesFromDom();
   currentCheeses.push({name:'', note:'', cheeseUrl:''});
   renderCheesesList();
+});
+
+// Runs straight through cheese-autofill and creates a real, fully
+// populated Cheese entry from whatever was found — mirrors "+ Add wine
+// by URL" exactly, just pointed at cheese-autofill instead.
+$('addCheeseByUrlBtn').addEventListener('click', async () => {
+  const raw = prompt('Paste a link to the cheese (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
+  const btn = $('addCheeseByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createCheeseFromUrl(url);
+    cheeseOptions.push({ id: created.id, name: created.name });
+    cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readCheesesFromDom();
+    currentCheeses.push({
+      name: created.name,
+      note: '',
+      cheeseUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id
+    });
+    renderCheesesList();
+  }catch(err){
+    console.error('Could not add cheese from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 });
 
 function cheeseItemsOf(e){
