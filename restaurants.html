@@ -892,6 +892,8 @@ function render(){
     </div>
   `).join('');
 
+  fillPendingWinePhotos(wrap);
+
   wrap.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -1765,10 +1767,57 @@ function renderWineItemsHtml(e){
   return `<div class="dish-list">${items.map(w => {
     const wineHref = safeUrl(w.wineUrl);
     const photoHref = safePhotoSrc(w.photoUrl);
+    const wineId = wineHref ? ((w.wineUrl || '').split('#')[1] || '') : '';
+    // If this specific visit has no photo of its own, leave a slot that
+    // fillPendingWinePhotos() fills in afterward from the linked wine's
+    // own catalog photo (a separate field, over on wine.html) — fetched
+    // lazily rather than bulk-loaded for every wine up front.
+    const photoSlot = photoHref
+      ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>`
+      : (wineId ? ` <span class="dish-wine-photo-pending" data-wine-id="${escapeHtml(wineId)}"></span>` : '');
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoSlot}
     </div>`;
   }).join('')}</div>`;
+}
+
+// Falls back to the linked wine's own catalog photo when this specific
+// visit didn't have its own photo attached. Fetches lazily and caches
+// by wine id, so the same wine appearing on multiple visits/cards only
+// costs one fetch, and wines that never need a fallback never cost
+// anything.
+const winePhotoCache = {}; // wine id -> data URL string, or null if it has no photo
+async function fillPendingWinePhotos(root){
+  const slots = Array.from((root || document).querySelectorAll('.dish-wine-photo-pending'));
+  if(!slots.length) return;
+  const ids = [...new Set(slots.map(el => el.dataset.wineId).filter(Boolean))];
+  await Promise.allSettled(ids.map(async id => {
+    if(Object.prototype.hasOwnProperty.call(winePhotoCache, id)) return;
+    try{
+      const res = await storage.get('wine:' + id);
+      const wine = JSON.parse(res.value);
+      const photos = (wine.photos && wine.photos.length) ? wine.photos : (wine.photo ? [wine.photo] : []);
+      winePhotoCache[id] = photos.length ? photoUrl(photos[0]) : null;
+    }catch(err){
+      winePhotoCache[id] = null;
+    }
+  }));
+  slots.forEach(el => {
+    const src = winePhotoCache[el.dataset.wineId];
+    if(!src) return;
+    const link = document.createElement('a');
+    link.className = 'dish-photo-link';
+    link.href = src;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.title = 'Photo of this wine (from its own page)';
+    const img = document.createElement('img');
+    img.className = 'dish-photo-thumb';
+    img.src = src;
+    img.alt = '';
+    link.appendChild(img);
+    el.replaceWith(link);
+  });
 }
 
 // --- Cheeses had: same repeatable-row pattern as Wines had above, using
@@ -2438,6 +2487,7 @@ function openLightbox(id){
   if(wineItems.length){
     $('lb-wines-wrap').style.display = 'block';
     $('lb-wines').innerHTML = renderWineItemsHtml(e);
+    fillPendingWinePhotos($('lb-wines'));
   } else {
     $('lb-wines-wrap').style.display = 'none';
   }
