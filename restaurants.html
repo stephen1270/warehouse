@@ -893,6 +893,7 @@ function render(){
   `).join('');
 
   fillPendingWinePhotos(wrap);
+  fillPendingCheesePhotos(wrap);
 
   wrap.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
@@ -1995,10 +1996,52 @@ function renderCheeseItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(c => {
     const cheeseHref = safeUrl(c.cheeseUrl);
+    const cheeseId = cheeseHref ? ((c.cheeseUrl || '').split('#')[1] || '') : '';
+    // Cheese rows have no per-visit photo field of their own, so this
+    // always falls back to the linked cheese's own catalog photo (set
+    // on cheese.html) — fetched lazily by fillPendingCheesePhotos().
+    const photoSlot = cheeseId ? ` <span class="dish-cheese-photo-pending" data-cheese-id="${escapeHtml(cheeseId)}"></span>` : '';
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoSlot}
     </div>`;
   }).join('')}</div>`;
+}
+
+// Mirrors fillPendingWinePhotos() for Cheese: cheese rows have no photo
+// field of their own, so this always fetches the linked cheese's own
+// catalog photo, lazily and cached by id.
+const cheesePhotoCache = {}; // cheese id -> data URL string, or null if it has no photo
+async function fillPendingCheesePhotos(root){
+  const slots = Array.from((root || document).querySelectorAll('.dish-cheese-photo-pending'));
+  if(!slots.length) return;
+  const ids = [...new Set(slots.map(el => el.dataset.cheeseId).filter(Boolean))];
+  await Promise.allSettled(ids.map(async id => {
+    if(Object.prototype.hasOwnProperty.call(cheesePhotoCache, id)) return;
+    try{
+      const res = await storage.get('cheese:' + id);
+      const cheese = JSON.parse(res.value);
+      const photos = (cheese.photos && cheese.photos.length) ? cheese.photos : (cheese.photo ? [cheese.photo] : []);
+      cheesePhotoCache[id] = photos.length ? photoUrl(photos[0]) : null;
+    }catch(err){
+      cheesePhotoCache[id] = null;
+    }
+  }));
+  slots.forEach(el => {
+    const src = cheesePhotoCache[el.dataset.cheeseId];
+    if(!src) return;
+    const link = document.createElement('a');
+    link.className = 'dish-photo-link';
+    link.href = src;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.title = 'Photo of this cheese (from its own page)';
+    const img = document.createElement('img');
+    img.className = 'dish-photo-thumb';
+    img.src = src;
+    img.alt = '';
+    link.appendChild(img);
+    el.replaceWith(link);
+  });
 }
 
 // --- Spirits had: mirrors Wines had's row structure (name + note +
@@ -2496,6 +2539,7 @@ function openLightbox(id){
   if(cheeseItems.length){
     $('lb-cheeses-wrap').style.display = 'block';
     $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
+    fillPendingCheesePhotos($('lb-cheeses'));
   } else {
     $('lb-cheeses-wrap').style.display = 'none';
   }
