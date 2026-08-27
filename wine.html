@@ -161,6 +161,22 @@
     width:100%;
   }
   .cheese-row select:focus, .cheese-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
+
+  .grape-row{
+    display:grid;
+    grid-template-columns:1fr 60px auto;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .grape-row input{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+    width:100%;
+  }
+  .grape-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .grape-row input.grape-percent{text-align:right;}
   .row-rm{
     background:none;border:none;color:var(--sage);
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
@@ -536,6 +552,12 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Grape(s)</label>
+      <div id="grapesList"></div>
+      <button type="button" id="addGrapeBtn" class="ghost-inline">+ Add grape</button>
+    </div>
+
     <div class="row2">
       <div class="field">
         <label>State / Region</label>
@@ -819,6 +841,7 @@ function render(){
     if(e.merchant) metaBits.push(linkOrText(e.merchant, e.merchantUrl));
     if(e.type) metaBits.push(escapeHtml(e.type));
     if(e.vintage) metaBits.push(escapeHtml(e.vintage));
+    if(grapesOf(e).length) metaBits.push(escapeHtml(formatGrapes(grapesOf(e))));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
     if(e.pairedCheeses && e.pairedCheeses.length){
@@ -904,6 +927,7 @@ function openLightbox(id){
   if(e.merchant) rows.push(['Merchant', linkOrText(e.merchant, e.merchantUrl)]);
   if(e.type) rows.push(['Type', escapeHtml(e.type)]);
   if(e.vintage) rows.push(['Vintage', escapeHtml(e.vintage)]);
+  if(grapesOf(e).length) rows.push(['Grape(s)', escapeHtml(formatGrapes(grapesOf(e)))]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
   const cheeseItems = cheeseItemsOf(e);
@@ -1107,6 +1131,11 @@ let currentRestaurantId = '';
 // style of Restaurants' Dishes had / Wines had rows: {name, cheeseUrl, note}.
 let currentCheeses = [];
 
+// currentGrapes is the repeatable list of grape varieties + percentages
+// making up this wine's blend: {grape, percent}. Purely local to this
+// entry — no cross-app linking, unlike Paired Cheese.
+let currentGrapes = [];
+
 function renderCrossLinkSelects(){
   buildLinkedSelect($('f-restaurant'), restaurantOptions, currentRestaurantId, 'restaurant', '+ New restaurant visit\u2026');
 }
@@ -1268,6 +1297,76 @@ function cheeseItemsOf(e){
   return [];
 }
 
+// Grape(s): a simple repeatable list of {grape, percent} rows — no
+// cross-app linking, so this is much lighter than the Cheese rows
+// above (plain text inputs, no dropdown/creation flow).
+function renderGrapesList(){
+  const wrap = $('grapesList');
+  wrap.innerHTML = '';
+  currentGrapes.forEach((g, i) => {
+    const row = document.createElement('div');
+    row.className = 'grape-row';
+
+    const grapeInput = document.createElement('input');
+    grapeInput.type = 'text';
+    grapeInput.placeholder = 'Grenache';
+    grapeInput.value = g.grape || '';
+
+    const percentInput = document.createElement('input');
+    percentInput.type = 'text';
+    percentInput.className = 'grape-percent';
+    percentInput.placeholder = '%';
+    percentInput.value = g.percent || '';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'row-rm';
+    rmBtn.title = 'Remove';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readGrapesFromDom();
+      currentGrapes.splice(i, 1);
+      renderGrapesList();
+    });
+
+    row.append(grapeInput, percentInput, rmBtn);
+    wrap.appendChild(row);
+  });
+}
+
+function readGrapesFromDom(){
+  const rows = $('grapesList').querySelectorAll('.grape-row');
+  currentGrapes = Array.from(rows).map(row => {
+    const inputs = row.querySelectorAll('input');
+    return {
+      grape: inputs[0].value.trim(),
+      percent: inputs[1].value.trim().replace(/%\s*$/, '')
+    };
+  });
+}
+
+$('addGrapeBtn').addEventListener('click', () => {
+  readGrapesFromDom();
+  currentGrapes.push({grape:'', percent:''});
+  renderGrapesList();
+  const rows = $('grapesList').querySelectorAll('.grape-row');
+  rows[rows.length-1].querySelector('input').focus();
+});
+
+function grapesOf(e){
+  return e.grapes || [];
+}
+
+// Formats a grape list for display: "60% Grenache, 40% Syrah" when
+// percentages are given, or just "Grenache, Syrah" when they're not —
+// percent is optional per row, so this doesn't assume every row has one.
+function formatGrapes(grapes){
+  return grapes
+    .filter(g => g.grape)
+    .map(g => g.percent ? `${g.percent}% ${g.grape}` : g.grape)
+    .join(', ');
+}
+
 $('f-restaurant').addEventListener('change', () => {
   if($('f-restaurant').value === '__new__') handleNewRestaurantSelection();
   else currentRestaurantId = $('f-restaurant').value;
@@ -1288,6 +1387,8 @@ function resetForm(){
   $('f-country').value='';
   currentCheeses = [];
   renderCheesesList();
+  currentGrapes = [];
+  renderGrapesList();
   currentRestaurantId = '';
   renderCrossLinkSelects();
   refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
@@ -1522,6 +1623,8 @@ function openForEdit(id){
   $('f-country').value = e.country || '';
   currentCheeses = cheeseItemsOf(e).map(c => ({...c}));
   renderCheesesList();
+  currentGrapes = grapesOf(e).map(g => ({...g}));
+  renderGrapesList();
   currentRestaurantId = (e.restaurantUrl || '').split('#')[1] || '';
   renderCrossLinkSelects();
   refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
@@ -1609,6 +1712,8 @@ async function saveEntry(){
   const id = editingId || ('w' + Date.now() + Math.random().toString(36).slice(2,7));
   readCheesesFromDom();
   const pairedCheeses = currentCheeses.filter(c => c.cheeseUrl);
+  readGrapesFromDom();
+  const grapes = currentGrapes.filter(g => g.grape || g.percent);
   const linkedRestaurant = restaurantOptions.find(r => r.id === currentRestaurantId);
   const entry = {
     id,
@@ -1621,6 +1726,7 @@ async function saveEntry(){
     merchantUrl: $('f-merchantUrl').value.trim(),
     type: $('f-type').value,
     vintage: $('f-vintage').value.trim(),
+    grapes,
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
     pairedCheeses,
