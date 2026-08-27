@@ -468,7 +468,7 @@
     <div class="field autofill-field">
       <label>Autofill from URL</label>
       <div class="autofill-row">
-        <input id="f-autofillUrl" type="url" placeholder="https://the-restaurant.com or a listing page">
+        <input id="f-autofillUrl" type="text" placeholder="the-restaurant.com or a listing page">
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
       <div class="field-hint" id="autofillStatus">Pulls whatever it can find — works best on a restaurant's own site; review everything before saving.</div>
@@ -924,8 +924,18 @@ function setAutofillStatus(msg, cls){
   el.className = 'field-hint' + (cls ? ' ' + cls : '');
 }
 
+// Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
+// prepends https:// if no scheme was typed, so the field doesn't demand
+// people paste the "https://" prefix by hand.
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
 async function runAutofill(){
-  const url = $('f-autofillUrl').value.trim();
+  const url = normalizeAutofillUrl($('f-autofillUrl').value);
   if(!url){
     setAutofillStatus('Paste a URL first.', 'err');
     return;
@@ -1413,8 +1423,9 @@ $('wineByPhotoInput').addEventListener('change', async () => {
 // bare-name stub like the dropdown's "+ New wine…" option, since we
 // already have the URL in hand and might as well use it.
 $('addWineByUrlBtn').addEventListener('click', async () => {
-  const url = prompt('Paste a link to the wine (producer or shop page):');
-  if(!url || !url.trim()) return;
+  const raw = prompt('Paste a link to the wine (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
   const btn = $('addWineByUrlBtn');
   const originalText = btn.textContent;
   btn.textContent = 'Fetching…';

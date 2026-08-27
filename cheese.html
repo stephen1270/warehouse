@@ -440,7 +440,7 @@
     <div class="field autofill-field">
       <label>Autofill from URL</label>
       <div class="autofill-row">
-        <input id="f-autofillUrl" type="url" placeholder="https://producer-or-shop.com/this-cheese">
+        <input id="f-autofillUrl" type="text" placeholder="producer-or-shop.com/this-cheese">
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
       <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
@@ -1007,8 +1007,18 @@ function resizeDataUrl(dataUrl, maxDim, quality){
   });
 }
 
+// Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
+// prepends https:// if no scheme was typed, so the field doesn't demand
+// people paste the "https://" prefix by hand.
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
 async function runAutofill(){
-  const url = $('f-autofillUrl').value.trim();
+  const url = normalizeAutofillUrl($('f-autofillUrl').value);
   if(!url){
     setAutofillStatus('Paste a URL first.', 'err');
     return;
