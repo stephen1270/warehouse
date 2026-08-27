@@ -65,8 +65,19 @@
     align-items:baseline;
     margin:22px 0 14px;
     font-size:12px;
+    gap:14px;
+    flex-wrap:wrap;
   }
-  .toolbar .count{color:var(--slate);opacity:.75;}
+  .toolbar .count{color:var(--slate);opacity:.75;flex:none;}
+  .toolbar #search{
+    flex:1;min-width:160px;
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;
+    border-bottom:1px solid var(--line);
+    padding:4px 2px;color:var(--ink);
+  }
+  .toolbar #search:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .toolbar #search::placeholder{color:var(--slate);opacity:.5;}
   .newbtn{
     background:var(--wine);
     color:var(--paper);
@@ -482,6 +493,7 @@
 
   <div class="toolbar">
     <span class="count" id="count">loading…</span>
+    <input type="text" id="search" placeholder="Search by restaurant, place, or tag…">
     <button class="newbtn" id="toggleForm">+ New Entry</button>
   </div>
 
@@ -761,8 +773,22 @@ function starsHtml(n){
 
 function render(){
   const wrap = $('entries');
-  $('count').textContent = entries.length === 0 ? 'no entries yet' :
-    entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
+  const rawQuery = ($('search').value || '').trim();
+  const query = rawQuery.toLowerCase();
+
+  // Search matches Restaurant name, Place, and Tags — typing a restaurant
+  // name here is how you pull up "history of meals" at that place, since
+  // entries are already sorted most-recent-first below.
+  const filtered = query ? entries.filter(e => {
+    const haystack = [e.name, e.place, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(query);
+  }) : entries;
+
+  $('count').textContent = entries.length === 0
+    ? 'no entries yet'
+    : query
+      ? `${filtered.length} of ${entries.length} match "${rawQuery}"`
+      : entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The list is empty.</span>Log the first table.</div>`;
@@ -770,7 +796,13 @@ function render(){
     return;
   }
 
-  const sorted = [...entries].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if(query && filtered.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">No matches.</span>Try a different search, or clear it to see everything.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
   wrap.innerHTML = sorted.map(e => `
     <div class="entry" data-id="${e.id}">
@@ -2112,6 +2144,8 @@ $('saveBtn').addEventListener('click', saveEntry);
 document.querySelectorAll('#f-stars span').forEach(s=>{
   s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
 });
+
+$('search').addEventListener('input', render);
 
 loadEntries().then(openFromHash);
 </script>
