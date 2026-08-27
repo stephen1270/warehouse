@@ -1502,6 +1502,11 @@ async function runAutofill(){
       filled.push('f-type');
     }
     fillIfEmpty('f-comment', data.comment);
+    if(data.grapes && data.grapes.length && currentGrapes.length === 0){
+      currentGrapes = data.grapes.map(g => ({ grape: g.grape || '', percent: g.percent || '' }));
+      renderGrapesList();
+      filled.push('grapes');
+    }
     if(data.photo && currentPhotos.length === 0){
       try{
         currentPhotos.push(await resizeDataUrl(data.photo, 1000, 0.72));
