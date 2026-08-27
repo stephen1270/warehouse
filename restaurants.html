@@ -228,6 +228,14 @@
   .dish-row-links-2{grid-template-columns:1fr auto;}
   .dish-row-links-1{display:flex;justify-content:flex-end;}
 
+  .dish-select-wrap{display:flex;align-items:center;gap:4px;min-width:0;}
+  .dish-select-wrap select{flex:1;min-width:0;}
+  .dish-open-link{
+    flex:none;font-size:13px;text-decoration:none;color:var(--slate);
+    padding:2px 4px;line-height:1;
+  }
+  .dish-open-link:hover{color:var(--wine);}
+
   .dish-photo-wrap{
     display:flex;align-items:center;gap:6px;
     min-width:0;
@@ -1482,6 +1490,31 @@ function renderWinesList(){
       }
     });
 
+    // Small "open" link next to the dropdown, pointing at whichever
+    // wine is currently selected — hidden when nothing's linked, and
+    // kept in sync as the dropdown selection changes.
+    const wineOpenLink = document.createElement('a');
+    wineOpenLink.className = 'dish-open-link';
+    wineOpenLink.target = '_blank';
+    wineOpenLink.rel = 'noopener';
+    wineOpenLink.title = 'Open this wine\u2019s page';
+    wineOpenLink.textContent = '\u2197';
+    function updateWineOpenLink(){
+      const id = wineSelect.value;
+      if(id && id !== '__new__'){
+        wineOpenLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + id;
+        wineOpenLink.style.display = '';
+      } else {
+        wineOpenLink.removeAttribute('href');
+        wineOpenLink.style.display = 'none';
+      }
+    }
+    updateWineOpenLink();
+    wineSelect.addEventListener('change', updateWineOpenLink);
+    const wineSelectWrap = document.createElement('div');
+    wineSelectWrap.className = 'dish-select-wrap';
+    wineSelectWrap.append(wineSelect, wineOpenLink);
+
     const rmBtn = document.createElement('button');
     rmBtn.type = 'button';
     rmBtn.className = 'dish-rm';
@@ -1544,7 +1577,7 @@ function renderWinesList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(wineSelect, photoWrap, rmBtn);
+    links.append(wineSelectWrap, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -1803,13 +1836,35 @@ function renderCheesesList(){
       }
     });
 
+    const cheeseOpenLink = document.createElement('a');
+    cheeseOpenLink.className = 'dish-open-link';
+    cheeseOpenLink.target = '_blank';
+    cheeseOpenLink.rel = 'noopener';
+    cheeseOpenLink.title = 'Open this cheese\u2019s page';
+    cheeseOpenLink.textContent = '\u2197';
+    function updateCheeseOpenLink(){
+      const id = select.value;
+      if(id && id !== '__new__'){
+        cheeseOpenLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + id;
+        cheeseOpenLink.style.display = '';
+      } else {
+        cheeseOpenLink.removeAttribute('href');
+        cheeseOpenLink.style.display = 'none';
+      }
+    }
+    updateCheeseOpenLink();
+    select.addEventListener('change', updateCheeseOpenLink);
+    const cheeseSelectWrap = document.createElement('div');
+    cheeseSelectWrap.className = 'dish-select-wrap';
+    cheeseSelectWrap.append(select, cheeseOpenLink);
+
     const noteInput = document.createElement('input');
     noteInput.type = 'text';
     noteInput.className = 'dish-note';
     noteInput.placeholder = 'Note (optional)';
     noteInput.value = c.note || '';
 
-    main.append(select, noteInput);
+    main.append(cheeseSelectWrap, noteInput);
 
     const links = document.createElement('div');
     links.className = 'dish-row-links dish-row-links-1';
@@ -2019,6 +2074,28 @@ function renderSpiritsList(){
       }
     });
 
+    const spiritOpenLink = document.createElement('a');
+    spiritOpenLink.className = 'dish-open-link';
+    spiritOpenLink.target = '_blank';
+    spiritOpenLink.rel = 'noopener';
+    spiritOpenLink.title = 'Open this spirit\u2019s page';
+    spiritOpenLink.textContent = '\u2197';
+    function updateSpiritOpenLink(){
+      const id = spiritSelect.value;
+      if(id && id !== '__new__'){
+        spiritOpenLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + id;
+        spiritOpenLink.style.display = '';
+      } else {
+        spiritOpenLink.removeAttribute('href');
+        spiritOpenLink.style.display = 'none';
+      }
+    }
+    updateSpiritOpenLink();
+    spiritSelect.addEventListener('change', updateSpiritOpenLink);
+    const spiritSelectWrap = document.createElement('div');
+    spiritSelectWrap.className = 'dish-select-wrap';
+    spiritSelectWrap.append(spiritSelect, spiritOpenLink);
+
     const rmBtn = document.createElement('button');
     rmBtn.type = 'button';
     rmBtn.className = 'dish-rm';
@@ -2081,7 +2158,7 @@ function renderSpiritsList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(spiritSelect, photoWrap, rmBtn);
+    links.append(spiritSelectWrap, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
