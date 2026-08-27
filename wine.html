@@ -493,7 +493,7 @@
         <input id="f-autofillUrl" type="text" placeholder="merchant-or-producer.com/this-wine">
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
-      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page—review everything before saving.</div>
     </div>
 
     <div class="field">
@@ -673,7 +673,7 @@ let supabaseInitError = null;
 
 function makeSupabaseAdapter(){
   if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    supabaseInitError = 'Supabase library did not load — running on this browser only until the page is refreshed with a connection.';
+    supabaseInitError = 'Supabase library did not load—running on this browser only until the page is refreshed with a connection.';
     return null;
   }
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -717,7 +717,7 @@ function makeSupabaseAdapter(){
       const items = data || [];
       try{
         for(const row of items) localStorage.setItem(row.key, row.value);
-      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      }catch(e){ /* localStorage full/unavailable—safe to skip */ }
       return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
@@ -792,7 +792,7 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 
-// Only allow http(s) URLs through as href values — guards against
+// Only allow http(s) URLs through as href values—guards against
 // javascript: or other schemes sneaking into a link field.
 function safeUrl(u){
   if(!u) return null;
@@ -1075,7 +1075,7 @@ setupAutocomplete('f-merchant', 'f-merchant-options');
 
 // --- Cross-app cross-links: Paired Cheese and Restaurant are dropdowns
 // sourced from the shared kv_store via the lightweight list_kv_names()
-// RPC (name + key only — never the full record, which for Cheese can
+// RPC (name + key only—never the full record, which for Cheese can
 // carry large embedded photos). Both support inline "+ New ..." creation,
 // writing a real stub entry directly into the other app's data with the
 // same schema/id-scheme that app itself writes, so it's a genuine entry
@@ -1086,7 +1086,7 @@ let restaurantOptions = []; // {id, name}
 async function refreshCrossLinkOptions(){
   cheeseOptions = [];
   restaurantOptions = [];
-  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdowns stay empty, still usable
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode)—dropdowns stay empty, still usable
   try{
     const [cheeseRes, restRes] = await Promise.all([
       supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' }),
@@ -1134,7 +1134,7 @@ function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel)
 
 // currentRestaurantVisits is the repeatable list of restaurant visits
 // this wine has been had at: {name, restaurantUrl, note}. Was a single
-// dropdown (currentRestaurantId) — converted to a repeatable list since
+// dropdown (currentRestaurantId)—converted to a repeatable list since
 // the same wine can reasonably be had at more than one restaurant over
 // time, and a single field could only ever reflect the most recent one.
 let currentRestaurantVisits = [];
@@ -1145,11 +1145,11 @@ let currentCheeses = [];
 
 // currentGrapes is the repeatable list of grape varieties + percentages
 // making up this wine's blend: {grape, percent}. Purely local to this
-// entry — no cross-app linking, unlike Paired Cheese.
+// entry—no cross-app linking, unlike Paired Cheese.
 let currentGrapes = [];
 
 // Restaurant visit rows: same repeatable-row pattern as Paired Cheese,
-// but pointing at Restaurants instead — each linked row gets its own
+// but pointing at Restaurants instead—each linked row gets its own
 // "open" link, and supports inline "+ New restaurant visit…" creation
 // the same way the old single dropdown did.
 function renderRestaurantsList(){
@@ -1230,7 +1230,7 @@ function renderRestaurantsList(){
         renderRestaurantsList();
       }catch(err){
         console.error('Could not create new restaurant', err);
-        alert('Could not create the restaurant visit — make sure you\u2019re signed in.');
+        alert('Could not create the restaurant visit—make sure you\u2019re signed in.');
         select.disabled = false;
         select.value = currentId || '';
         updateOpenLink();
@@ -1283,7 +1283,7 @@ $('addRestaurantBtn').addEventListener('click', () => {
 });
 
 // Back-compat: old entries have a singular restaurant/restaurantUrl
-// field rather than the restaurantVisits array — wrapped as a one-item
+// field rather than the restaurantVisits array—wrapped as a one-item
 // list here and never auto-migrated in the database, matching the
 // pattern used elsewhere in Warehouse for this kind of field upgrade.
 function restaurantVisitsOf(e){
@@ -1316,7 +1316,7 @@ async function createNewCheeseStub(name){
 }
 
 // Cheese rows are built via DOM APIs (createElement + .value), not
-// innerHTML string interpolation — escapeHtml() doesn't escape quote
+// innerHTML string interpolation—escapeHtml() doesn't escape quote
 // characters, which is fine for text nodes but unsafe inside a
 // value="..." attribute, so building elements directly sidesteps that.
 function renderCheesesList(){
@@ -1329,7 +1329,7 @@ function renderCheesesList(){
     const select = document.createElement('select');
     const blankOpt = document.createElement('option');
     blankOpt.value = '';
-    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese—none';
     select.appendChild(blankOpt);
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
@@ -1369,7 +1369,7 @@ function renderCheesesList(){
         renderCheesesList();
       }catch(err){
         console.error('Could not create new cheese', err);
-        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        alert('Could not create the cheese—make sure you\u2019re signed in.');
         select.disabled = false;
         select.value = currentId || '';
       }
@@ -1444,7 +1444,7 @@ function cheeseItemsOf(e){
   return [];
 }
 
-// Grape(s): a simple repeatable list of {grape, percent} rows — no
+// Grape(s): a simple repeatable list of {grape, percent} rows—no
 // cross-app linking, so this is much lighter than the Cheese rows
 // above (plain text inputs, no dropdown/creation flow).
 function renderGrapesList(){
@@ -1516,7 +1516,7 @@ function formatGrapes(grapes){
 
 function resetForm(){
   $('f-autofillUrl').value='';
-  setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
+  setAutofillStatus('Pulls whatever it can find from the page—review everything before saving.');
   $('f-name').value='';
   $('f-producer').value='';
   $('f-producerUrl').value='';
@@ -1546,7 +1546,7 @@ function resetForm(){
 // or producer page server-side (browsers can't fetch arbitrary cross-
 // origin pages directly) and pull out best-guess fields. Only ever fills
 // in fields that are currently empty, so it never clobbers what's already
-// been typed — review everything it fills before saving. ---
+// been typed—review everything it fills before saving. ---
 const AUTOFILL_URL = SUPABASE_URL + '/functions/v1/wine-autofill';
 
 function setAutofillStatus(msg, cls){
@@ -1614,7 +1614,7 @@ async function runAutofill(){
     }
   }catch(err){
     console.error('Autofill fetch failed', err);
-    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
+    setAutofillStatus('Autofill request failed—check the URL and try again.', 'err');
     btn.disabled = false;
     return;
   }
@@ -1661,13 +1661,13 @@ async function runAutofill(){
     }
 
     if(filled.length){
-      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially type, vintage, and region/country.`, 'ok');
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''}—double-check them, especially type, vintage, and region/country.`, 'ok');
     } else {
-      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+      setAutofillStatus('Fetched the page but found nothing new to fill in—the rest is already set or wasn\'t on the page.', 'ok');
     }
   }catch(err){
     console.error('Autofill fetched OK but applying it to the form failed', err);
-    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form—check the browser console for details.', 'err');
   }finally{
     btn.disabled = false;
   }
@@ -1710,7 +1710,7 @@ function renderGallery(){
     });
   });
   $('photoHint').textContent = currentPhotos.length
-    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached — the starred one is used as the card photo.`
+    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached—the starred one is used as the card photo.`
     : 'Add one or more photos of the wheel, wedge, or label.';
 }
 
@@ -1796,7 +1796,7 @@ async function loadEntries(){
       return;
     }
     // Fallback for storage backends without a batch method (Claude artifact
-    // storage, plain localStorage) — one request per entry.
+    // storage, plain localStorage)—one request per entry.
     const result = await storage.list('wine:');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
@@ -1818,7 +1818,7 @@ async function loadEntries(){
   }catch(err){
     console.error('Wine Collection: failed to load entries', err);
     setLoadError(supabaseInitError ||
-      `Couldn't load your entries (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
+      `Couldn't load your entries (${err.message || err}). Your data is safe in storage—this looks like a connection hiccup, not lost data.`);
   }
   render();
 }
@@ -1826,7 +1826,7 @@ $('retryLoadBtn').addEventListener('click', loadEntries);
 
 // Keeps this wine's restaurant links two-way: after saving, makes sure
 // every linked restaurant's own "Wines had" list includes (or is
-// updated to reflect) this wine — closes the gap where only links
+// updated to reflect) this wine—closes the gap where only links
 // initiated from the Restaurants app auto-synced. Updates an existing
 // row for this wine if one's already there, otherwise adds a new one,
 // per restaurant. Runs across all visits (was a single restaurant,

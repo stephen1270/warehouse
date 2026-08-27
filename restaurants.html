@@ -524,7 +524,7 @@
         <input id="f-autofillUrl" type="text" placeholder="the-restaurant.com or a listing page">
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
-      <div class="field-hint" id="autofillStatus">Pulls whatever it can find — works best on a restaurant's own site; review everything before saving.</div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find—works best on a restaurant's own site; review everything before saving.</div>
       <div class="location-picker" id="locationPicker" style="display:none;"></div>
     </div>
 
@@ -663,10 +663,10 @@ let entries = [];
 let editingId = null;
 let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
-let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
-let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
-let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
-let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows
+let currentDishes = []; // {name, note, cheeseUrl}—working copy for the open form's dish rows
+let currentWines = []; // {name, note, wineUrl}—working copy for the open form's wine rows
+let currentCheeses = []; // {name, note, cheeseUrl}—working copy for the open form's cheese rows
+let currentSpirits = []; // {name, note, spiritUrl}—working copy for the open form's spirit rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -735,7 +735,7 @@ function makeSupabaseAdapter(){
     // Fetches every key+value under a prefix in ONE request, instead of
     // list() + a get() per key. With hundreds of entries, one-request-per-
     // entry means hundreds of sequential round trips before the page can
-    // render anything — this is what was making load slow.
+    // render anything—this is what was making load slow.
     async listWithValues(prefix){
       let query = client.from('kv_store').select('key,value');
       if(prefix) query = query.like('key', prefix + '%');
@@ -744,7 +744,7 @@ function makeSupabaseAdapter(){
       const items = data || [];
       try{
         for(const row of items) localStorage.setItem(row.key, row.value);
-      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      }catch(e){ /* localStorage full/unavailable—safe to skip */ }
       return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
@@ -814,7 +814,7 @@ if(supabaseClient){
 }
 
 // Combines Neighborhood/City/State/Country into one display line, skipping
-// any that are blank — "Greenwich Village, New York, New York, United
+// any that are blank—"Greenwich Village, New York, New York, United
 // States", or just "New York" if only City was ever filled in.
 function placeLine(e){
   return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
@@ -838,7 +838,7 @@ function render(){
   const rawQuery = ($('search').value || '').trim();
   const query = rawQuery.toLowerCase();
 
-  // Search matches Restaurant name, Place, and Tags — typing a restaurant
+  // Search matches Restaurant name, Place, and Tags—typing a restaurant
   // name here is how you pull up "history of meals" at that place, since
   // entries are already sorted most-recent-first below.
   const filtered = query ? entries.filter(e => {
@@ -923,7 +923,7 @@ function photoUrl(p){
   return (p && typeof p === 'object') ? p.url : p;
 }
 
-// Only allow http(s) URLs through as href values — guards against
+// Only allow http(s) URLs through as href values—guards against
 // javascript: or other schemes sneaking into a pasted link field.
 function safeUrl(u){
   if(!u) return null;
@@ -933,7 +933,7 @@ function safeUrl(u){
 }
 
 // For photo sources specifically: accepts either a real http(s) URL
-// (pasted link) or a data: image URI (uploaded + resized locally) — kept
+// (pasted link) or a data: image URI (uploaded + resized locally)—kept
 // separate from safeUrl() above, which stays link-field-only (http/https),
 // since a data: URI has no business being used as a clickable <a href>
 // for a cheese/wine/restaurant link, only as an <img src>.
@@ -946,12 +946,12 @@ function safePhotoSrc(u){
 }
 
 // Dish rows are built via DOM APIs (createElement + .value), not innerHTML
-// string interpolation — escapeHtml() below doesn't escape quote
+// string interpolation—escapeHtml() below doesn't escape quote
 // characters, which is fine for text nodes but unsafe inside a value="..."
 // attribute, so building elements directly sidesteps that entirely.
 
 // Cheese options for the dish-row dropdown, fetched via the lightweight
-// list_kv_names() RPC (name + key only — no photos, unlike a full cheese
+// list_kv_names() RPC (name + key only—no photos, unlike a full cheese
 // entry) so opening this form doesn't pull every cheese photo over the
 // wire just to build a picker. Refetched each time the form opens, so a
 // just-added cheese shows up without a full page reload.
@@ -959,7 +959,7 @@ let cheeseOptions = []; // {id, name}
 
 async function refreshCheeseOptions(){
   cheeseOptions = [];
-  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdown stays empty, still usable
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode)—dropdown stays empty, still usable
   try{
     const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' });
     if(error) throw error;
@@ -972,7 +972,7 @@ async function refreshCheeseOptions(){
 }
 
 // Creates a genuinely new Cheese entry (same schema cheese.html writes,
-// same 'cheese:' key prefix) directly in the shared kv_store — not just a
+// same 'cheese:' key prefix) directly in the shared kv_store—not just a
 // local label in this dropdown. Requires being signed in, same as every
 // other write in this suite (RLS: public SELECT, authenticated
 // INSERT/UPDATE/DELETE), so a failure here is most likely an auth issue.
@@ -1036,7 +1036,7 @@ async function createNewCheese(name){
     comment: ''
   };
   // If this restaurant entry has already been saved (has a stable id), fill
-  // in the new cheese's Restaurant back-link automatically — it completes
+  // in the new cheese's Restaurant back-link automatically—it completes
   // the reciprocal connection for free. A brand-new, not-yet-saved entry
   // has no stable URL to give it yet, so this is skipped in that case.
   if(editingId){
@@ -1082,7 +1082,7 @@ function resizeImage(file, maxDim, quality){
 // --- Autofill: asks the restaurant-autofill Edge Function to fetch a
 // restaurant's own site or a listing page server-side and pull out
 // best-guess fields. Deliberately narrow scope: Name, Place, Price, and
-// Photo only — Notes and Tags stay untouched since those are personal
+// Photo only—Notes and Tags stay untouched since those are personal
 // (occasion, who-with, neighborhood-as-you-call-it) rather than something
 // a webpage states. Only ever fills fields that are currently empty. ---
 function setAutofillStatus(msg, cls){
@@ -1137,14 +1137,14 @@ function applyAutofillData(data){
   // Note: no photo field here, deliberately. This entry has no general
   // top-level photo upload (only per-dish/per-wine), and forcing an
   // autofilled restaurant photo into an unrelated dish slot would be a
-  // confusing, arbitrary place to put it — so a fetched og:image is
+  // confusing, arbitrary place to put it—so a fetched og:image is
   // simply not used, rather than force-fit somewhere it doesn't belong.
 
   if(filled.length){
-    const fallbackNote = data.usedFallbackPage ? ' (City came from a linked page — the one you pasted didn\'t have it.)' : '';
-    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially City and Price.${fallbackNote}`, 'ok');
+    const fallbackNote = data.usedFallbackPage ? ' (City came from a linked page—the one you pasted didn\'t have it.)' : '';
+    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''}—double-check them, especially City and Price.${fallbackNote}`, 'ok');
   } else {
-    setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+    setAutofillStatus('Fetched the page but found nothing new to fill in—the rest is already set or wasn\'t on the page.', 'ok');
   }
 }
 
@@ -1153,7 +1153,7 @@ function hideLocationPicker(){
   $('locationPicker').innerHTML = '';
 }
 
-// If the site lists multiple distinct venues (a restaurant group — e.g.
+// If the site lists multiple distinct venues (a restaurant group—e.g.
 // Blue Hill has both a Greenwich Village and a Stone Barns location),
 // show them as options rather than silently guessing which one this
 // entry means. Picking one re-fetches that specific page for sharper
@@ -1163,7 +1163,7 @@ function showLocationPicker(generalData, locations){
   wrap.innerHTML = '';
   const label = document.createElement('span');
   label.className = 'lp-label';
-  label.textContent = 'This site has more than one location — which one is this entry?';
+  label.textContent = 'This site has more than one location—which one is this entry?';
   wrap.appendChild(label);
 
   locations.forEach(loc => {
@@ -1182,7 +1182,7 @@ function showLocationPicker(generalData, locations){
         console.error('Could not fetch the selected location', err);
         // Fall back to the general page's data rather than leaving the
         // form untouched after the person made a choice.
-        setAutofillStatus('Could not fetch that specific location — using the general page info instead.', 'err');
+        setAutofillStatus('Could not fetch that specific location—using the general page info instead.', 'err');
         applyAutofillData(generalData);
       }finally{
         autofillBtn.disabled = false;
@@ -1220,7 +1220,7 @@ async function runAutofill(){
     data = await fetchAutofillData(url);
   }catch(err){
     console.error('Autofill fetch failed', err);
-    setAutofillStatus(err.message || 'Autofill request failed — check the URL and try again.', 'err');
+    setAutofillStatus(err.message || 'Autofill request failed—check the URL and try again.', 'err');
     btn.disabled = false;
     return;
   }
@@ -1234,7 +1234,7 @@ async function runAutofill(){
     }
   }catch(err){
     console.error('Autofill fetched OK but applying it to the form failed', err);
-    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form—check the browser console for details.', 'err');
   }finally{
     btn.disabled = false;
   }
@@ -1276,7 +1276,7 @@ function renderDishesList(){
 
     // Photo control: either a paste-a-URL text input (no photo set yet),
     // or a small thumbnail + clear button (photo set, whichever way it
-    // got there) — showing the raw base64 of an uploaded photo in a plain
+    // got there)—showing the raw base64 of an uploaded photo in a plain
     // text input would be unreadable, so this swaps view once something's
     // attached. A hidden input still carries the value either way, so
     // readDishesFromDom() below needs no special-casing.
@@ -1309,7 +1309,7 @@ function renderDishesList(){
         renderDishesList();
       }catch(err){
         console.error('Could not process photo', err);
-        alert('Could not read that photo — please try another.');
+        alert('Could not read that photo—please try another.');
       }
     });
     uploadBtn.addEventListener('click', () => fileInput.click());
@@ -1352,10 +1352,10 @@ function renderDishesList(){
 }
 
 // Captures whatever's currently typed into the dish rows back into
-// currentDishes — called before any add/remove (so in-progress edits
+// currentDishes—called before any add/remove (so in-progress edits
 // aren't lost) and at save time. A dish's own cheeseUrl (if any) is
 // preserved as-is here for backward compat with entries saved before
-// Cheese moved out into its own top-level "Cheeses had" section — new
+// Cheese moved out into its own top-level "Cheeses had" section—new
 // dishes never get one assigned again.
 function readDishesFromDom(){
   const rows = $('dishesList').querySelectorAll('.dish-row');
@@ -1377,7 +1377,7 @@ $('addDishBtn').addEventListener('click', () => {
 
 // --- Wines had: identical structure/pattern to Dishes had above, just
 // pointed at the Wine app instead of Cheese (wine.html, 'wine:' prefix,
-// same stub-schema Wine itself writes). No photo-link field here — kept
+// same stub-schema Wine itself writes). No photo-link field here—kept
 // out to manage scope; easy to add later by mirroring the dish-photo
 // input if wanted. ---
 let wineOptions = []; // {id, name}
@@ -1457,7 +1457,7 @@ function renderWinesList(){
     wineSelect.className = 'dish-cheese';
     const blankOpt = document.createElement('option');
     blankOpt.value = '';
-    blankOpt.textContent = '\ud83c\udf77 Wine — none';
+    blankOpt.textContent = '\ud83c\udf77 Wine—none';
     wineSelect.appendChild(blankOpt);
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
@@ -1496,14 +1496,14 @@ function renderWinesList(){
         renderWinesList();
       }catch(err){
         console.error('Could not create new wine', err);
-        alert('Could not create the wine — make sure you\u2019re signed in.');
+        alert('Could not create the wine—make sure you\u2019re signed in.');
         wineSelect.disabled = false;
         wineSelect.value = currentId || '';
       }
     });
 
     // Small "open" link next to the dropdown, pointing at whichever
-    // wine is currently selected — hidden when nothing's linked, and
+    // wine is currently selected—hidden when nothing's linked, and
     // kept in sync as the dropdown selection changes.
     const wineOpenLink = document.createElement('a');
     wineOpenLink.className = 'dish-open-link';
@@ -1565,7 +1565,7 @@ function renderWinesList(){
         renderWinesList();
       }catch(err){
         console.error('Could not process photo', err);
-        alert('Could not read that photo — please try another.');
+        alert('Could not read that photo—please try another.');
       }
     });
     uploadBtn.addEventListener('click', () => fileInput.click());
@@ -1628,7 +1628,7 @@ $('wineByPhotoInput').addEventListener('change', async () => {
     dataUrl = await resizeImage(file, 900, 0.7);
   }catch(err){
     console.error('Could not process photo', err);
-    alert('Could not read that photo — please try another.');
+    alert('Could not read that photo—please try another.');
     return;
   }
 
@@ -1692,7 +1692,7 @@ $('wineByPhotoInput').addEventListener('change', async () => {
 });
 
 // Adding a wine by URL runs it straight through wine-autofill and creates
-// a real, fully-populated Wine entry from whatever was found — not just a
+// a real, fully-populated Wine entry from whatever was found—not just a
 // bare-name stub like the dropdown's "+ New wine…" option, since we
 // already have the URL in hand and might as well use it.
 $('addWineByUrlBtn').addEventListener('click', async () => {
@@ -1717,7 +1717,7 @@ $('addWineByUrlBtn').addEventListener('click', async () => {
     renderWinesList();
   }catch(err){
     console.error('Could not add wine from URL', err);
-    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+    alert(err.message || 'Could not fetch that page—make sure you\u2019re signed in and the link is correct.');
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -1725,7 +1725,7 @@ $('addWineByUrlBtn').addEventListener('click', async () => {
 });
 
 // Fetches wine-autofill for a URL and writes a real, populated Wine entry
-// directly into the shared kv_store (not just a name stub) — reuses the
+// directly into the shared kv_store (not just a name stub)—reuses the
 // exact same edge function wine.html's own Autofill button calls.
 async function createWineFromUrl(url){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
@@ -1784,7 +1784,7 @@ function renderWineItemsHtml(e){
     const wineId = wineHref ? ((w.wineUrl || '').split('#')[1] || '') : '';
     // If this specific visit has no photo of its own, leave a slot that
     // fillPendingWinePhotos() fills in afterward from the linked wine's
-    // own catalog photo (a separate field, over on wine.html) — fetched
+    // own catalog photo (a separate field, over on wine.html)—fetched
     // lazily rather than bulk-loaded for every wine up front.
     const photoSlot = photoHref
       ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>`
@@ -1853,7 +1853,7 @@ function renderCheesesList(){
     select.className = 'dish-cheese';
     const blankOpt = document.createElement('option');
     blankOpt.value = '';
-    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese—none';
     select.appendChild(blankOpt);
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
@@ -1893,7 +1893,7 @@ function renderCheesesList(){
         renderCheesesList();
       }catch(err){
         console.error('Could not create new cheese', err);
-        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        alert('Could not create the cheese—make sure you\u2019re signed in.');
         select.disabled = false;
         select.value = currentId || '';
       }
@@ -1970,7 +1970,7 @@ $('addCheeseBtn').addEventListener('click', () => {
 });
 
 // Runs straight through cheese-autofill and creates a real, fully
-// populated Cheese entry from whatever was found — mirrors "+ Add wine
+// populated Cheese entry from whatever was found—mirrors "+ Add wine
 // by URL" exactly, just pointed at cheese-autofill instead.
 $('addCheeseByUrlBtn').addEventListener('click', async () => {
   const raw = prompt('Paste a link to the cheese (producer or shop page):');
@@ -1993,7 +1993,7 @@ $('addCheeseByUrlBtn').addEventListener('click', async () => {
     renderCheesesList();
   }catch(err){
     console.error('Could not add cheese from URL', err);
-    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+    alert(err.message || 'Could not fetch that page—make sure you\u2019re signed in and the link is correct.');
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -2012,7 +2012,7 @@ function renderCheeseItemsHtml(e){
     const cheeseId = cheeseHref ? ((c.cheeseUrl || '').split('#')[1] || '') : '';
     // Cheese rows have no per-visit photo field of their own, so this
     // always falls back to the linked cheese's own catalog photo (set
-    // on cheese.html) — fetched lazily by fillPendingCheesePhotos().
+    // on cheese.html)—fetched lazily by fillPendingCheesePhotos().
     const photoSlot = cheeseId ? ` <span class="dish-cheese-photo-pending" data-cheese-id="${escapeHtml(cheeseId)}"></span>` : '';
     return `<div class="dish-item">
       <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoSlot}
@@ -2138,7 +2138,7 @@ function renderSpiritsList(){
     spiritSelect.className = 'dish-cheese';
     const blankOpt = document.createElement('option');
     blankOpt.value = '';
-    blankOpt.textContent = '\ud83c\udf78 Spirit — none';
+    blankOpt.textContent = '\ud83c\udf78 Spirit—none';
     spiritSelect.appendChild(blankOpt);
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
@@ -2177,7 +2177,7 @@ function renderSpiritsList(){
         renderSpiritsList();
       }catch(err){
         console.error('Could not create new spirit', err);
-        alert('Could not create the spirit — make sure you\u2019re signed in.');
+        alert('Could not create the spirit—make sure you\u2019re signed in.');
         spiritSelect.disabled = false;
         spiritSelect.value = currentId || '';
       }
@@ -2243,7 +2243,7 @@ function renderSpiritsList(){
         renderSpiritsList();
       }catch(err){
         console.error('Could not process photo', err);
-        alert('Could not read that photo — please try another.');
+        alert('Could not read that photo—please try another.');
       }
     });
     uploadBtn.addEventListener('click', () => fileInput.click());
@@ -2316,7 +2316,7 @@ $('addSpiritByUrlBtn').addEventListener('click', async () => {
     renderSpiritsList();
   }catch(err){
     console.error('Could not add spirit from URL', err);
-    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+    alert(err.message || 'Could not fetch that page—make sure you\u2019re signed in and the link is correct.');
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -2335,7 +2335,7 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
     dataUrl = await resizeImage(file, 900, 0.7);
   }catch(err){
     console.error('Could not process photo', err);
-    alert('Could not read that photo — please try another.');
+    alert('Could not read that photo—please try another.');
     return;
   }
 
@@ -2343,7 +2343,7 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
   // hand any URL it finds straight to spirits-autofill for the full
   // extract. If identification isn't set up yet, fails, or comes back
   // low-confidence, this falls back to just attaching the photo and
-  // letting the person type the name themselves — mirrors Wine exactly.
+  // letting the person type the name themselves—mirrors Wine exactly.
   btn.textContent = 'Identifying…';
   btn.disabled = true;
   try{
@@ -2395,7 +2395,7 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
 });
 
 // Fetches spirits-autofill for a URL and writes a real, populated Spirits
-// entry directly into the shared kv_store — mirrors createWineFromUrl.
+// entry directly into the shared kv_store—mirrors createWineFromUrl.
 async function createSpiritFromUrl(url){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-autofill', {
@@ -2668,7 +2668,7 @@ function escapeHtml(str){
 
 function resetForm(){
   $('f-autofillUrl').value='';
-  setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
+  setAutofillStatus('Pulls whatever it can find—works best on a restaurant\'s own site; review everything before saving.');
   hideLocationPicker();
   $('f-name').value='';
   $('f-website').value='';
@@ -2719,7 +2719,7 @@ function openForEdit(id){
   $('f-date').value = e.date || '';
   $('f-price').value = e.price || '';
   // Structured dishItems if present; otherwise convert the legacy flat
-  // `dishes` string into rows as an editable starting point — nothing is
+  // `dishes` string into rows as an editable starting point—nothing is
   // silently discarded or auto-migrated in the database, this only
   // affects what you see when you open the form.
   currentDishes = (e.dishItems && e.dishItems.length)
@@ -2749,12 +2749,12 @@ function openForEdit(id){
 
 async function loadEntries(){
   try{
-    // Scoped to 'entry:e' — NOT the bare 'entry:' prefix. Restaurant entry
+    // Scoped to 'entry:e'—NOT the bare 'entry:' prefix. Restaurant entry
     // ids always start with 'e' (see saveEntry's id generation below), but
     // Music's entries also live in this same shared kv_store table under
     // 'entry:m-...'. A bare 'entry:' prefix here would match both, silently
     // pulling every Music track into this app's own entry list (this
-    // actually happened — it's what was surfacing as "Untitled" cards).
+    // actually happened—it's what was surfacing as "Untitled" cards).
     if(storage.listWithValues){
       // Fast path: one request for everything.
       const result = await storage.listWithValues('entry:e');
@@ -2765,7 +2765,7 @@ async function loadEntries(){
       return;
     }
     // Fallback for storage backends without a batch method (Claude artifact
-    // storage, plain localStorage) — one request per entry.
+    // storage, plain localStorage)—one request per entry.
     const result = await storage.list('entry:e');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
@@ -2789,14 +2789,14 @@ async function loadEntries(){
 }
 
 // Keeps every linked wine/cheese/spirit's own Restaurant field pointed
-// back at this visit — not just items freshly created from this form
+// back at this visit—not just items freshly created from this form
 // (createNewWine/createNewCheese/createNewSpirit already set that at
 // creation time), but also existing entries picked from a dropdown,
 // which previously only got a one-way link (this restaurant -> that
 // item, never the reverse). Each item's restaurantVisits is a
 // repeatable list (was single-valued restaurant/restaurantUrl fields),
 // so this adds or updates this restaurant's entry in that list rather
-// than overwriting it — preserving any other restaurants that item was
+// than overwriting it—preserving any other restaurants that item was
 // already linked to. Failures are logged and swallowed per item so one
 // bad link can't block the restaurant entry itself from saving.
 async function syncBackLinksToItems(restaurantId, restaurantName, wineItems, cheeseItems, spiritItems){
@@ -2811,7 +2811,7 @@ async function syncBackLinksToItems(restaurantId, restaurantName, wineItems, che
       const item = JSON.parse(res.value);
       // Back-compat: fold a legacy singular restaurant field into the
       // list on first write, so it isn't silently dropped. Never
-      // auto-migrated elsewhere — only folded in here, where we're
+      // auto-migrated elsewhere—only folded in here, where we're
       // already authoring a fresh write to this item.
       item.restaurantVisits = item.restaurantVisits || (item.restaurant ? [{ name: item.restaurant, restaurantUrl: item.restaurantUrl || '', note: '' }] : []);
       const idx = item.restaurantVisits.findIndex(r => r.restaurantUrl === restaurantUrl);
