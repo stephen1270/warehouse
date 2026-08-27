@@ -1091,6 +1091,12 @@ async function runAutofill(){
   }
 }
 $('autofillBtn').addEventListener('click', runAutofill);
+$('f-autofillUrl').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    runAutofill();
+  }
+});
 
 function renderDishesList(){
   const wrap = $('dishesList');
