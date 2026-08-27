@@ -176,6 +176,27 @@
   #autofillStatus.err{color:var(--wine);}
   #autofillStatus.ok{color:var(--slate);}
 
+  .location-picker{
+    margin-top:10px;
+    border-top:1px solid var(--line);
+    padding-top:10px;
+  }
+  .location-picker .lp-label{
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--wine);margin-bottom:6px;display:block;
+  }
+  .location-picker button{
+    display:block;width:100%;text-align:left;
+    font-family:inherit;font-size:13px;
+    background:var(--paper);border:1px solid var(--line);
+    padding:8px 10px;margin-bottom:6px;cursor:pointer;color:var(--ink);
+    border-radius:2px;
+  }
+  .location-picker button:hover{border-color:var(--wine);color:var(--wine);}
+  .location-picker button.lp-skip{
+    color:var(--slate);font-style:italic;border-style:dashed;
+  }
+
   .dish-row{
     border-bottom:1px solid var(--line);
     padding-bottom:8px;
@@ -472,6 +493,7 @@
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
       <div class="field-hint" id="autofillStatus">Pulls whatever it can find — works best on a restaurant's own site; review everything before saving.</div>
+      <div class="location-picker" id="locationPicker" style="display:none;"></div>
     </div>
 
     <div class="field">
@@ -934,6 +956,104 @@ function normalizeAutofillUrl(u){
   return u;
 }
 
+async function fetchAutofillData(url){
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/restaurant-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  return data;
+}
+
+function applyAutofillData(data){
+  const filled = [];
+  const fillIfEmpty = (id, value) => {
+    if(value && !$(id).value.trim()){
+      $(id).value = value;
+      filled.push(id);
+    }
+  };
+  fillIfEmpty('f-name', data.name);
+  fillIfEmpty('f-place', data.place);
+  if(data.price && !$('f-price').value){
+    $('f-price').value = data.price;
+    filled.push('f-price');
+  }
+  // Note: no photo field here, deliberately. This entry has no general
+  // top-level photo upload (only per-dish/per-wine), and forcing an
+  // autofilled restaurant photo into an unrelated dish slot would be a
+  // confusing, arbitrary place to put it — so a fetched og:image is
+  // simply not used, rather than force-fit somewhere it doesn't belong.
+
+  if(filled.length){
+    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.`, 'ok');
+  } else {
+    setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+  }
+}
+
+function hideLocationPicker(){
+  $('locationPicker').style.display = 'none';
+  $('locationPicker').innerHTML = '';
+}
+
+// If the site lists multiple distinct venues (a restaurant group — e.g.
+// Blue Hill has both a Greenwich Village and a Stone Barns location),
+// show them as options rather than silently guessing which one this
+// entry means. Picking one re-fetches that specific page for sharper
+// Place/Price; skipping just applies whatever the original page had.
+function showLocationPicker(generalData, locations){
+  const wrap = $('locationPicker');
+  wrap.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = 'lp-label';
+  label.textContent = 'This site has more than one location — which one is this entry?';
+  wrap.appendChild(label);
+
+  locations.forEach(loc => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = loc.label;
+    btn.addEventListener('click', async () => {
+      hideLocationPicker();
+      setAutofillStatus(`Fetching ${loc.label}…`);
+      const autofillBtn = $('autofillBtn');
+      autofillBtn.disabled = true;
+      try{
+        const specificData = await fetchAutofillData(loc.url);
+        applyAutofillData(specificData);
+      }catch(err){
+        console.error('Could not fetch the selected location', err);
+        // Fall back to the general page's data rather than leaving the
+        // form untouched after the person made a choice.
+        setAutofillStatus('Could not fetch that specific location — using the general page info instead.', 'err');
+        applyAutofillData(generalData);
+      }finally{
+        autofillBtn.disabled = false;
+      }
+    });
+    wrap.appendChild(btn);
+  });
+
+  const skipBtn = document.createElement('button');
+  skipBtn.type = 'button';
+  skipBtn.className = 'lp-skip';
+  skipBtn.textContent = 'Not sure / use the general page info';
+  skipBtn.addEventListener('click', () => {
+    hideLocationPicker();
+    applyAutofillData(generalData);
+  });
+  wrap.appendChild(skipBtn);
+
+  wrap.style.display = 'block';
+}
+
 async function runAutofill(){
   const url = normalizeAutofillUrl($('f-autofillUrl').value);
   if(!url){
@@ -943,55 +1063,24 @@ async function runAutofill(){
   const btn = $('autofillBtn');
   btn.disabled = true;
   setAutofillStatus('Fetching…');
+  hideLocationPicker();
 
   let data;
   try{
-    const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/restaurant-autofill', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-      },
-      body: JSON.stringify({ url })
-    });
-    data = await res.json();
-    if(!res.ok || !data.ok){
-      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
-      btn.disabled = false;
-      return;
-    }
+    data = await fetchAutofillData(url);
   }catch(err){
     console.error('Autofill fetch failed', err);
-    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
+    setAutofillStatus(err.message || 'Autofill request failed — check the URL and try again.', 'err');
     btn.disabled = false;
     return;
   }
 
   try{
-    const filled = [];
-    const fillIfEmpty = (id, value) => {
-      if(value && !$(id).value.trim()){
-        $(id).value = value;
-        filled.push(id);
-      }
-    };
-    fillIfEmpty('f-name', data.name);
-    fillIfEmpty('f-place', data.place);
-    if(data.price && !$('f-price').value){
-      $('f-price').value = data.price;
-      filled.push('f-price');
-    }
-    // Note: no photo field here, deliberately. This entry has no general
-    // top-level photo upload (only per-dish/per-wine), and forcing an
-    // autofilled restaurant photo into an unrelated dish slot would be a
-    // confusing, arbitrary place to put it — so a fetched og:image is
-    // simply not used, rather than force-fit somewhere it doesn't belong.
-
-    if(filled.length){
-      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.`, 'ok');
+    if(data.locations && data.locations.length > 1){
+      setAutofillStatus('Found multiple locations on this site.', 'ok');
+      showLocationPicker(data, data.locations);
     } else {
-      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+      applyAutofillData(data);
     }
   }catch(err){
     console.error('Autofill fetched OK but applying it to the form failed', err);
@@ -1836,6 +1925,7 @@ function escapeHtml(str){
 function resetForm(){
   $('f-autofillUrl').value='';
   setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
+  hideLocationPicker();
   $('f-name').value='';
   $('f-place').value='';
   $('f-date').value=new Date().toISOString().slice(0,10);
