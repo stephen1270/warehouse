@@ -514,15 +514,29 @@
     </div>
     <div class="row2">
       <div class="field">
-        <label>Neighborhood / City</label>
-        <input id="f-place" type="text" placeholder="Flatiron, NYC">
+        <label>Neighborhood</label>
+        <input id="f-neighborhood" type="text" placeholder="Greenwich Village">
       </div>
+      <div class="field">
+        <label>City</label>
+        <input id="f-place" type="text" placeholder="New York">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>State / Province</label>
+        <input id="f-state" type="text" placeholder="NY">
+      </div>
+      <div class="field">
+        <label>Country</label>
+        <input id="f-country" type="text" placeholder="United States">
+      </div>
+    </div>
+    <div class="row2">
       <div class="field">
         <label>Date</label>
         <input id="f-date" type="date">
       </div>
-    </div>
-    <div class="row2">
       <div class="field">
         <label>Price</label>
         <select id="f-price">
@@ -533,11 +547,11 @@
           <option>$$$$</option>
         </select>
       </div>
-      <div class="field">
-        <label>Rating</label>
-        <div class="stars" id="f-stars">
-          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
-        </div>
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="stars" id="f-stars">
+        <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
       </div>
     </div>
     <div class="field">
@@ -758,6 +772,13 @@ if(supabaseClient){
   renderAuthControl();
 }
 
+// Combines Neighborhood/City/State/Country into one display line, skipping
+// any that are blank — "Greenwich Village, New York, New York, United
+// States", or just "New York" if only City was ever filled in.
+function placeLine(e){
+  return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
+}
+
 function fmtDate(d){
   if(!d) return '';
   const dt = new Date(d + 'T00:00:00');
@@ -780,7 +801,7 @@ function render(){
   // name here is how you pull up "history of meals" at that place, since
   // entries are already sorted most-recent-first below.
   const filtered = query ? entries.filter(e => {
-    const haystack = [e.name, e.place, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
+    const haystack = [e.name, e.neighborhood, e.place, e.state, e.country, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(query);
   }) : entries;
 
@@ -815,7 +836,7 @@ function render(){
           <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
           <div class="entry-meta">
             ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
-            ${e.place ? `<span>${escapeHtml(e.place)}</span>` : ''}
+            ${placeLine(e) ? `<span>${escapeHtml(placeLine(e))}</span>` : ''}
           </div>
         </div>
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
@@ -1012,7 +1033,10 @@ function applyAutofillData(data){
     }
   };
   fillIfEmpty('f-name', data.name);
-  fillIfEmpty('f-place', data.place);
+  fillIfEmpty('f-neighborhood', data.neighborhood);
+  fillIfEmpty('f-place', data.city);
+  fillIfEmpty('f-state', data.state);
+  fillIfEmpty('f-country', data.country);
   if(data.price && !$('f-price').value){
     $('f-price').value = data.price;
     filled.push('f-price');
@@ -1024,8 +1048,8 @@ function applyAutofillData(data){
   // simply not used, rather than force-fit somewhere it doesn't belong.
 
   if(filled.length){
-    const fallbackNote = data.usedFallbackPage ? ' (Place came from a linked page — the one you pasted didn\'t have it.)' : '';
-    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.${fallbackNote}`, 'ok');
+    const fallbackNote = data.usedFallbackPage ? ' (City came from a linked page — the one you pasted didn\'t have it.)' : '';
+    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially City and Price.${fallbackNote}`, 'ok');
   } else {
     setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
   }
@@ -1838,7 +1862,7 @@ function openLightbox(id){
 
   const metaBits = [];
   if(e.date) metaBits.push(fmtDate(e.date));
-  if(e.place) metaBits.push(e.place);
+  if(placeLine(e)) metaBits.push(placeLine(e));
   if(e.rating) metaBits.push(starsHtml(e.rating));
   $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
 
@@ -1966,7 +1990,10 @@ function resetForm(){
   setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
   hideLocationPicker();
   $('f-name').value='';
+  $('f-neighborhood').value='';
   $('f-place').value='';
+  $('f-state').value='';
+  $('f-country').value='';
   $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-price').value='';
   currentDishes = [];
@@ -1999,7 +2026,10 @@ function openForEdit(id){
   if(!e) return;
   editingId = id;
   $('f-name').value = e.name || '';
+  $('f-neighborhood').value = e.neighborhood || '';
   $('f-place').value = e.place || '';
+  $('f-state').value = e.state || '';
+  $('f-country').value = e.country || '';
   $('f-date').value = e.date || '';
   $('f-price').value = e.price || '';
   // Structured dishItems if present; otherwise convert the legacy flat
@@ -2086,7 +2116,10 @@ async function saveEntry(){
   const entry = {
     id,
     name,
+    neighborhood: $('f-neighborhood').value.trim(),
     place: $('f-place').value.trim(),
+    state: $('f-state').value.trim(),
+    country: $('f-country').value.trim(),
     date: $('f-date').value,
     price: $('f-price').value,
     rating: currentStars,
