@@ -36,6 +36,8 @@
     color:var(--wine);
     text-transform:uppercase;
   }
+  header .kicker a{color:inherit;text-decoration:none;}
+  header .kicker a:hover{text-decoration:underline;}
   header h1{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-weight:400;
@@ -63,8 +65,19 @@
     align-items:baseline;
     margin:22px 0 14px;
     font-size:12px;
+    gap:14px;
+    flex-wrap:wrap;
   }
-  .toolbar .count{color:var(--slate);opacity:.75;}
+  .toolbar .count{color:var(--slate);opacity:.75;flex:none;}
+  .toolbar #search{
+    flex:1;min-width:160px;
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;
+    border-bottom:1px solid var(--line);
+    padding:4px 2px;color:var(--ink);
+  }
+  .toolbar #search:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .toolbar #search::placeholder{color:var(--slate);opacity:.5;}
   .newbtn{
     background:var(--wine);
     color:var(--paper);
@@ -136,12 +149,152 @@
     padding:6px 2px;
     color:var(--ink);
   }
+  .field select{
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    border-radius:0;
+    background-image:linear-gradient(45deg, transparent 50%, var(--slate) 50%), linear-gradient(135deg, var(--slate) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    padding-right:24px;
+  }
   .field input:focus, .field textarea:focus, .field select:focus{
     outline:none;
     border-bottom:1px solid var(--wine);
   }
   .field textarea{resize:vertical;min-height:54px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .autofill-field{
+    background:var(--paper-dark);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:20px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--wine);background:var(--wine);color:var(--paper);
+  }
+  .autofill-row button:hover{background:#7a1420;}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  .field-hint{font-size:10px;color:var(--slate);opacity:.8;margin-top:4px;}
+  #autofillStatus.err{color:var(--wine);}
+  #autofillStatus.ok{color:var(--slate);}
+
+  .location-picker{
+    margin-top:10px;
+    border-top:1px solid var(--line);
+    padding-top:10px;
+  }
+  .location-picker .lp-label{
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--wine);margin-bottom:6px;display:block;
+  }
+  .location-picker button{
+    display:block;width:100%;text-align:left;
+    font-family:inherit;font-size:13px;
+    background:var(--paper);border:1px solid var(--line);
+    padding:8px 10px;margin-bottom:6px;cursor:pointer;color:var(--ink);
+    border-radius:2px;
+  }
+  .location-picker button:hover{border-color:var(--wine);color:var(--wine);}
+  .location-picker button.lp-skip{
+    color:var(--slate);font-style:italic;border-style:dashed;
+  }
+
+  .dish-row{
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+    margin-bottom:10px;
+  }
+  .dish-row-main{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .dish-row-links{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+  }
+  .dish-row-links-2{grid-template-columns:1fr auto;}
+  .dish-row-links-1{display:flex;justify-content:flex-end;}
+
+  .dish-photo-wrap{
+    display:flex;align-items:center;gap:6px;
+    min-width:0;
+  }
+  .dish-photo-wrap input.dish-photo{flex:1;min-width:0;}
+  .dish-photo-upload{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;flex:none;
+  }
+  .dish-photo-upload:hover{color:var(--wine);}
+  .dish-photo-thumb-preview{
+    width:26px;height:26px;object-fit:cover;border-radius:2px;
+    border:1px solid var(--line);flex:none;
+  }
+  .dish-photo-clear{
+    background:none;border:none;color:var(--slate);
+    font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex:none;
+  }
+  .dish-photo-clear:hover{color:var(--wine);}
+  .dish-row input, .dish-row select{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+    width:100%;
+  }
+  .dish-row select{
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    border-radius:0;
+    background-image:linear-gradient(45deg, transparent 50%, var(--slate) 50%), linear-gradient(135deg, var(--slate) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    padding-right:24px;
+  }
+  .dish-row input:focus, .dish-row select:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .dish-row input.dish-name{font-weight:600;}
+  .dish-row select.dish-cheese{color:var(--slate);}
+  .dish-rm{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .dish-rm:hover{color:var(--wine);}
+  .ghost-inline{
+    font-family:inherit;font-size:11px;letter-spacing:.04em;
+    color:var(--slate);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:2px 0;
+  }
+  .ghost-inline:hover{color:var(--wine);}
+  .add-row-choices{display:flex;gap:14px;flex-wrap:wrap;}
+
+  .dish-list{margin-top:6px;}
+  .dish-item{
+    font-size:13px;line-height:1.6;color:var(--ink);
+  }
+  .dish-item .dish-item-note{color:var(--slate);}
+  .dish-item .dish-cheese-link{
+    margin-left:5px;text-decoration:none;font-size:12px;
+  }
+  .dish-item .dish-photo-link{
+    display:inline-block;vertical-align:middle;margin-left:5px;
+  }
+  .dish-item .dish-photo-thumb{
+    width:22px;height:22px;object-fit:cover;border-radius:2px;
+    vertical-align:middle;border:1px solid var(--line);cursor:zoom-in;
+  }
 
   .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;user-select:none;}
   .stars span{opacity:.25;transition:opacity .1s;}
@@ -169,18 +322,23 @@
     padding:18px 20px;
     margin-bottom:14px;
     position:relative;
+    text-align:left;
   }
   .entry-top{
     display:flex;
     justify-content:space-between;
     align-items:flex-start;
     gap:12px;
+    text-align:left;
   }
   .entry-name{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-style:italic;
     font-size:22px;
+    text-align:left;
   }
+  .entry-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .entry-name a:hover{border-color:var(--wine);color:var(--wine);}
   .entry-meta{
     font-size:11px;
     color:var(--slate);
@@ -270,10 +428,20 @@
     color:var(--slate);cursor:pointer;
   }
   .lightbox-close:hover{color:var(--wine);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--slate);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--wine);}
   .lightbox-name{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-style:italic;font-size:26px;margin-bottom:2px;
   }
+  .lightbox-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .lightbox-name a:hover{border-color:var(--wine);color:var(--wine);}
   .lightbox-meta{
     font-size:11px;color:var(--slate);opacity:.8;
     display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
@@ -320,7 +488,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="kicker">Warehouse &middot; Est. In Practice</div>
+    <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; Est. In Practice</div>
     <h1>Restaurants</h1>
     <div class="sub">a running record of tables kept</div>
     <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
@@ -329,25 +497,54 @@
 
   <div class="toolbar">
     <span class="count" id="count">loading…</span>
+    <input type="text" id="search" placeholder="Search by restaurant, place, or tag…">
     <button class="newbtn" id="toggleForm">+ New Entry</button>
   </div>
 
   <div class="ticket" id="ticket">
+    <div class="field autofill-field">
+      <label>Autofill from URL</label>
+      <div class="autofill-row">
+        <input id="f-autofillUrl" type="text" placeholder="the-restaurant.com or a listing page">
+        <button type="button" id="autofillBtn">Fetch</button>
+      </div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find — works best on a restaurant's own site; review everything before saving.</div>
+      <div class="location-picker" id="locationPicker" style="display:none;"></div>
+    </div>
+
     <div class="field">
       <label>Restaurant</label>
       <input id="f-name" type="text" placeholder="Bar Americano">
     </div>
+    <div class="field">
+      <label>Restaurant link (optional)</label>
+      <input id="f-website" type="text" placeholder="the-restaurant.com">
+    </div>
     <div class="row2">
       <div class="field">
-        <label>Neighborhood / City</label>
-        <input id="f-place" type="text" placeholder="Flatiron, NYC">
+        <label>Neighborhood</label>
+        <input id="f-neighborhood" type="text" placeholder="Greenwich Village">
       </div>
+      <div class="field">
+        <label>City</label>
+        <input id="f-place" type="text" placeholder="New York">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>State / Province</label>
+        <input id="f-state" type="text" placeholder="NY">
+      </div>
+      <div class="field">
+        <label>Country</label>
+        <input id="f-country" type="text" placeholder="United States">
+      </div>
+    </div>
+    <div class="row2">
       <div class="field">
         <label>Date</label>
         <input id="f-date" type="date">
       </div>
-    </div>
-    <div class="row2">
       <div class="field">
         <label>Price</label>
         <select id="f-price">
@@ -358,16 +555,45 @@
           <option>$$$$</option>
         </select>
       </div>
-      <div class="field">
-        <label>Rating</label>
-        <div class="stars" id="f-stars">
-          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
-        </div>
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="stars" id="f-stars">
+        <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
       </div>
     </div>
     <div class="field">
       <label>Dishes had</label>
-      <textarea id="f-dishes" placeholder="Marcona almonds, endive & radicchio salad, prosciutto board…"></textarea>
+      <div id="dishesList"></div>
+      <button type="button" id="addDishBtn" class="ghost-inline">+ Add dish</button>
+    </div>
+    <div class="field">
+      <label>Wines had</label>
+      <div id="winesList"></div>
+      <div class="add-row-choices">
+        <button type="button" id="addWineByNameBtn" class="ghost-inline">+ Add by name</button>
+        <button type="button" id="addWineByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addWineByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="wineByPhotoInput" accept="image/*" style="display:none;">
+      </div>
+    </div>
+    <div class="field">
+      <label>Cheeses had</label>
+      <div id="cheesesList"></div>
+      <div class="add-row-choices">
+        <button type="button" id="addCheeseBtn" class="ghost-inline">+ Add cheese</button>
+        <button type="button" id="addCheeseByUrlBtn" class="ghost-inline">+ Add by URL</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Spirits had</label>
+      <div id="spiritsList"></div>
+      <div class="add-row-choices">
+        <button type="button" id="addSpiritByNameBtn" class="ghost-inline">+ Add by name</button>
+        <button type="button" id="addSpiritByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addSpiritByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="spiritByPhotoInput" accept="image/*" style="display:none;">
+      </div>
     </div>
     <div class="field">
       <label>Notes</label>
@@ -389,9 +615,22 @@
 <div class="lightbox" id="lightbox">
   <div class="lightbox-card">
     <button class="lightbox-close" id="lightboxClose">close ✕</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
     <div class="lightbox-photos" id="lb-photos"></div>
+    <div class="lightbox-notes" id="lb-dishes-wrap" style="display:none;">
+      <span class="lbl">Dishes</span><div id="lb-dishes"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-wines-wrap" style="display:none;">
+      <span class="lbl">Wines</span><div id="lb-wines"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-cheeses-wrap" style="display:none;">
+      <span class="lbl">Cheeses</span><div id="lb-cheeses"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-spirits-wrap" style="display:none;">
+      <span class="lbl">Spirits</span><div id="lb-spirits"></div>
+    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -407,6 +646,11 @@
 let entries = [];
 let editingId = null;
 let currentStars = 0;
+let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
+let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
+let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
+let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
+let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -471,6 +715,21 @@ function makeSupabaseAdapter(){
       const { data, error } = await query;
       if(error) throw error;
       return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything — this is what was making load slow.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
 }
@@ -538,6 +797,13 @@ if(supabaseClient){
   renderAuthControl();
 }
 
+// Combines Neighborhood/City/State/Country into one display line, skipping
+// any that are blank — "Greenwich Village, New York, New York, United
+// States", or just "New York" if only City was ever filled in.
+function placeLine(e){
+  return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
+}
+
 function fmtDate(d){
   if(!d) return '';
   const dt = new Date(d + 'T00:00:00');
@@ -553,8 +819,22 @@ function starsHtml(n){
 
 function render(){
   const wrap = $('entries');
-  $('count').textContent = entries.length === 0 ? 'no entries yet' :
-    entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
+  const rawQuery = ($('search').value || '').trim();
+  const query = rawQuery.toLowerCase();
+
+  // Search matches Restaurant name, Place, and Tags — typing a restaurant
+  // name here is how you pull up "history of meals" at that place, since
+  // entries are already sorted most-recent-first below.
+  const filtered = query ? entries.filter(e => {
+    const haystack = [e.name, e.neighborhood, e.place, e.state, e.country, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(query);
+  }) : entries;
+
+  $('count').textContent = entries.length === 0
+    ? 'no entries yet'
+    : query
+      ? `${filtered.length} of ${entries.length} match "${rawQuery}"`
+      : entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The list is empty.</span>Log the first table.</div>`;
@@ -562,7 +842,13 @@ function render(){
     return;
   }
 
-  const sorted = [...entries].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if(query && filtered.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">No matches.</span>Try a different search, or clear it to see everything.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
   wrap.innerHTML = sorted.map(e => `
     <div class="entry" data-id="${e.id}">
@@ -572,14 +858,18 @@ function render(){
       </div>
       <div class="entry-top">
         <div>
-          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
+          <div class="entry-name">${safeUrl(e.website) ? `<a href="${escapeHtml(safeUrl(e.website))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(e.name || 'Untitled')}</a>` : escapeHtml(e.name || 'Untitled')}</div>
           <div class="entry-meta">
             ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
-            ${e.place ? `<span>${escapeHtml(e.place)}</span>` : ''}
+            ${placeLine(e) ? `<span>${escapeHtml(placeLine(e))}</span>` : ''}
           </div>
         </div>
         ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
+      ${renderDishItemsHtml(e)}
+      ${renderWineItemsHtml(e)}
+      ${renderCheeseItemsHtml(e)}
+      ${renderSpiritItemsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -612,6 +902,1382 @@ function render(){
 
 function photoUrl(p){
   return (p && typeof p === 'object') ? p.url : p;
+}
+
+// Only allow http(s) URLs through as href values — guards against
+// javascript: or other schemes sneaking into a pasted link field.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
+// For photo sources specifically: accepts either a real http(s) URL
+// (pasted link) or a data: image URI (uploaded + resized locally) — kept
+// separate from safeUrl() above, which stays link-field-only (http/https),
+// since a data: URI has no business being used as a clickable <a href>
+// for a cheese/wine/restaurant link, only as an <img src>.
+function safePhotoSrc(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  if(/^data:image\//i.test(s)) return s;
+  return null;
+}
+
+// Dish rows are built via DOM APIs (createElement + .value), not innerHTML
+// string interpolation — escapeHtml() below doesn't escape quote
+// characters, which is fine for text nodes but unsafe inside a value="..."
+// attribute, so building elements directly sidesteps that entirely.
+
+// Cheese options for the dish-row dropdown, fetched via the lightweight
+// list_kv_names() RPC (name + key only — no photos, unlike a full cheese
+// entry) so opening this form doesn't pull every cheese photo over the
+// wire just to build a picker. Refetched each time the form opens, so a
+// just-added cheese shows up without a full page reload.
+let cheeseOptions = []; // {id, name}
+
+async function refreshCheeseOptions(){
+  cheeseOptions = [];
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdown stays empty, still usable
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' });
+    if(error) throw error;
+    cheeseOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^cheese:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load cheese list for the dish dropdown', err);
+  }
+}
+
+// Creates a genuinely new Cheese entry (same schema cheese.html writes,
+// same 'cheese:' key prefix) directly in the shared kv_store — not just a
+// local label in this dropdown. Requires being signed in, same as every
+// other write in this suite (RLS: public SELECT, authenticated
+// INSERT/UPDATE/DELETE), so a failure here is most likely an auth issue.
+async function createCheeseFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/cheese-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a cheese name on that page.');
+
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
+  const comment = [data.comment, data.quote ? `\u201c${data.quote}\u201d \u2014 ${data.quoteAttribution || ''}`.trim() : '']
+    .filter(Boolean).join('\n\n');
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    cheesemaker: data.cheesemaker || '',
+    cheesemonger: data.cheesemonger || '', cheesemongerUrl: data.cheesemongerUrl || '',
+    milkType: data.milkType || '', age: data.age || '', wrapped: '', wrappedDesc: '',
+    region: data.region || '', country: data.country || '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
+
+async function createNewCheese(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    cheesemaker: '',
+    cheesemonger: '', cheesemongerUrl: '',
+    milkType: '', age: '', wrapped: '', wrappedDesc: '',
+    region: '', country: '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  // If this restaurant entry has already been saved (has a stable id), fill
+  // in the new cheese's Restaurant back-link automatically — it completes
+  // the reciprocal connection for free. A brand-new, not-yet-saved entry
+  // has no stable URL to give it yet, so this is skipped in that case.
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+// Resizes/compresses an uploaded photo before storing it as base64 —
+// mirrors cheese.html/wine.html's gallery upload pipeline. Restaurants
+// never had a photo-upload mechanism before this (only paste-a-URL), so
+// this is new here.
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- Autofill: asks the restaurant-autofill Edge Function to fetch a
+// restaurant's own site or a listing page server-side and pull out
+// best-guess fields. Deliberately narrow scope: Name, Place, Price, and
+// Photo only — Notes and Tags stay untouched since those are personal
+// (occasion, who-with, neighborhood-as-you-call-it) rather than something
+// a webpage states. Only ever fills fields that are currently empty. ---
+function setAutofillStatus(msg, cls){
+  const el = $('autofillStatus');
+  el.textContent = msg;
+  el.className = 'field-hint' + (cls ? ' ' + cls : '');
+}
+
+// Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
+// prepends https:// if no scheme was typed, so the field doesn't demand
+// people paste the "https://" prefix by hand.
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
+async function fetchAutofillData(url){
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/restaurant-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  return data;
+}
+
+function applyAutofillData(data){
+  const filled = [];
+  const fillIfEmpty = (id, value) => {
+    if(value && !$(id).value.trim()){
+      $(id).value = value;
+      filled.push(id);
+    }
+  };
+  fillIfEmpty('f-name', data.name);
+  fillIfEmpty('f-website', data.sourceUrl);
+  fillIfEmpty('f-neighborhood', data.neighborhood);
+  fillIfEmpty('f-place', data.city);
+  fillIfEmpty('f-state', data.state);
+  fillIfEmpty('f-country', data.country);
+  if(data.price && !$('f-price').value){
+    $('f-price').value = data.price;
+    filled.push('f-price');
+  }
+  // Note: no photo field here, deliberately. This entry has no general
+  // top-level photo upload (only per-dish/per-wine), and forcing an
+  // autofilled restaurant photo into an unrelated dish slot would be a
+  // confusing, arbitrary place to put it — so a fetched og:image is
+  // simply not used, rather than force-fit somewhere it doesn't belong.
+
+  if(filled.length){
+    const fallbackNote = data.usedFallbackPage ? ' (City came from a linked page — the one you pasted didn\'t have it.)' : '';
+    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially City and Price.${fallbackNote}`, 'ok');
+  } else {
+    setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+  }
+}
+
+function hideLocationPicker(){
+  $('locationPicker').style.display = 'none';
+  $('locationPicker').innerHTML = '';
+}
+
+// If the site lists multiple distinct venues (a restaurant group — e.g.
+// Blue Hill has both a Greenwich Village and a Stone Barns location),
+// show them as options rather than silently guessing which one this
+// entry means. Picking one re-fetches that specific page for sharper
+// Place/Price; skipping just applies whatever the original page had.
+function showLocationPicker(generalData, locations){
+  const wrap = $('locationPicker');
+  wrap.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = 'lp-label';
+  label.textContent = 'This site has more than one location — which one is this entry?';
+  wrap.appendChild(label);
+
+  locations.forEach(loc => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = loc.label;
+    btn.addEventListener('click', async () => {
+      hideLocationPicker();
+      setAutofillStatus(`Fetching ${loc.label}…`);
+      const autofillBtn = $('autofillBtn');
+      autofillBtn.disabled = true;
+      try{
+        const specificData = await fetchAutofillData(loc.url);
+        applyAutofillData(specificData);
+      }catch(err){
+        console.error('Could not fetch the selected location', err);
+        // Fall back to the general page's data rather than leaving the
+        // form untouched after the person made a choice.
+        setAutofillStatus('Could not fetch that specific location — using the general page info instead.', 'err');
+        applyAutofillData(generalData);
+      }finally{
+        autofillBtn.disabled = false;
+      }
+    });
+    wrap.appendChild(btn);
+  });
+
+  const skipBtn = document.createElement('button');
+  skipBtn.type = 'button';
+  skipBtn.className = 'lp-skip';
+  skipBtn.textContent = 'Not sure / use the general page info';
+  skipBtn.addEventListener('click', () => {
+    hideLocationPicker();
+    applyAutofillData(generalData);
+  });
+  wrap.appendChild(skipBtn);
+
+  wrap.style.display = 'block';
+}
+
+async function runAutofill(){
+  const url = normalizeAutofillUrl($('f-autofillUrl').value);
+  if(!url){
+    setAutofillStatus('Paste a URL first.', 'err');
+    return;
+  }
+  const btn = $('autofillBtn');
+  btn.disabled = true;
+  setAutofillStatus('Fetching…');
+  hideLocationPicker();
+
+  let data;
+  try{
+    data = await fetchAutofillData(url);
+  }catch(err){
+    console.error('Autofill fetch failed', err);
+    setAutofillStatus(err.message || 'Autofill request failed — check the URL and try again.', 'err');
+    btn.disabled = false;
+    return;
+  }
+
+  try{
+    if(data.locations && data.locations.length > 1){
+      setAutofillStatus('Found multiple locations on this site.', 'ok');
+      showLocationPicker(data, data.locations);
+    } else {
+      applyAutofillData(data);
+    }
+  }catch(err){
+    console.error('Autofill fetched OK but applying it to the form failed', err);
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
+  }finally{
+    btn.disabled = false;
+  }
+}
+$('autofillBtn').addEventListener('click', runAutofill);
+$('f-autofillUrl').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    runAutofill();
+  }
+});
+
+function renderDishesList(){
+  const wrap = $('dishesList');
+  wrap.innerHTML = '';
+  currentDishes.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Dish name';
+    nameInput.value = d.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = d.note || '';
+
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links dish-row-links-2';
+
+    // Photo control: either a paste-a-URL text input (no photo set yet),
+    // or a small thumbnail + clear button (photo set, whichever way it
+    // got there) — showing the raw base64 of an uploaded photo in a plain
+    // text input would be unreadable, so this swaps view once something's
+    // attached. A hidden input still carries the value either way, so
+    // readDishesFromDom() below needs no special-casing.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+
+    const photoInput = document.createElement('input');
+    photoInput.type = d.photoUrl ? 'hidden' : 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = d.photoUrl || '';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readDishesFromDom();
+        currentDishes[i].photoUrl = dataUrl;
+        renderDishesList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+
+    photoWrap.append(uploadBtn, fileInput);
+    if(d.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = d.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readDishesFromDom();
+        currentDishes[i].photoUrl = '';
+        renderDishesList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove dish';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readDishesFromDom();
+      currentDishes.splice(i, 1);
+      renderDishesList();
+    });
+
+    links.append(photoWrap, rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+// Captures whatever's currently typed into the dish rows back into
+// currentDishes — called before any add/remove (so in-progress edits
+// aren't lost) and at save time. A dish's own cheeseUrl (if any) is
+// preserved as-is here for backward compat with entries saved before
+// Cheese moved out into its own top-level "Cheeses had" section — new
+// dishes never get one assigned again.
+function readDishesFromDom(){
+  const rows = $('dishesList').querySelectorAll('.dish-row');
+  currentDishes = Array.from(rows).map((row, i) => ({
+    name: row.querySelector('.dish-name').value.trim(),
+    note: row.querySelector('.dish-note').value.trim(),
+    cheeseUrl: currentDishes[i] ? (currentDishes[i].cheeseUrl || '') : '',
+    photoUrl: row.querySelector('.dish-photo').value.trim()
+  }));
+}
+
+$('addDishBtn').addEventListener('click', () => {
+  readDishesFromDom();
+  currentDishes.push({name:'', note:'', cheeseUrl:'', photoUrl:''});
+  renderDishesList();
+  const rows = $('dishesList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+// --- Wines had: identical structure/pattern to Dishes had above, just
+// pointed at the Wine app instead of Cheese (wine.html, 'wine:' prefix,
+// same stub-schema Wine itself writes). No photo-link field here — kept
+// out to manage scope; easy to add later by mirroring the dish-photo
+// input if wanted. ---
+let wineOptions = []; // {id, name}
+
+async function refreshWineOptions(){
+  wineOptions = [];
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'wine:' });
+    if(error) throw error;
+    wineOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^wine:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load wine list for the dropdown', err);
+  }
+}
+
+async function createNewWine(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    winemaker: '',
+    merchant: '', merchantUrl: '',
+    type: '', vintage: '',
+    region: '', country: '',
+    pairedCheese: '', pairedCheeseUrl: '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+function renderWinesList(){
+  const wrap = $('winesList');
+  wrap.innerHTML = '';
+  currentWines.forEach((w, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Wine name';
+    nameInput.value = w.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = w.note || '';
+
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links';
+
+    const wineSelect = document.createElement('select');
+    wineSelect.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83c\udf77 Wine — none';
+    wineSelect.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New wine\u2026';
+    wineSelect.appendChild(newOpt);
+    const currentId = (w.wineUrl || '').split('#')[1] || '';
+    let matched = false;
+    wineOptions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = '\ud83c\udf77 ' + v.name;
+      if(v.id && v.id === currentId){ opt.selected = true; matched = true; }
+      wineSelect.appendChild(opt);
+    });
+    if(currentId && !matched){
+      const opt = document.createElement('option');
+      opt.value = currentId;
+      opt.textContent = '\ud83c\udf77 (linked wine not in list)';
+      opt.selected = true;
+      wineSelect.appendChild(opt);
+    }
+    wineSelect.addEventListener('change', async () => {
+      if(wineSelect.value !== '__new__') return;
+      const name = prompt('Name for the new wine:');
+      if(!name || !name.trim()){
+        wineSelect.value = currentId || '';
+        return;
+      }
+      wineSelect.disabled = true;
+      try{
+        const created = await createNewWine(name.trim());
+        wineOptions.push(created);
+        wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readWinesFromDom();
+        currentWines[i].wineUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id;
+        renderWinesList();
+      }catch(err){
+        console.error('Could not create new wine', err);
+        alert('Could not create the wine — make sure you\u2019re signed in.');
+        wineSelect.disabled = false;
+        wineSelect.value = currentId || '';
+      }
+    });
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove wine';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readWinesFromDom();
+      currentWines.splice(i, 1);
+      renderWinesList();
+    });
+
+    // Photo control: same paste-or-upload pattern as Dishes had.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+    const photoInput = document.createElement('input');
+    photoInput.type = w.photoUrl ? 'hidden' : 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = w.photoUrl || '';
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readWinesFromDom();
+        currentWines[i].photoUrl = dataUrl;
+        renderWinesList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    photoWrap.append(uploadBtn, fileInput);
+    if(w.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = w.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readWinesFromDom();
+        currentWines[i].photoUrl = '';
+        renderWinesList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
+
+    links.append(wineSelect, photoWrap, rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readWinesFromDom(){
+  const rows = $('winesList').querySelectorAll('.dish-row');
+  currentWines = Array.from(rows).map(row => {
+    const wineId = row.querySelector('.dish-cheese').value;
+    return {
+      name: row.querySelector('.dish-name').value.trim(),
+      note: row.querySelector('.dish-note').value.trim(),
+      wineUrl: wineId ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineId) : '',
+      photoUrl: row.querySelector('.dish-photo').value.trim()
+    };
+  });
+}
+
+$('addWineByNameBtn').addEventListener('click', () => {
+  readWinesFromDom();
+  currentWines.push({name:'', note:'', wineUrl:'', photoUrl:''});
+  renderWinesList();
+  const rows = $('winesList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+$('addWineByPhotoBtn').addEventListener('click', () => $('wineByPhotoInput').click());
+$('wineByPhotoInput').addEventListener('change', async () => {
+  const file = $('wineByPhotoInput').files[0];
+  $('wineByPhotoInput').value = '';
+  if(!file) return;
+  const btn = $('addWineByPhotoBtn');
+  const originalText = btn.textContent;
+  let dataUrl;
+  try{
+    dataUrl = await resizeImage(file, 900, 0.7);
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+    return;
+  }
+
+  // Try to identify the wine from the label (vision + web search), then
+  // hand any URL it finds straight to wine-autofill for the full extract.
+  // If identification isn't set up yet, fails, or comes back low-confidence,
+  // this falls back to the original behavior: just attach the photo and
+  // let the person type the name themselves.
+  btn.textContent = 'Identifying…';
+  btn.disabled = true;
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createWineFromUrl(lookup.url);
+      wineOptions.push({ id: created.id, name: created.name });
+      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readWinesFromDom();
+      currentWines.push({
+        name: created.name,
+        note: '',
+        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderWinesList();
+    } else {
+      // Couldn't confidently identify it (or lookup isn't configured) —
+      // fall back to attaching just the photo, same as before.
+      if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
+      readWinesFromDom();
+      currentWines.push({name: lookup.name || '', note:'', wineUrl:'', photoUrl:dataUrl});
+      renderWinesList();
+      if(!lookup.name){
+        const rows = $('winesList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
+    }
+  }catch(err){
+    console.error('Wine photo lookup/autofill failed', err);
+    // Still attach the photo even if identification broke entirely —
+    // never lose the photo the person just took.
+    readWinesFromDom();
+    currentWines.push({name:'', note:'', wineUrl:'', photoUrl:dataUrl});
+    renderWinesList();
+    const rows = $('winesList').querySelectorAll('.dish-row');
+    rows[rows.length-1].querySelector('.dish-name').focus();
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// Adding a wine by URL runs it straight through wine-autofill and creates
+// a real, fully-populated Wine entry from whatever was found — not just a
+// bare-name stub like the dropdown's "+ New wine…" option, since we
+// already have the URL in hand and might as well use it.
+$('addWineByUrlBtn').addEventListener('click', async () => {
+  const raw = prompt('Paste a link to the wine (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
+  const btn = $('addWineByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createWineFromUrl(url.trim());
+    wineOptions.push({ id: created.id, name: created.name });
+    wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readWinesFromDom();
+    currentWines.push({
+      name: created.name,
+      note: '',
+      wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+      photoUrl: ''
+    });
+    renderWinesList();
+  }catch(err){
+    console.error('Could not add wine from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// Fetches wine-autofill for a URL and writes a real, populated Wine entry
+// directly into the shared kv_store (not just a name stub) — reuses the
+// exact same edge function wine.html's own Autofill button calls.
+async function createWineFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a wine name on that page.');
+
+  const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    winemaker: data.winemaker || '',
+    merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
+    type: data.type || '', vintage: data.vintage || '',
+    region: data.region || '', country: data.country || '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: data.comment || ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
+
+function wineItemsOf(e){
+  return (e.wineItems && e.wineItems.length) ? e.wineItems : [];
+}
+
+function renderWineItemsHtml(e){
+  const items = wineItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(w => {
+    const wineHref = safeUrl(w.wineUrl);
+    const photoHref = safePhotoSrc(w.photoUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// --- Cheeses had: same repeatable-row pattern as Wines had above, using
+// the cheeseOptions/refreshCheeseOptions/createNewCheese machinery
+// defined earlier (previously wired to a per-dish cheese select; now
+// powers this standalone section instead, since a cheese course doesn't
+// always map 1:1 to a single dish). ---
+function renderCheesesList(){
+  const wrap = $('cheesesList');
+  wrap.innerHTML = '';
+  currentCheeses.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const select = document.createElement('select');
+    select.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    select.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New cheese\u2026';
+    select.appendChild(newOpt);
+    const currentId = (c.cheeseUrl || '').split('#')[1] || '';
+    let matched = false;
+    cheeseOptions.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = '\ud83e\uddc0 ' + opt.name;
+      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
+      select.appendChild(o);
+    });
+    if(currentId && !matched){
+      const o = document.createElement('option');
+      o.value = currentId;
+      o.textContent = '\ud83e\uddc0 (linked cheese not in list)';
+      o.selected = true;
+      select.appendChild(o);
+    }
+    select.addEventListener('change', async () => {
+      if(select.value !== '__new__') return;
+      const name = prompt('Name for the new cheese:');
+      if(!name || !name.trim()){
+        select.value = currentId || '';
+        return;
+      }
+      select.disabled = true;
+      try{
+        const created = await createNewCheese(name.trim());
+        cheeseOptions.push(created);
+        cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readCheesesFromDom();
+        currentCheeses[i].cheeseUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id;
+        currentCheeses[i].name = created.name;
+        renderCheesesList();
+      }catch(err){
+        console.error('Could not create new cheese', err);
+        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        select.disabled = false;
+        select.value = currentId || '';
+      }
+    });
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = c.note || '';
+
+    main.append(select, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links dish-row-links-1';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove cheese';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readCheesesFromDom();
+      currentCheeses.splice(i, 1);
+      renderCheesesList();
+    });
+
+    links.append(rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readCheesesFromDom(){
+  const rows = $('cheesesList').querySelectorAll('.dish-row');
+  currentCheeses = Array.from(rows).map((row, i) => {
+    const select = row.querySelector('.dish-cheese');
+    const cheeseId = select.value;
+    const opt = cheeseOptions.find(o => o.id === cheeseId);
+    return {
+      name: opt ? opt.name : (currentCheeses[i] ? currentCheeses[i].name : ''),
+      cheeseUrl: cheeseId && cheeseId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + cheeseId) : '',
+      note: row.querySelector('.dish-note').value.trim()
+    };
+  });
+}
+
+$('addCheeseBtn').addEventListener('click', () => {
+  readCheesesFromDom();
+  currentCheeses.push({name:'', note:'', cheeseUrl:''});
+  renderCheesesList();
+});
+
+// Runs straight through cheese-autofill and creates a real, fully
+// populated Cheese entry from whatever was found — mirrors "+ Add wine
+// by URL" exactly, just pointed at cheese-autofill instead.
+$('addCheeseByUrlBtn').addEventListener('click', async () => {
+  const raw = prompt('Paste a link to the cheese (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
+  const btn = $('addCheeseByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createCheeseFromUrl(url);
+    cheeseOptions.push({ id: created.id, name: created.name });
+    cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readCheesesFromDom();
+    currentCheeses.push({
+      name: created.name,
+      note: '',
+      cheeseUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'cheese.html#' + created.id
+    });
+    renderCheesesList();
+  }catch(err){
+    console.error('Could not add cheese from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+function cheeseItemsOf(e){
+  return (e.cheeseItems && e.cheeseItems.length) ? e.cheeseItems : [];
+}
+
+function renderCheeseItemsHtml(e){
+  const items = cheeseItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(c => {
+    const cheeseHref = safeUrl(c.cheeseUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// --- Spirits had: mirrors Wines had's row structure (name + note +
+// dropdown + photo), pointed at the Spirits app instead ('spirits:'
+// prefix, same stub-schema spirits.html itself writes). ---
+let spiritOptions = []; // {id, name}
+
+async function refreshSpiritOptions(){
+  spiritOptions = [];
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'spirits:' });
+    if(error) throw error;
+    spiritOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^spirits:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load spirits list for the dropdown', err);
+  }
+}
+
+async function createNewSpirit(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    distiller: '',
+    merchant: '', merchantUrl: '',
+    type: '', abv: '',
+    region: '', country: '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'spirits:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+function renderSpiritsList(){
+  const wrap = $('spiritsList');
+  wrap.innerHTML = '';
+  currentSpirits.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Spirit name';
+    nameInput.value = s.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = s.note || '';
+
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links';
+
+    const spiritSelect = document.createElement('select');
+    spiritSelect.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83c\udf78 Spirit — none';
+    spiritSelect.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New spirit\u2026';
+    spiritSelect.appendChild(newOpt);
+    const currentId = (s.spiritUrl || '').split('#')[1] || '';
+    let matched = false;
+    spiritOptions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = '\ud83c\udf78 ' + v.name;
+      if(v.id && v.id === currentId){ opt.selected = true; matched = true; }
+      spiritSelect.appendChild(opt);
+    });
+    if(currentId && !matched){
+      const opt = document.createElement('option');
+      opt.value = currentId;
+      opt.textContent = '\ud83c\udf78 (linked spirit not in list)';
+      opt.selected = true;
+      spiritSelect.appendChild(opt);
+    }
+    spiritSelect.addEventListener('change', async () => {
+      if(spiritSelect.value !== '__new__') return;
+      const name = prompt('Name for the new spirit:');
+      if(!name || !name.trim()){
+        spiritSelect.value = currentId || '';
+        return;
+      }
+      spiritSelect.disabled = true;
+      try{
+        const created = await createNewSpirit(name.trim());
+        spiritOptions.push(created);
+        spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readSpiritsFromDom();
+        currentSpirits[i].spiritUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id;
+        renderSpiritsList();
+      }catch(err){
+        console.error('Could not create new spirit', err);
+        alert('Could not create the spirit — make sure you\u2019re signed in.');
+        spiritSelect.disabled = false;
+        spiritSelect.value = currentId || '';
+      }
+    });
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove spirit';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readSpiritsFromDom();
+      currentSpirits.splice(i, 1);
+      renderSpiritsList();
+    });
+
+    // Photo control: same paste-or-upload pattern as Dishes/Wines had.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+    const photoInput = document.createElement('input');
+    photoInput.type = s.photoUrl ? 'hidden' : 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = s.photoUrl || '';
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readSpiritsFromDom();
+        currentSpirits[i].photoUrl = dataUrl;
+        renderSpiritsList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    photoWrap.append(uploadBtn, fileInput);
+    if(s.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = s.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readSpiritsFromDom();
+        currentSpirits[i].photoUrl = '';
+        renderSpiritsList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
+
+    links.append(spiritSelect, photoWrap, rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readSpiritsFromDom(){
+  const rows = $('spiritsList').querySelectorAll('.dish-row');
+  currentSpirits = Array.from(rows).map(row => {
+    const spiritId = row.querySelector('.dish-cheese').value;
+    return {
+      name: row.querySelector('.dish-name').value.trim(),
+      note: row.querySelector('.dish-note').value.trim(),
+      spiritUrl: spiritId && spiritId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritId) : '',
+      photoUrl: row.querySelector('.dish-photo').value.trim()
+    };
+  });
+}
+
+$('addSpiritByNameBtn').addEventListener('click', () => {
+  readSpiritsFromDom();
+  currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:''});
+  renderSpiritsList();
+  const rows = $('spiritsList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+$('addSpiritByUrlBtn').addEventListener('click', async () => {
+  const raw = prompt('Paste a link to the spirit (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
+  const btn = $('addSpiritByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createSpiritFromUrl(url);
+    spiritOptions.push({ id: created.id, name: created.name });
+    spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readSpiritsFromDom();
+    currentSpirits.push({
+      name: created.name,
+      note: '',
+      spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+      photoUrl: ''
+    });
+    renderSpiritsList();
+  }catch(err){
+    console.error('Could not add spirit from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+$('addSpiritByPhotoBtn').addEventListener('click', () => $('spiritByPhotoInput').click());
+$('spiritByPhotoInput').addEventListener('change', async () => {
+  const file = $('spiritByPhotoInput').files[0];
+  $('spiritByPhotoInput').value = '';
+  if(!file) return;
+  const btn = $('addSpiritByPhotoBtn');
+  const originalText = btn.textContent;
+  let dataUrl;
+  try{
+    dataUrl = await resizeImage(file, 900, 0.7);
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+    return;
+  }
+
+  // Try to identify the bottle from the label (vision + web search), then
+  // hand any URL it finds straight to spirits-autofill for the full
+  // extract. If identification isn't set up yet, fails, or comes back
+  // low-confidence, this falls back to just attaching the photo and
+  // letting the person type the name themselves — mirrors Wine exactly.
+  btn.textContent = 'Identifying…';
+  btn.disabled = true;
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createSpiritFromUrl(lookup.url);
+      spiritOptions.push({ id: created.id, name: created.name });
+      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readSpiritsFromDom();
+      currentSpirits.push({
+        name: created.name,
+        note: '',
+        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderSpiritsList();
+    } else {
+      if(!lookup.ok) console.warn('Spirits label lookup unavailable:', lookup.error);
+      readSpiritsFromDom();
+      currentSpirits.push({name: lookup.name || '', note:'', spiritUrl:'', photoUrl:dataUrl});
+      renderSpiritsList();
+      if(!lookup.name){
+        const rows = $('spiritsList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
+    }
+  }catch(err){
+    console.error('Spirits photo lookup/autofill failed', err);
+    readSpiritsFromDom();
+    currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:dataUrl});
+    renderSpiritsList();
+    const rows = $('spiritsList').querySelectorAll('.dish-row');
+    rows[rows.length-1].querySelector('.dish-name').focus();
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// Fetches spirits-autofill for a URL and writes a real, populated Spirits
+// entry directly into the shared kv_store — mirrors createWineFromUrl.
+async function createSpiritFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a spirit name on that page.');
+
+  const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    distiller: data.distiller || '',
+    merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
+    type: data.type || '', abv: data.abv || '',
+    region: data.region || '', country: data.country || '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: data.comment || ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'spirits:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
+
+function spiritItemsOf(e){
+  return (e.spiritItems && e.spiritItems.length) ? e.spiritItems : [];
+}
+
+function renderSpiritItemsHtml(e){
+  const items = spiritItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(s => {
+    const spiritHref = safeUrl(s.spiritUrl);
+    const photoHref = safePhotoSrc(s.photoUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// Resolves an entry's dishes for display, whether it has the new
+// structured dishItems array or only the old flat comma-separated
+// `dishes` string (kept, never migrated in the database, so nothing
+// existing is lost or silently rewritten).
+function dishItemsOf(e){
+  if(e.dishItems && e.dishItems.length) return e.dishItems;
+  if(e.dishes) return e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name}));
+  return [];
+}
+
+function renderDishItemsHtml(e){
+  const items = dishItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(d => {
+    const cheeseHref = safeUrl(d.cheeseUrl);
+    const photoHref = safePhotoSrc(d.photoUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function stripPhotoTags(notes){
@@ -658,16 +2324,54 @@ function renderNotesWithPhotos(e){
 function openLightbox(id){
   const e = entries.find(x => x.id === id);
   if(!e) return;
+  currentLightboxId = id;
 
-  $('lb-name').textContent = e.name || 'Untitled';
+  const websiteHref = safeUrl(e.website);
+  if(websiteHref){
+    $('lb-name').innerHTML = `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(e.name || 'Untitled')}</a>`;
+  } else {
+    $('lb-name').textContent = e.name || 'Untitled';
+  }
 
   const metaBits = [];
   if(e.date) metaBits.push(fmtDate(e.date));
-  if(e.place) metaBits.push(e.place);
+  if(placeLine(e)) metaBits.push(placeLine(e));
   if(e.rating) metaBits.push(starsHtml(e.rating));
   $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
 
   const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(e);
+
+  const dishItems = dishItemsOf(e);
+  if(dishItems.length){
+    $('lb-dishes-wrap').style.display = 'block';
+    $('lb-dishes').innerHTML = renderDishItemsHtml(e);
+  } else {
+    $('lb-dishes-wrap').style.display = 'none';
+  }
+
+  const wineItems = wineItemsOf(e);
+  if(wineItems.length){
+    $('lb-wines-wrap').style.display = 'block';
+    $('lb-wines').innerHTML = renderWineItemsHtml(e);
+  } else {
+    $('lb-wines-wrap').style.display = 'none';
+  }
+
+  const cheeseItems = cheeseItemsOf(e);
+  if(cheeseItems.length){
+    $('lb-cheeses-wrap').style.display = 'block';
+    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
+  } else {
+    $('lb-cheeses-wrap').style.display = 'none';
+  }
+
+  const spiritItems = spiritItemsOf(e);
+  if(spiritItems.length){
+    $('lb-spirits-wrap').style.display = 'block';
+    $('lb-spirits').innerHTML = renderSpiritItemsHtml(e);
+  } else {
+    $('lb-spirits-wrap').style.display = 'none';
+  }
 
   if(e.notes){
     $('lb-notes-wrap').style.display = 'block';
@@ -701,6 +2405,34 @@ function openLightbox(id){
 
 function closeLightbox(){
   $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '✓ copied';
+  }catch(err){
+    // Clipboard API can be blocked (permissions, non-HTTPS, older Safari) —
+    // fall back to showing the URL so it can be copied by hand.
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
+});
+
+// Deep link: if the page was opened with #<entryId> (e.g. pasted from
+// another Warehouse app's "link to this restaurant visit" field), open
+// that entry's lightbox automatically once entries have loaded.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 function openPhotoZoom(src){
@@ -735,11 +2467,32 @@ function escapeHtml(str){
 }
 
 function resetForm(){
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
+  hideLocationPicker();
   $('f-name').value='';
+  $('f-website').value='';
+  $('f-neighborhood').value='';
   $('f-place').value='';
+  $('f-state').value='';
+  $('f-country').value='';
   $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-price').value='';
-  $('f-dishes').value='';
+  currentDishes = [];
+  renderDishesList();
+  currentWines = [];
+  renderWinesList();
+  currentCheeses = [];
+  renderCheesesList();
+  currentSpirits = [];
+  renderSpiritsList();
+  // Cheese/wine/spirit options are fetched async so opening the form
+  // never waits on a network round trip; re-render in place once they
+  // land. Reads whatever was typed in the meantime first, so a fast
+  // typer doesn't lose input.
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
@@ -758,10 +2511,35 @@ function openForEdit(id){
   if(!e) return;
   editingId = id;
   $('f-name').value = e.name || '';
+  $('f-website').value = e.website || '';
+  $('f-neighborhood').value = e.neighborhood || '';
   $('f-place').value = e.place || '';
+  $('f-state').value = e.state || '';
+  $('f-country').value = e.country || '';
   $('f-date').value = e.date || '';
   $('f-price').value = e.price || '';
-  $('f-dishes').value = e.dishes || '';
+  // Structured dishItems if present; otherwise convert the legacy flat
+  // `dishes` string into rows as an editable starting point — nothing is
+  // silently discarded or auto-migrated in the database, this only
+  // affects what you see when you open the form.
+  currentDishes = (e.dishItems && e.dishItems.length)
+    ? e.dishItems.map(d => ({...d}))
+    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
+  renderDishesList();
+  currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
+  renderWinesList();
+  // Structured cheeseItems if present; otherwise pull forward any cheese
+  // links still sitting on individual dishes from before Cheese moved out
+  // into its own section, so the connection isn't lost on first re-edit.
+  currentCheeses = (e.cheeseItems && e.cheeseItems.length)
+    ? e.cheeseItems.map(c => ({...c}))
+    : (e.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
+  renderCheesesList();
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  currentSpirits = (e.spiritItems && e.spiritItems.length) ? e.spiritItems.map(s => ({...s})) : [];
+  renderSpiritsList();
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
@@ -771,7 +2549,24 @@ function openForEdit(id){
 
 async function loadEntries(){
   try{
-    const result = await storage.list('entry:');
+    // Scoped to 'entry:e' — NOT the bare 'entry:' prefix. Restaurant entry
+    // ids always start with 'e' (see saveEntry's id generation below), but
+    // Music's entries also live in this same shared kv_store table under
+    // 'entry:m-...'. A bare 'entry:' prefix here would match both, silently
+    // pulling every Music track into this app's own entry list (this
+    // actually happened — it's what was surfacing as "Untitled" cards).
+    if(storage.listWithValues){
+      // Fast path: one request for everything.
+      const result = await storage.listWithValues('entry:e');
+      entries = (result.items || [])
+        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .filter(Boolean);
+      render();
+      return;
+    }
+    // Fallback for storage backends without a batch method (Claude artifact
+    // storage, plain localStorage) — one request per entry.
+    const result = await storage.list('entry:e');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
       render();
@@ -801,14 +2596,29 @@ async function saveEntry(){
   }
   const id = editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7));
   const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  readDishesFromDom();
+  const dishItems = currentDishes.filter(d => d.name || d.photoUrl);
+  readWinesFromDom();
+  const wineItems = currentWines.filter(w => w.name || w.wineUrl || w.photoUrl);
+  readCheesesFromDom();
+  const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
+  readSpiritsFromDom();
+  const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl || s.photoUrl);
   const entry = {
     id,
     name,
+    website: normalizeAutofillUrl($('f-website').value),
+    neighborhood: $('f-neighborhood').value.trim(),
     place: $('f-place').value.trim(),
+    state: $('f-state').value.trim(),
+    country: $('f-country').value.trim(),
     date: $('f-date').value,
     price: $('f-price').value,
     rating: currentStars,
-    dishes: $('f-dishes').value.trim(),
+    dishItems,
+    wineItems,
+    cheeseItems,
+    spiritItems,
     notes: $('f-notes').value.trim(),
     tags
   };
@@ -861,7 +2671,9 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
   s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
 });
 
-loadEntries();
+$('search').addEventListener('input', render);
+
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>

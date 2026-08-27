@@ -28,6 +28,8 @@
 
   header{text-align:center;margin-bottom:26px;position:relative;}
   header .kicker{letter-spacing:.28em;font-size:11px;color:var(--plum);text-transform:uppercase;}
+  header .kicker a{color:inherit;text-decoration:none;}
+  header .kicker a:hover{text-decoration:underline;}
   header h1{
     font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
     font-weight:400;font-style:italic;font-size:44px;
@@ -142,7 +144,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="kicker">Warehouse &middot; A Collection Of Collections</div>
+    <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; A Collection Of Collections</div>
     <h1>Music</h1>
     <div class="sub">CDs and vinyl, cataloged from CLZ &mdash; artist, format, condition, rating</div>
     <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
@@ -310,6 +312,21 @@ function makeSupabaseAdapter(){
       const { data, error } = await query;
       if(error) throw error;
       return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
 }
@@ -551,6 +568,17 @@ function openForEdit(id){
 
 async function loadEntries(){
   try{
+    if(storage.listWithValues){
+      // Fast path: one request for everything.
+      const result = await storage.listWithValues(KEY_PREFIX);
+      entries = (result.items || [])
+        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .filter(Boolean);
+      render();
+      return;
+    }
+    // Fallback for storage backends without a batch method (Claude artifact
+    // storage, plain localStorage) — one request per entry.
     const result = await storage.list(KEY_PREFIX);
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];

@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spirits</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#f3ece0;
+    --paper-dark:#e3d2b8;
+    --ink:#2a1f14;
+    --wine:#8a3a1e;
+    --gold:#b8860b;
+    --sage:#584a35;
+    --line:#d4bd98;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-dark);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{
+    text-align:center;
+    margin-bottom:28px;
+    position:relative;
+  }
+  header .kicker{
+    letter-spacing:.28em;
+    font-size:11px;
+    color:var(--wine);
+    text-transform:uppercase;
+  }
+  header .kicker a{color:inherit;text-decoration:none;}
+  header .kicker a:hover{text-decoration:underline;}
+  header h1{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-weight:400;
+    font-style:italic;
+    font-size:44px;
+    margin:6px 0 4px;
+    letter-spacing:.01em;
+  }
+  header .sub{
+    font-size:12px;
+    color:var(--sage);
+    opacity:.85;
+  }
+  header .rule{
+    margin:18px auto 0;
+    width:100%;
+    height:1px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
+    opacity:.35;
+  }
+
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin:22px 0 14px;
+    font-size:12px;
+  }
+  .toolbar .count{color:var(--sage);opacity:.85;}
+  .newbtn{
+    background:var(--wine);
+    color:var(--paper);
+    border:none;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:10px 16px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .newbtn:hover{background:#6e451f;}
+
+  .auth-control{
+    display:flex;align-items:center;gap:8px;
+    font-size:11px;color:var(--sage);
+  }
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
+    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
+  }
+  .auth-control button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 10px;cursor:pointer;border-radius:2px;
+    border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .auth-error{color:var(--wine);font-size:10px;}
+
+  /* form ticket */
+  .ticket{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:22px;
+    margin-bottom:22px;
+    position:relative;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+    display:none;
+  }
+  .ticket.open{display:block;}
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:10px;
+    background:
+      radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
+  }
+  .ticket::before{top:-6px;transform:rotate(180deg);}
+  .ticket::after{bottom:-6px;}
+
+  .field{margin-bottom:14px;position:relative;}
+  .field label{
+    display:block;
+    font-size:10px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--wine);
+    margin-bottom:5px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    font-family:inherit;
+    font-size:14px;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:6px 2px;
+    color:var(--ink);
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none;
+    border-bottom:1px solid var(--wine);
+  }
+  .field textarea{resize:vertical;min-height:54px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field-hint{font-size:10px;color:var(--sage);opacity:.8;margin-top:4px;}
+
+  .cheese-row{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .cheese-row select, .cheese-row input{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+    width:100%;
+  }
+  .cheese-row select:focus, .cheese-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .row-rm{
+    background:none;border:none;color:var(--sage);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .row-rm:hover{color:var(--wine);}
+  .ghost-inline{
+    font-family:inherit;font-size:11px;letter-spacing:.04em;
+    color:var(--sage);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:2px 0;
+  }
+  .ghost-inline:hover{color:var(--wine);}
+
+  .autocomplete-list{
+    position:absolute;top:100%;left:0;right:0;z-index:20;
+    background:var(--paper);border:1px solid var(--ink);border-top:none;
+    max-height:160px;overflow-y:auto;display:none;
+  }
+  .autocomplete-list.open{display:block;}
+  .autocomplete-list div{
+    padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .autocomplete-list div:hover, .autocomplete-list div.active{
+    background:var(--paper-dark);
+  }
+
+  .autofill-field{
+    background:var(--paper-dark);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:20px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--wine);background:var(--wine);color:var(--paper);
+  }
+  .autofill-row button:hover{background:#4d1521;}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  #autofillStatus.err{color:var(--wine);}
+  #autofillStatus.ok{color:var(--sage);}
+
+  .refresh-link{
+    font-family:inherit;font-size:10px;color:var(--sage);
+    background:none;border:none;cursor:pointer;text-decoration:underline;
+    padding:0;margin-top:4px;
+  }
+  .refresh-link:hover{color:var(--wine);}
+  .refresh-link:disabled{opacity:.5;cursor:default;text-decoration:none;}
+
+  /* photo gallery picker */
+  .gallery{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;align-items:flex-start;}
+  .gallery .thumb{
+    position:relative;width:76px;
+    border-radius:2px;overflow:hidden;
+    border:1px solid var(--line);
+    background:var(--paper);
+  }
+  .gallery .thumb.cover{border-color:var(--wine);}
+  .gallery .thumb img{width:100%;height:72px;object-fit:cover;display:block;}
+  .gallery .thumb .rm{
+    position:absolute;top:2px;right:2px;
+    width:18px;height:18px;border-radius:50%;
+    background:rgba(43,36,22,0.75);color:var(--paper);
+    border:none;font-size:11px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;
+  }
+  .gallery .thumb .cover-badge, .gallery .thumb .make-cover{
+    display:block;width:100%;
+    font-family:inherit;font-size:9px;
+    text-align:center;padding:3px 0;
+    border:none;border-top:1px solid var(--line);
+  }
+  .gallery .thumb .cover-badge{
+    color:var(--wine);background:var(--paper);cursor:default;
+  }
+  .gallery .thumb .make-cover{
+    color:var(--sage);background:var(--paper-dark);cursor:pointer;
+  }
+  .gallery .thumb .make-cover:hover{color:var(--wine);background:var(--paper);}
+  .gallery .addtile{
+    width:76px;height:72px;
+    border:1px dashed var(--line);
+    border-radius:2px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--sage);
+    font-size:1.4rem;
+    cursor:pointer;
+    background:var(--paper-dark);
+  }
+  #f-photos{display:none;}
+
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .form-actions button{
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:9px 14px;
+    cursor:pointer;
+    border-radius:2px;
+    border:1px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+  }
+  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* entries */
+  .entry{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:18px 20px;
+    margin-bottom:14px;
+    position:relative;
+    cursor:pointer;
+    display:flex;
+    gap:16px;
+  }
+  .entry-thumb{
+    width:64px;height:64px;object-fit:cover;flex:none;
+    border:1px solid var(--line);border-radius:2px;
+    background:var(--paper-dark);
+  }
+  .entry-thumb.empty{
+    display:flex;align-items:center;justify-content:center;
+    font-family:'adobe-caslon-pro', Georgia, serif;font-style:italic;
+    color:var(--sage);opacity:.5;font-size:22px;
+  }
+  .entry-body{flex:1;min-width:0;text-align:left;}
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .entry-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;
+    font-size:22px;
+    text-align:left;
+  }
+  .entry-meta{
+    font-size:11px;
+    color:var(--sage);
+    opacity:.9;
+    margin-top:4px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .entry-meta a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--line);}
+  .entry-meta a:hover{border-color:var(--wine);}
+  .entry-comment{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.55;
+    color:var(--ink);
+    white-space:pre-wrap;
+  }
+  .entry-actions{
+    position:absolute;
+    top:14px;right:16px;
+    display:flex;gap:8px;
+  }
+  .entry-actions button{
+    background:none;border:none;
+    font-family:inherit;
+    font-size:11px;
+    color:var(--sage);
+    opacity:.6;
+    cursor:pointer;
+  }
+  .entry-actions button:hover{opacity:1;color:var(--wine);}
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--sage);
+    opacity:.8;
+    font-size:13px;
+    line-height:1.7;
+  }
+  .empty .big{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
+
+  .loading{text-align:center;padding:40px;font-size:12px;color:var(--sage);}
+
+  .load-error{
+    background:#f6e6d9;border:1px solid var(--wine);color:var(--ink);
+    padding:14px 16px;border-radius:3px;font-size:12px;margin-bottom:16px;
+    display:none;
+  }
+  .load-error button{
+    font-family:inherit;font-size:11px;margin-left:8px;cursor:pointer;
+    border:1px solid var(--ink);background:transparent;padding:4px 8px;border-radius:2px;
+  }
+
+  ::placeholder{color:var(--sage);opacity:.4;}
+
+  .lightbox{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(20,16,8,.88);
+    z-index:100;
+    align-items:flex-start;justify-content:center;
+    overflow-y:auto;
+    padding:40px 16px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    padding:24px;
+    position:relative;
+    border:1px solid var(--line);
+  }
+  .lightbox-close{
+    position:absolute;top:12px;right:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:13px;
+    color:var(--sage);cursor:pointer;
+  }
+  .lightbox-close:hover{color:var(--wine);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--sage);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--wine);}
+  .lightbox-photos{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:8px;margin-bottom:18px;
+  }
+  .lightbox-photos img{
+    width:100%;height:140px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    cursor:zoom-in;
+  }
+  .lightbox-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;font-size:26px;margin-bottom:2px;
+  }
+  .lightbox-name a{color:inherit;}
+  .lightbox-meta{
+    font-size:11px;color:var(--sage);opacity:.9;
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+  }
+  .lightbox-meta a{color:var(--wine);text-decoration:none;border-bottom:1px solid var(--line);}
+  .lightbox-fields{margin-bottom:14px;}
+  .lightbox-fields .row{
+    display:flex;gap:8px;font-size:12px;padding:5px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .lightbox-fields .lbl{
+    color:var(--wine);letter-spacing:.08em;text-transform:uppercase;
+    font-size:10px;flex:none;width:110px;padding-top:2px;
+  }
+  .lightbox-comment .lbl{
+    color:var(--wine);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;display:block;margin-bottom:4px;
+  }
+  .lightbox-comment{font-size:13px;line-height:1.55;white-space:pre-wrap;}
+
+  .photo-zoom{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.92);
+    z-index:200;
+    align-items:center;justify-content:center;
+    padding:20px;
+    cursor:zoom-out;
+  }
+  .photo-zoom.open{display:flex;}
+  .photo-zoom img{max-width:100%;max-height:100%;object-fit:contain;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; Est. In Practice</div>
+    <h1>Spirits</h1>
+    <div class="sub">a running record of aperitifs, digestifs, and bottles from the bar cart</div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="toolbar">
+    <span class="count" id="count">loading&hellip;</span>
+    <button class="newbtn" id="toggleForm">+ New Spirit</button>
+  </div>
+
+  <div class="load-error" id="loadErrorState">
+    <span class="msg"></span>
+    <button id="retryLoadBtn">Retry</button>
+  </div>
+
+  <div class="ticket" id="ticket">
+    <div class="field autofill-field">
+      <label>Autofill from URL</label>
+      <div class="autofill-row">
+        <input id="f-autofillUrl" type="text" placeholder="merchant-or-producer.com/this-spirit">
+        <button type="button" id="autofillBtn">Fetch</button>
+      </div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
+    </div>
+
+    <div class="field">
+      <label>Name</label>
+      <input id="f-name" type="text" placeholder="Cynar 70&hellip;">
+    </div>
+
+    <div class="field">
+      <label>Pictures</label>
+      <div class="gallery" id="galleryWrap">
+        <div class="addtile" id="addPhotoTile">+</div>
+      </div>
+      <input type="file" id="f-photos" accept="image/*" multiple>
+      <div class="field-hint" id="photoHint">Add one or more photos of the bottle or label.</div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Producer</label>
+        <input id="f-producer" type="text" placeholder="Fratelli Branca" autocomplete="off">
+        <div class="autocomplete-list" id="f-producer-options"></div>
+      </div>
+      <div class="field">
+        <label>Producer link (optional)</label>
+        <input id="f-producerUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Distiller / Maker</label>
+      <input id="f-distiller" type="text" placeholder="(person, if known)">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Merchant</label>
+        <input id="f-merchant" type="text" placeholder="Astor Wines &amp; Spirits" autocomplete="off">
+        <div class="autocomplete-list" id="f-merchant-options"></div>
+      </div>
+      <div class="field">
+        <label>Merchant link (optional)</label>
+        <input id="f-merchantUrl" type="url" placeholder="https://&hellip;">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Type</label>
+        <select id="f-type">
+          <option value="">&mdash;</option>
+          <option>Gin</option>
+          <option>Vodka</option>
+          <option>Whiskey</option>
+          <option>Rum</option>
+          <option>Tequila / Mezcal</option>
+          <option>Brandy / Cognac</option>
+          <option>Amaro</option>
+          <option>Vermouth</option>
+          <option>Liqueur</option>
+          <option>Bitters</option>
+          <option>Fortified Wine</option>
+          <option>Aperitif (other)</option>
+          <option>Digestif (other)</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ABV / Proof</label>
+        <input id="f-abv" type="text" placeholder="24% / 80 proof">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>State / Region</label>
+        <input id="f-region" type="text" placeholder="Lombardy">
+      </div>
+      <div class="field">
+        <label>Country</label>
+        <input id="f-country" type="text" placeholder="Italy">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Paired Cheese(s)</label>
+      <div id="cheesesList"></div>
+      <button type="button" id="addCheeseBtn" class="ghost-inline">+ Add cheese</button>
+    </div>
+
+    <div class="field">
+      <label>Restaurant</label>
+      <select id="f-restaurant">
+        <option value="">&mdash;</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Date</label>
+      <input id="f-date" type="date">
+    </div>
+
+    <div class="field">
+      <label>Comment</label>
+      <textarea id="f-comment" placeholder="Tasting notes, pairing, where it was had&hellip;"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save Spirit</button>
+    </div>
+  </div>
+
+  <div id="entries" class="loading">loading&hellip;</div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">&#128279; copy link</button>
+    <div class="lightbox-photos" id="lb-photos"></div>
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-fields" id="lb-fields"></div>
+    <div class="lightbox-comment" id="lb-comment-wrap" style="display:none;">
+      <span class="lbl">Comment</span><span id="lb-comment"></span>
+    </div>
+  </div>
+</div>
+
+<div class="photo-zoom" id="photoZoom">
+  <img id="photoZoomImg" src="" alt="">
+</div>
+
+<script>
+let entries = [];
+let editingId = null;
+let currentPhotos = []; // data URLs of the photos attached to the entry currently being edited
+let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
+
+const $ = (id) => document.getElementById(id);
+
+// Reads an entry's photos array, falling back to the old singular `photo`
+// field so entries saved before multi-photo support still display fine.
+function entryPhotos(e){
+  if(e.photos && e.photos.length) return e.photos;
+  if(e.photo) return [e.photo];
+  return [];
+}
+
+// Supabase-backed storage, shared with the rest of Warehouse, so entries
+// sync across devices instead of being trapped in one browser. Falls back
+// to localStorage if Supabase can't be reached, and to Claude's
+// window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+let supabaseInitError = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    supabaseInitError = 'Supabase library did not load — running on this browser only until the page is refreshed with a connection.';
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+let currentUser = null;
+
+function renderAuthControl(){
+  const el = document.getElementById('authControl');
+  if(!supabaseClient){
+    el.innerHTML = '';
+    return;
+  }
+  if(currentUser){
+    el.innerHTML = `
+      <span>${currentUser.email}</span>
+      <button id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+    });
+  } else {
+    el.innerHTML = `
+      <form id="signInForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <span class="auth-error" id="authError"></span>`;
+    document.getElementById('signInForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+    });
+  }
+}
+
+function applyAuthGating(){
+  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local/artifact mode)
+  const newBtn = document.getElementById('toggleForm');
+  if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
+  document.querySelectorAll('.entry-actions').forEach(el=>{
+    el.style.display = loggedIn ? '' : 'none';
+  });
+}
+
+if(supabaseClient){
+  supabaseClient.auth.getSession().then(({data})=>{
+    currentUser = data.session ? data.session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    currentUser = session ? session.user : null;
+    renderAuthControl();
+    applyAuthGating();
+  });
+} else {
+  renderAuthControl();
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+
+// Only allow http(s) URLs through as href values — guards against
+// javascript: or other schemes sneaking into a link field.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
+function linkOrText(text, url){
+  const t = escapeHtml(text || '');
+  if(!t) return '';
+  const href = safeUrl(url);
+  return href
+    ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${t}</a>`
+    : t;
+}
+
+function setLoadError(message){
+  const el = document.getElementById('loadErrorState');
+  if(!el) return;
+  if(message){
+    el.style.display = 'block';
+    el.querySelector('.msg').textContent = message;
+  }else{
+    el.style.display = 'none';
+  }
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function render(){
+  const wrap = $('entries');
+  $('count').textContent = entries.length === 0 ? 'no spirits yet' :
+    entries.length + (entries.length === 1 ? ' spirit logged' : ' spirits logged');
+
+  if(entries.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">The bar cart is empty.</span>Log the first bottle.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  const sorted = [...entries].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  wrap.innerHTML = sorted.map(e => {
+    const metaBits = [];
+    if(e.producer) metaBits.push(linkOrText(e.producer, e.producerUrl));
+    if(e.distiller) metaBits.push(escapeHtml(e.distiller));
+    if(e.merchant) metaBits.push(linkOrText(e.merchant, e.merchantUrl));
+    if(e.type) metaBits.push(escapeHtml(e.type));
+    if(e.abv) metaBits.push(escapeHtml(e.abv));
+    const place = [e.region, e.country].filter(Boolean).join(', ');
+    if(place) metaBits.push(escapeHtml(place));
+    if(e.pairedCheeses && e.pairedCheeses.length){
+      e.pairedCheeses.forEach(c => metaBits.push(linkOrText('\ud83e\uddc0 ' + c.name, c.cheeseUrl)));
+    } else if(e.pairedCheese){
+      metaBits.push(linkOrText('\ud83e\uddc0 ' + e.pairedCheese, e.pairedCheeseUrl));
+    }
+    if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
+    if(e.date) metaBits.push(fmtDate(e.date));
+
+    return `
+    <div class="entry" data-id="${e.id}">
+      <div class="entry-actions">
+        <button class="editBtn">edit</button>
+        <button class="delBtn">delete</button>
+      </div>
+      ${entryPhotos(e).length
+        ? `<img class="entry-thumb" src="${entryPhotos(e)[0]}" alt="">`
+        : `<div class="entry-thumb empty">w</div>`}
+      <div class="entry-body">
+        <div class="entry-top">
+          <div>
+            <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
+            ${metaBits.length ? `<div class="entry-meta">${metaBits.map(m=>`<span>${m}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        ${e.comment ? `<div class="entry-comment">${escapeHtml(e.comment)}</div>` : ''}
+      </div>
+    </div>
+  `;}).join('');
+
+  wrap.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      openForEdit(id);
+    });
+  });
+  wrap.querySelectorAll('.delBtn').forEach(btn=>{
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      if(confirm('Remove this spirit?')){
+        await deleteEntry(id);
+      }
+    });
+  });
+  wrap.querySelectorAll('.entry').forEach(card=>{
+    card.addEventListener('click', e => {
+      openLightbox(card.dataset.id);
+    });
+  });
+  wrap.querySelectorAll('.entry-meta a').forEach(a=>{
+    // Let a Producer/Merchant/Cheese/Restaurant link just navigate on its own,
+    // instead of also popping the detail lightbox open behind it.
+    a.addEventListener('click', e => e.stopPropagation());
+  });
+  refreshMerchantOptions();
+  refreshProducerOptions();
+  applyAuthGating();
+}
+
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  currentLightboxId = id;
+
+  const photos = entryPhotos(e);
+  const photosEl = $('lb-photos');
+  photosEl.innerHTML = photos.map(src => `<img src="${src}" alt="">`).join('');
+  photosEl.querySelectorAll('img').forEach(img=>{
+    img.addEventListener('click', ev => {
+      ev.stopPropagation();
+      openPhotoZoom(img.src);
+    });
+  });
+
+  $('lb-name').textContent = e.name || 'Untitled';
+
+  const rows = [];
+  if(e.producer) rows.push(['Producer', linkOrText(e.producer, e.producerUrl)]);
+  if(e.distiller) rows.push(['Distiller', escapeHtml(e.distiller)]);
+  if(e.merchant) rows.push(['Merchant', linkOrText(e.merchant, e.merchantUrl)]);
+  if(e.type) rows.push(['Type', escapeHtml(e.type)]);
+  if(e.abv) rows.push(['ABV / Proof', escapeHtml(e.abv)]);
+  const place = [e.region, e.country].filter(Boolean).join(', ');
+  if(place) rows.push(['Region', escapeHtml(place)]);
+  const cheeseItems = cheeseItemsOf(e);
+  if(cheeseItems.length){
+    const val = cheeseItems.map(c => linkOrText(c.name, c.cheeseUrl) + (c.note ? ` <span style="color:var(--sage);">— ${escapeHtml(c.note)}</span>` : '')).join('<br>');
+    rows.push(['Paired Cheese', val]);
+  }
+  if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
+  if(e.date) rows.push(['Date', escapeHtml(fmtDate(e.date))]);
+
+  $('lb-fields').innerHTML = rows.map(([label, val]) =>
+    `<div class="row"><span class="lbl">${label}</span><span>${val}</span></div>`
+  ).join('');
+
+  if(e.comment){
+    $('lb-comment-wrap').style.display = 'block';
+    $('lb-comment').textContent = e.comment;
+  } else {
+    $('lb-comment-wrap').style.display = 'none';
+  }
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '\u2713 copied';
+  }catch(err){
+    // Clipboard API can be blocked (permissions, non-HTTPS, older Safari) —
+    // fall back to showing the URL so it can be copied by hand.
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '\ud83d\udd17 copy link'; }, 1500);
+});
+
+// Deep link: if the page was opened with #<entryId> (e.g. pasted from a
+// restaurant entry's "link to this dish's cheese" field), open that
+// entry's lightbox automatically once entries have loaded.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+
+function openPhotoZoom(src){
+  $('photoZoomImg').src = src;
+  $('photoZoom').classList.add('open');
+}
+function closePhotoZoom(){
+  $('photoZoom').classList.remove('open');
+  $('photoZoomImg').src = '';
+}
+
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+$('photoZoom').addEventListener('click', closePhotoZoom);
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    closePhotoZoom();
+    closeLightbox();
+  }
+});
+
+
+// Custom autocomplete dropdown for Producer and Merchant (replaces
+// native <datalist>, which iOS Safari handles unreliably). Shows every
+// known value on focus, filters as you type, still accepts any free-text
+// value so a new producer/merchant isn't blocked.
+function allProducers(){
+  return [...new Set(entries.map(e=>e.producer).filter(Boolean))].sort();
+}
+function refreshProducerOptions(){
+  const el = $('f-producer-options');
+  if(el) el.dataset.options = JSON.stringify(allProducers());
+}
+function allMerchants(){
+  return [...new Set(entries.map(e=>e.merchant).filter(Boolean))].sort();
+}
+function refreshMerchantOptions(){
+  const el = $('f-merchant-options');
+  if(el) el.dataset.options = JSON.stringify(allMerchants());
+}
+function setupAutocomplete(inputId, listId){
+  const input = $(inputId);
+  const list = $(listId);
+
+  function optionsFor(){
+    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
+  }
+  function renderList(opts){
+    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
+    list.innerHTML = opts.map(o=>`<div data-val="${escapeHtml(o)}">${escapeHtml(o)}</div>`).join('');
+    list.classList.add('open');
+  }
+  function showAll(){
+    renderList(optionsFor());
+    input.select();
+  }
+  function showFiltered(){
+    const q = input.value.trim().toLowerCase();
+    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
+  }
+  function hide(){ list.classList.remove('open'); }
+
+  input.addEventListener('focus', showAll);
+  input.addEventListener('input', showFiltered);
+  input.addEventListener('blur', ()=> setTimeout(hide, 150));
+  list.addEventListener('mousedown', (e)=>{
+    const opt = e.target.closest('[data-val]');
+    if(!opt) return;
+    input.value = opt.dataset.val;
+    hide();
+  });
+}
+setupAutocomplete('f-producer', 'f-producer-options');
+setupAutocomplete('f-merchant', 'f-merchant-options');
+
+// --- Cross-app cross-links: Paired Cheese and Restaurant are dropdowns
+// sourced from the shared kv_store via the lightweight list_kv_names()
+// RPC (name + key only — never the full record, which for Cheese can
+// carry large embedded photos). Both support inline "+ New ..." creation,
+// writing a real stub entry directly into the other app's data with the
+// same schema/id-scheme that app itself writes, so it's a genuine entry
+// there, not just a local label. ---
+let cheeseOptions = []; // {id, name}
+let restaurantOptions = []; // {id, name}
+
+async function refreshCrossLinkOptions(){
+  cheeseOptions = [];
+  restaurantOptions = [];
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdowns stay empty, still usable
+  try{
+    const [cheeseRes, restRes] = await Promise.all([
+      supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' }),
+      supabaseClient.rpc('list_kv_names', { prefix: 'entry:e' })
+    ]);
+    if(cheeseRes.error) throw cheeseRes.error;
+    if(restRes.error) throw restRes.error;
+    cheeseOptions = (cheeseRes.data || [])
+      .map(r => ({ id: r.key.replace(/^cheese:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+    restaurantOptions = (restRes.data || [])
+      .map(r => ({ id: r.key.replace(/^entry:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load cheese/restaurant lists for the pickers', err);
+  }
+}
+
+function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel){
+  selectEl.innerHTML = '';
+  const blankOpt = document.createElement('option');
+  blankOpt.value = '';
+  blankOpt.textContent = '\u2014';
+  selectEl.appendChild(blankOpt);
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = newLabel;
+  selectEl.appendChild(newOpt);
+  let matched = false;
+  options.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.name;
+    if(o.id && o.id === currentId){ opt.selected = true; matched = true; }
+    selectEl.appendChild(opt);
+  });
+  if(currentId && !matched){
+    const opt = document.createElement('option');
+    opt.value = currentId;
+    opt.textContent = '(' + (currentLabel || 'linked entry') + ' not in list)';
+    opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+// currentRestaurantId tracks the entry-being-edited's linked restaurant id
+// across re-renders of the select (e.g. after creating a new restaurant
+// inline), since the <select>'s own DOM state gets wiped each time
+// buildLinkedSelect() rebuilds its options.
+let currentRestaurantId = '';
+
+// currentCheeses is the repeatable list of paired cheeses, matching the
+// style of Restaurants' Dishes had / Wines had rows: {name, cheeseUrl, note}.
+let currentCheeses = [];
+
+function renderCrossLinkSelects(){
+  buildLinkedSelect($('f-restaurant'), restaurantOptions, currentRestaurantId, 'restaurant', '+ New restaurant visit\u2026');
+}
+
+async function handleNewRestaurantSelection(){
+  const select = $('f-restaurant');
+  const name = prompt('Name of the restaurant:');
+  if(!name || !name.trim()){
+    select.value = currentRestaurantId || '';
+    return;
+  }
+  select.disabled = true;
+  try{
+    const id = 'e' + Date.now() + Math.random().toString(36).slice(2,7);
+    const entry = { id, name: name.trim(), place: '', date: new Date().toISOString().slice(0,10), price: '', rating: 0, dishItems: [], notes: '', tags: [] };
+    const { error } = await supabaseClient
+      .from('kv_store')
+      .upsert({ key: 'entry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+    if(error) throw error;
+    restaurantOptions.push({ id, name: name.trim() });
+    restaurantOptions.sort((a,b) => a.name.localeCompare(b.name));
+    currentRestaurantId = id;
+    renderCrossLinkSelects();
+  }catch(err){
+    console.error('Could not create new restaurant', err);
+    alert('Could not create the restaurant visit — make sure you\u2019re signed in.');
+    select.disabled = false;
+    select.value = currentRestaurantId || '';
+  }
+}
+
+// Creates a genuinely new Cheese entry (same schema cheese.html writes) —
+// used by the "+ New cheese…" option in each paired-cheese row.
+async function createNewCheeseStub(name){
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    cheesemaker: '',
+    cheesemonger: '', cheesemongerUrl: '',
+    milkType: '', age: '', wrapped: '', wrappedDesc: '',
+    region: '', country: '',
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'cheese:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+// Cheese rows are built via DOM APIs (createElement + .value), not
+// innerHTML string interpolation — escapeHtml() doesn't escape quote
+// characters, which is fine for text nodes but unsafe inside a
+// value="..." attribute, so building elements directly sidesteps that.
+function renderCheesesList(){
+  const wrap = $('cheesesList');
+  wrap.innerHTML = '';
+  currentCheeses.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'cheese-row';
+
+    const select = document.createElement('select');
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
+    select.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New cheese\u2026';
+    select.appendChild(newOpt);
+    const currentId = (c.cheeseUrl || '').split('#')[1] || '';
+    let matched = false;
+    cheeseOptions.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = '\ud83e\uddc0 ' + opt.name;
+      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
+      select.appendChild(o);
+    });
+    if(currentId && !matched){
+      const o = document.createElement('option');
+      o.value = currentId;
+      o.textContent = '\ud83e\uddc0 (linked cheese not in list)';
+      o.selected = true;
+      select.appendChild(o);
+    }
+    select.addEventListener('change', async () => {
+      if(select.value !== '__new__') return;
+      const name = prompt('Name for the new cheese:');
+      if(!name || !name.trim()){
+        select.value = currentId || '';
+        return;
+      }
+      select.disabled = true;
+      try{
+        const created = await createNewCheeseStub(name.trim());
+        cheeseOptions.push(created);
+        cheeseOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readCheesesFromDom();
+        currentCheeses[i].cheeseUrl = location.origin + location.pathname.replace(/spirits\.html$/, '') + 'cheese.html#' + created.id;
+        currentCheeses[i].name = created.name;
+        renderCheesesList();
+      }catch(err){
+        console.error('Could not create new cheese', err);
+        alert('Could not create the cheese — make sure you\u2019re signed in.');
+        select.disabled = false;
+        select.value = currentId || '';
+      }
+    });
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = c.note || '';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'row-rm';
+    rmBtn.title = 'Remove';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readCheesesFromDom();
+      currentCheeses.splice(i, 1);
+      renderCheesesList();
+    });
+
+    row.append(select, noteInput, rmBtn);
+    wrap.appendChild(row);
+  });
+}
+
+function readCheesesFromDom(){
+  const rows = $('cheesesList').querySelectorAll('.cheese-row');
+  currentCheeses = Array.from(rows).map((row, i) => {
+    const select = row.querySelector('select');
+    const cheeseId = select.value;
+    const opt = cheeseOptions.find(o => o.id === cheeseId);
+    return {
+      name: opt ? opt.name : (currentCheeses[i] ? currentCheeses[i].name : ''),
+      cheeseUrl: cheeseId && cheeseId !== '__new__' ? (location.origin + location.pathname.replace(/spirits\.html$/, '') + 'cheese.html#' + cheeseId) : '',
+      note: row.querySelector('input').value.trim()
+    };
+  });
+}
+
+$('addCheeseBtn').addEventListener('click', () => {
+  readCheesesFromDom();
+  currentCheeses.push({name:'', cheeseUrl:'', note:''});
+  renderCheesesList();
+});
+
+function cheeseItemsOf(e){
+  if(e.pairedCheeses && e.pairedCheeses.length) return e.pairedCheeses;
+  if(e.pairedCheese) return [{ name: e.pairedCheese, cheeseUrl: e.pairedCheeseUrl || '', note: '' }];
+  return [];
+}
+
+$('f-restaurant').addEventListener('change', () => {
+  if($('f-restaurant').value === '__new__') handleNewRestaurantSelection();
+  else currentRestaurantId = $('f-restaurant').value;
+});
+
+function resetForm(){
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
+  $('f-name').value='';
+  $('f-producer').value='';
+  $('f-producerUrl').value='';
+  $('f-distiller').value='';
+  $('f-merchant').value='';
+  $('f-merchantUrl').value='';
+  $('f-type').value='';
+  $('f-abv').value='';
+  $('f-region').value='';
+  $('f-country').value='';
+  currentCheeses = [];
+  renderCheesesList();
+  currentRestaurantId = '';
+  renderCrossLinkSelects();
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
+  $('f-date').value=new Date().toISOString().slice(0,10);
+  $('f-comment').value='';
+  $('f-photos').value='';
+  currentPhotos = [];
+  renderGallery();
+  editingId = null;
+}
+
+// --- Autofill: asks the spirits-autofill Edge Function to fetch a merchant
+// or producer page server-side (browsers can't fetch arbitrary cross-
+// origin pages directly) and pull out best-guess fields. Only ever fills
+// in fields that are currently empty, so it never clobbers what's already
+// been typed — review everything it fills before saving. ---
+const AUTOFILL_URL = SUPABASE_URL + '/functions/v1/spirits-autofill';
+
+function setAutofillStatus(msg, cls){
+  const el = $('autofillStatus');
+  el.textContent = msg;
+  el.className = 'field-hint' + (cls ? ' ' + cls : '');
+}
+
+// Resizes a data: URL image the same way resizeImage() handles a File —
+// used to compress the photo an autofill fetch hands back, so it goes
+// through the same size/quality pipeline as a manually uploaded photo.
+function resizeDataUrl(dataUrl, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+      else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
+// prepends https:// if no scheme was typed, so the field doesn't demand
+// people paste the "https://" prefix by hand.
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
+async function runAutofill(){
+  const url = normalizeAutofillUrl($('f-autofillUrl').value);
+  if(!url){
+    setAutofillStatus('Paste a URL first.', 'err');
+    return;
+  }
+  const btn = $('autofillBtn');
+  btn.disabled = true;
+  setAutofillStatus('Fetching…');
+
+  let data;
+  try{
+    const res = await fetch(AUTOFILL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ url })
+    });
+    data = await res.json();
+    if(!res.ok || !data.ok){
+      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
+      btn.disabled = false;
+      return;
+    }
+  }catch(err){
+    console.error('Autofill fetch failed', err);
+    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
+    btn.disabled = false;
+    return;
+  }
+
+  try{
+    const filled = [];
+    const fillIfEmpty = (id, value) => {
+      if(value && !$(id).value.trim()){
+        $(id).value = value;
+        filled.push(id);
+      }
+    };
+    fillIfEmpty('f-name', data.name);
+    fillIfEmpty('f-producer', data.producer);
+    fillIfEmpty('f-producerUrl', data.producerUrl);
+    fillIfEmpty('f-distiller', data.distiller);
+    fillIfEmpty('f-merchant', data.merchant);
+    fillIfEmpty('f-merchantUrl', data.merchantUrl);
+    fillIfEmpty('f-abv', data.abv);
+    fillIfEmpty('f-region', data.region);
+    if(data.country && !$('f-country').value.trim()){
+      $('f-country').value = data.country;
+      filled.push('f-country');
+    }
+    if(data.type && !$('f-type').value){
+      $('f-type').value = data.type;
+      filled.push('f-type');
+    }
+    fillIfEmpty('f-comment', data.comment);
+    if(data.photo && currentPhotos.length === 0){
+      try{
+        currentPhotos.push(await resizeDataUrl(data.photo, 1000, 0.72));
+      }catch(err){
+        console.error('Could not compress autofilled photo, using it as-is', err);
+        currentPhotos.push(data.photo);
+      }
+      renderGallery();
+      filled.push('picture');
+    }
+
+    if(filled.length){
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially type, ABV, and region/country.`, 'ok');
+    } else {
+      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+    }
+  }catch(err){
+    console.error('Autofill fetched OK but applying it to the form failed', err);
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
+  }finally{
+    btn.disabled = false;
+  }
+}
+$('autofillBtn').addEventListener('click', runAutofill);
+$('f-autofillUrl').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    runAutofill();
+  }
+});
+
+function renderGallery(){
+  const wrap = $('galleryWrap');
+  wrap.querySelectorAll('.thumb').forEach(el=>el.remove());
+  currentPhotos.forEach((src, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'thumb' + (idx === 0 ? ' cover' : '');
+    div.innerHTML = `
+      <img src="${src}">
+      <button type="button" class="rm" data-idx="${idx}" title="Remove">&times;</button>
+      ${idx === 0
+        ? `<span class="cover-badge" title="This is the card photo">&#9733; cover</span>`
+        : `<button type="button" class="make-cover" data-idx="${idx}" title="Use as card photo">&#9733; make cover</button>`}
+    `;
+    wrap.insertBefore(div, $('addPhotoTile'));
+  });
+  wrap.querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentPhotos.splice(Number(btn.dataset.idx), 1);
+      renderGallery();
+    });
+  });
+  wrap.querySelectorAll('.make-cover').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.idx);
+      const [photo] = currentPhotos.splice(idx, 1);
+      currentPhotos.unshift(photo);
+      renderGallery();
+    });
+  });
+  $('photoHint').textContent = currentPhotos.length
+    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached — the starred one is used as the card photo.`
+    : 'Add one or more photos of the wheel, wedge, or label.';
+}
+
+// Resize/compress to a reasonable web size before storing as base64 —
+// keeps entries light and quick to load across the collection.
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+$('addPhotoTile').addEventListener('click', () => $('f-photos').click());
+$('f-photos').addEventListener('change', async () => {
+  const files = Array.from($('f-photos').files || []);
+  if(!files.length) return;
+  $('photoHint').textContent = 'Processing photos…';
+  for(const file of files){
+    try{
+      currentPhotos.push(await resizeImage(file, 1000, 0.72));
+    }catch(err){
+      console.error('Could not process photo', err);
+    }
+  }
+  $('f-photos').value = '';
+  renderGallery();
+});
+
+function openForEdit(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  $('f-name').value = e.name || '';
+  $('f-producer').value = e.producer || '';
+  $('f-producerUrl').value = e.producerUrl || '';
+  $('f-distiller').value = e.distiller || '';
+  $('f-merchant').value = e.merchant || '';
+  $('f-merchantUrl').value = e.merchantUrl || '';
+  $('f-type').value = e.type || '';
+  $('f-abv').value = e.abv || '';
+  $('f-region').value = e.region || '';
+  $('f-country').value = e.country || '';
+  currentCheeses = cheeseItemsOf(e).map(c => ({...c}));
+  renderCheesesList();
+  currentRestaurantId = (e.restaurantUrl || '').split('#')[1] || '';
+  renderCrossLinkSelects();
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
+  $('f-date').value = e.date || '';
+  $('f-comment').value = e.comment || '';
+  currentPhotos = entryPhotos(e).slice();
+  renderGallery();
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function loadEntries(){
+  try{
+    if(storage.listWithValues){
+      // Fast path: one request for everything.
+      const result = await storage.listWithValues('spirits:');
+      entries = (result.items || [])
+        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .filter(Boolean);
+      setLoadError(supabaseInitError);
+      render();
+      return;
+    }
+    // Fallback for storage backends without a batch method (Claude artifact
+    // storage, plain localStorage) — one request per entry.
+    const result = await storage.list('spirits:');
+    if(!result || !result.keys || result.keys.length === 0){
+      entries = [];
+      setLoadError(supabaseInitError);
+      render();
+      return;
+    }
+    const loaded = [];
+    for(const key of result.keys){
+      try{
+        const r = await storage.get(key);
+        if(r && r.value){
+          loaded.push(JSON.parse(r.value));
+        }
+      }catch(err){ /* skip missing */ }
+    }
+    entries = loaded;
+    setLoadError(supabaseInitError);
+  }catch(err){
+    console.error('Spirits Collection: failed to load entries', err);
+    setLoadError(supabaseInitError ||
+      `Couldn't load your entries (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
+  }
+  render();
+}
+$('retryLoadBtn').addEventListener('click', loadEntries);
+
+async function saveEntry(){
+  const name = $('f-name').value.trim();
+  if(!name){
+    $('f-name').focus();
+    return;
+  }
+  const id = editingId || ('s' + Date.now() + Math.random().toString(36).slice(2,7));
+  readCheesesFromDom();
+  const pairedCheeses = currentCheeses.filter(c => c.cheeseUrl);
+  const linkedRestaurant = restaurantOptions.find(r => r.id === currentRestaurantId);
+  const entry = {
+    id,
+    name,
+    photos: currentPhotos,
+    producer: $('f-producer').value.trim(),
+    producerUrl: $('f-producerUrl').value.trim(),
+    distiller: $('f-distiller').value.trim(),
+    merchant: $('f-merchant').value.trim(),
+    merchantUrl: $('f-merchantUrl').value.trim(),
+    type: $('f-type').value,
+    abv: $('f-abv').value.trim(),
+    region: $('f-region').value.trim(),
+    country: $('f-country').value.trim(),
+    pairedCheeses,
+    restaurant: linkedRestaurant ? linkedRestaurant.name : '',
+    restaurantUrl: currentRestaurantId ? (location.origin + location.pathname.replace(/spirits\.html$/, '') + 'restaurants.html#' + currentRestaurantId) : '',
+    date: $('f-date').value,
+    comment: $('f-comment').value.trim()
+  };
+  try{
+    await storage.set('spirits:' + id, JSON.stringify(entry));
+    if(editingId){
+      const idx = entries.findIndex(e=>e.id===id);
+      if(idx>-1) entries[idx] = entry; else entries.push(entry);
+    } else {
+      entries.push(entry);
+    }
+    render();
+    closeForm();
+  }catch(err){
+    console.error(err);
+    alert('Could not save entry. Please try again.');
+  }
+}
+
+async function deleteEntry(id){
+  try{
+    await storage.delete('spirits:' + id);
+    entries = entries.filter(e=>e.id!==id);
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Could not delete entry. Please try again.');
+  }
+}
+
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
+}
+
+$('toggleForm').addEventListener('click', () => {
+  const t = $('ticket');
+  if(t.classList.contains('open')){
+    closeForm();
+  } else {
+    resetForm();
+    t.classList.add('open');
+    t.scrollIntoView({behavior:'smooth', block:'start'});
+    $('f-name').focus();
+  }
+});
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEntry);
+
+loadEntries().then(openFromHash);
+</script>
+</body>
+</html>
