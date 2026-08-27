@@ -586,6 +586,14 @@
       </div>
     </div>
     <div class="field">
+      <label>Spirits had</label>
+      <div id="spiritsList"></div>
+      <div class="add-row-choices">
+        <button type="button" id="addSpiritByNameBtn" class="ghost-inline">+ Add by name</button>
+        <button type="button" id="addSpiritByUrlBtn" class="ghost-inline">+ Add by URL</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Notes</label>
       <textarea id="f-notes" placeholder="How it was, who with, what to order next time…"></textarea>
     </div>
@@ -618,6 +626,9 @@
     <div class="lightbox-notes" id="lb-cheeses-wrap" style="display:none;">
       <span class="lbl">Cheeses</span><div id="lb-cheeses"></div>
     </div>
+    <div class="lightbox-notes" id="lb-spirits-wrap" style="display:none;">
+      <span class="lbl">Spirits</span><div id="lb-spirits"></div>
+    </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
     </div>
@@ -637,6 +648,7 @@ let currentLightboxId = null; // entry currently shown in the lightbox, for the 
 let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
 let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
 let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
+let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows
 
 const $ = (id) => document.getElementById(id);
 
@@ -855,6 +867,7 @@ function render(){
       ${renderDishItemsHtml(e)}
       ${renderWineItemsHtml(e)}
       ${renderCheeseItemsHtml(e)}
+      ${renderSpiritItemsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -1874,6 +1887,252 @@ function renderCheeseItemsHtml(e){
   }).join('')}</div>`;
 }
 
+// --- Spirits had: mirrors Wines had's row structure (name + note +
+// dropdown), pointed at the Spirits app instead ('spirits:' prefix, same
+// stub-schema spirits.html itself writes). No photo field here, matching
+// scope — easy to add later by mirroring Dishes/Wines' photo-wrap if
+// wanted. ---
+let spiritOptions = []; // {id, name}
+
+async function refreshSpiritOptions(){
+  spiritOptions = [];
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'spirits:' });
+    if(error) throw error;
+    spiritOptions = (data || [])
+      .map(r => ({ id: r.key.replace(/^spirits:/, ''), name: r.name || 'Untitled' }))
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }catch(err){
+    console.error('Could not load spirits list for the dropdown', err);
+  }
+}
+
+async function createNewSpirit(name){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: [],
+    producer: '', producerUrl: '',
+    distiller: '',
+    merchant: '', merchantUrl: '',
+    type: '', abv: '',
+    region: '', country: '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'spirits:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+function renderSpiritsList(){
+  const wrap = $('spiritsList');
+  wrap.innerHTML = '';
+  currentSpirits.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+
+    const main = document.createElement('div');
+    main.className = 'dish-row-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'dish-name';
+    nameInput.placeholder = 'Spirit name';
+    nameInput.value = s.name || '';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'dish-note';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = s.note || '';
+
+    main.append(nameInput, noteInput);
+
+    const links = document.createElement('div');
+    links.className = 'dish-row-links dish-row-links-1';
+
+    const spiritSelect = document.createElement('select');
+    spiritSelect.className = 'dish-cheese';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\ud83c\udf78 Spirit — none';
+    spiritSelect.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New spirit\u2026';
+    spiritSelect.appendChild(newOpt);
+    const currentId = (s.spiritUrl || '').split('#')[1] || '';
+    let matched = false;
+    spiritOptions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = '\ud83c\udf78 ' + v.name;
+      if(v.id && v.id === currentId){ opt.selected = true; matched = true; }
+      spiritSelect.appendChild(opt);
+    });
+    if(currentId && !matched){
+      const opt = document.createElement('option');
+      opt.value = currentId;
+      opt.textContent = '\ud83c\udf78 (linked spirit not in list)';
+      opt.selected = true;
+      spiritSelect.appendChild(opt);
+    }
+    spiritSelect.addEventListener('change', async () => {
+      if(spiritSelect.value !== '__new__') return;
+      const name = prompt('Name for the new spirit:');
+      if(!name || !name.trim()){
+        spiritSelect.value = currentId || '';
+        return;
+      }
+      spiritSelect.disabled = true;
+      try{
+        const created = await createNewSpirit(name.trim());
+        spiritOptions.push(created);
+        spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readSpiritsFromDom();
+        currentSpirits[i].spiritUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id;
+        renderSpiritsList();
+      }catch(err){
+        console.error('Could not create new spirit', err);
+        alert('Could not create the spirit — make sure you\u2019re signed in.');
+        spiritSelect.disabled = false;
+        spiritSelect.value = currentId || '';
+      }
+    });
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'dish-rm';
+    rmBtn.title = 'Remove spirit';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readSpiritsFromDom();
+      currentSpirits.splice(i, 1);
+      renderSpiritsList();
+    });
+
+    links.append(spiritSelect, rmBtn);
+    row.append(main, links);
+    wrap.appendChild(row);
+  });
+}
+
+function readSpiritsFromDom(){
+  const rows = $('spiritsList').querySelectorAll('.dish-row');
+  currentSpirits = Array.from(rows).map(row => {
+    const spiritId = row.querySelector('.dish-cheese').value;
+    return {
+      name: row.querySelector('.dish-name').value.trim(),
+      note: row.querySelector('.dish-note').value.trim(),
+      spiritUrl: spiritId && spiritId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritId) : ''
+    };
+  });
+}
+
+$('addSpiritByNameBtn').addEventListener('click', () => {
+  readSpiritsFromDom();
+  currentSpirits.push({name:'', note:'', spiritUrl:''});
+  renderSpiritsList();
+  const rows = $('spiritsList').querySelectorAll('.dish-row');
+  rows[rows.length-1].querySelector('.dish-name').focus();
+});
+
+$('addSpiritByUrlBtn').addEventListener('click', async () => {
+  const raw = prompt('Paste a link to the spirit (producer or shop page):');
+  if(!raw || !raw.trim()) return;
+  const url = normalizeAutofillUrl(raw);
+  const btn = $('addSpiritByUrlBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching…';
+  btn.disabled = true;
+  try{
+    const created = await createSpiritFromUrl(url);
+    spiritOptions.push({ id: created.id, name: created.name });
+    spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readSpiritsFromDom();
+    currentSpirits.push({
+      name: created.name,
+      note: '',
+      spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id
+    });
+    renderSpiritsList();
+  }catch(err){
+    console.error('Could not add spirit from URL', err);
+    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// Fetches spirits-autofill for a URL and writes a real, populated Spirits
+// entry directly into the shared kv_store — mirrors createWineFromUrl.
+async function createSpiritFromUrl(url){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-autofill', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+    },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
+  if(!data.name) throw new Error('Could not find a spirit name on that page.');
+
+  const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name: data.name,
+    photos: data.photo ? [data.photo] : [],
+    producer: data.producer || '', producerUrl: data.producerUrl || '',
+    distiller: data.distiller || '',
+    merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
+    type: data.type || '', abv: data.abv || '',
+    region: data.region || '', country: data.country || '',
+    pairedCheeses: [],
+    restaurant: '', restaurantUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: data.comment || ''
+  };
+  if(editingId){
+    entry.restaurant = $('f-name').value.trim();
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'spirits:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name: data.name };
+}
+
+function spiritItemsOf(e){
+  return (e.spiritItems && e.spiritItems.length) ? e.spiritItems : [];
+}
+
+function renderSpiritItemsHtml(e){
+  const items = spiritItemsOf(e);
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(s => {
+    const spiritHref = safeUrl(s.spiritUrl);
+    return `<div class="dish-item">
+      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // Resolves an entry's dishes for display, whether it has the new
 // structured dishItems array or only the old flat comma-separated
 // `dishes` string (kept, never migrated in the database, so nothing
@@ -1979,6 +2238,14 @@ function openLightbox(id){
     $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
   } else {
     $('lb-cheeses-wrap').style.display = 'none';
+  }
+
+  const spiritItems = spiritItemsOf(e);
+  if(spiritItems.length){
+    $('lb-spirits-wrap').style.display = 'block';
+    $('lb-spirits').innerHTML = renderSpiritItemsHtml(e);
+  } else {
+    $('lb-spirits-wrap').style.display = 'none';
   }
 
   if(e.notes){
@@ -2092,12 +2359,15 @@ function resetForm(){
   renderWinesList();
   currentCheeses = [];
   renderCheesesList();
-  // Cheese/wine options are fetched async so opening the form never waits
-  // on a network round trip; re-render in place once they land. Reads
-  // whatever was typed in the meantime first, so a fast typer doesn't
-  // lose input.
+  currentSpirits = [];
+  renderSpiritsList();
+  // Cheese/wine/spirit options are fetched async so opening the form
+  // never waits on a network round trip; re-render in place once they
+  // land. Reads whatever was typed in the meantime first, so a fast
+  // typer doesn't lose input.
   refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
@@ -2142,6 +2412,9 @@ function openForEdit(id){
   renderCheesesList();
   refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  currentSpirits = (e.spiritItems && e.spiritItems.length) ? e.spiritItems.map(s => ({...s})) : [];
+  renderSpiritsList();
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
@@ -2204,6 +2477,8 @@ async function saveEntry(){
   const wineItems = currentWines.filter(w => w.name || w.wineUrl || w.photoUrl);
   readCheesesFromDom();
   const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
+  readSpiritsFromDom();
+  const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl);
   const entry = {
     id,
     name,
@@ -2218,6 +2493,7 @@ async function saveEntry(){
     dishItems,
     wineItems,
     cheeseItems,
+    spiritItems,
     notes: $('f-notes').value.trim(),
     tags
   };
