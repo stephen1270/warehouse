@@ -992,7 +992,8 @@ function applyAutofillData(data){
   // simply not used, rather than force-fit somewhere it doesn't belong.
 
   if(filled.length){
-    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.`, 'ok');
+    const fallbackNote = data.usedFallbackPage ? ' (Place came from a linked page — the one you pasted didn\'t have it.)' : '';
+    setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.${fallbackNote}`, 'ok');
   } else {
     setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
   }
