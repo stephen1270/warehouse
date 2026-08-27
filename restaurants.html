@@ -591,6 +591,8 @@
       <div class="add-row-choices">
         <button type="button" id="addSpiritByNameBtn" class="ghost-inline">+ Add by name</button>
         <button type="button" id="addSpiritByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addSpiritByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="spiritByPhotoInput" accept="image/*" style="display:none;">
       </div>
     </div>
     <div class="field">
@@ -1888,10 +1890,8 @@ function renderCheeseItemsHtml(e){
 }
 
 // --- Spirits had: mirrors Wines had's row structure (name + note +
-// dropdown), pointed at the Spirits app instead ('spirits:' prefix, same
-// stub-schema spirits.html itself writes). No photo field here, matching
-// scope — easy to add later by mirroring Dishes/Wines' photo-wrap if
-// wanted. ---
+// dropdown + photo), pointed at the Spirits app instead ('spirits:'
+// prefix, same stub-schema spirits.html itself writes). ---
 let spiritOptions = []; // {id, name}
 
 async function refreshSpiritOptions(){
@@ -1960,7 +1960,7 @@ function renderSpiritsList(){
     main.append(nameInput, noteInput);
 
     const links = document.createElement('div');
-    links.className = 'dish-row-links dish-row-links-1';
+    links.className = 'dish-row-links';
 
     const spiritSelect = document.createElement('select');
     spiritSelect.className = 'dish-cheese';
@@ -2022,7 +2022,58 @@ function renderSpiritsList(){
       renderSpiritsList();
     });
 
-    links.append(spiritSelect, rmBtn);
+    // Photo control: same paste-or-upload pattern as Dishes/Wines had.
+    const photoWrap = document.createElement('div');
+    photoWrap.className = 'dish-photo-wrap';
+    const photoInput = document.createElement('input');
+    photoInput.type = s.photoUrl ? 'hidden' : 'url';
+    photoInput.className = 'dish-photo';
+    photoInput.placeholder = '\ud83d\udcf7 Photo link (optional)';
+    photoInput.value = s.photoUrl || '';
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'dish-photo-upload';
+    uploadBtn.title = 'Upload a photo';
+    uploadBtn.textContent = '\ud83d\udcf7';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await resizeImage(file, 900, 0.7);
+        readSpiritsFromDom();
+        currentSpirits[i].photoUrl = dataUrl;
+        renderSpiritsList();
+      }catch(err){
+        console.error('Could not process photo', err);
+        alert('Could not read that photo — please try another.');
+      }
+    });
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    photoWrap.append(uploadBtn, fileInput);
+    if(s.photoUrl){
+      const thumb = document.createElement('img');
+      thumb.className = 'dish-photo-thumb-preview';
+      thumb.src = s.photoUrl;
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'dish-photo-clear';
+      clearBtn.title = 'Remove photo';
+      clearBtn.textContent = '\u00d7';
+      clearBtn.addEventListener('click', () => {
+        readSpiritsFromDom();
+        currentSpirits[i].photoUrl = '';
+        renderSpiritsList();
+      });
+      photoWrap.append(thumb, clearBtn, photoInput);
+    } else {
+      photoWrap.append(photoInput);
+    }
+
+    links.append(spiritSelect, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -2035,14 +2086,15 @@ function readSpiritsFromDom(){
     return {
       name: row.querySelector('.dish-name').value.trim(),
       note: row.querySelector('.dish-note').value.trim(),
-      spiritUrl: spiritId && spiritId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritId) : ''
+      spiritUrl: spiritId && spiritId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritId) : '',
+      photoUrl: row.querySelector('.dish-photo').value.trim()
     };
   });
 }
 
 $('addSpiritByNameBtn').addEventListener('click', () => {
   readSpiritsFromDom();
-  currentSpirits.push({name:'', note:'', spiritUrl:''});
+  currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:''});
   renderSpiritsList();
   const rows = $('spiritsList').querySelectorAll('.dish-row');
   rows[rows.length-1].querySelector('.dish-name').focus();
@@ -2064,12 +2116,84 @@ $('addSpiritByUrlBtn').addEventListener('click', async () => {
     currentSpirits.push({
       name: created.name,
       note: '',
-      spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id
+      spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+      photoUrl: ''
     });
     renderSpiritsList();
   }catch(err){
     console.error('Could not add spirit from URL', err);
     alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+$('addSpiritByPhotoBtn').addEventListener('click', () => $('spiritByPhotoInput').click());
+$('spiritByPhotoInput').addEventListener('change', async () => {
+  const file = $('spiritByPhotoInput').files[0];
+  $('spiritByPhotoInput').value = '';
+  if(!file) return;
+  const btn = $('addSpiritByPhotoBtn');
+  const originalText = btn.textContent;
+  let dataUrl;
+  try{
+    dataUrl = await resizeImage(file, 900, 0.7);
+  }catch(err){
+    console.error('Could not process photo', err);
+    alert('Could not read that photo — please try another.');
+    return;
+  }
+
+  // Try to identify the bottle from the label (vision + web search), then
+  // hand any URL it finds straight to spirits-autofill for the full
+  // extract. If identification isn't set up yet, fails, or comes back
+  // low-confidence, this falls back to just attaching the photo and
+  // letting the person type the name themselves — mirrors Wine exactly.
+  btn.textContent = 'Identifying…';
+  btn.disabled = true;
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createSpiritFromUrl(lookup.url);
+      spiritOptions.push({ id: created.id, name: created.name });
+      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readSpiritsFromDom();
+      currentSpirits.push({
+        name: created.name,
+        note: '',
+        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderSpiritsList();
+    } else {
+      if(!lookup.ok) console.warn('Spirits label lookup unavailable:', lookup.error);
+      readSpiritsFromDom();
+      currentSpirits.push({name: lookup.name || '', note:'', spiritUrl:'', photoUrl:dataUrl});
+      renderSpiritsList();
+      if(!lookup.name){
+        const rows = $('spiritsList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
+    }
+  }catch(err){
+    console.error('Spirits photo lookup/autofill failed', err);
+    readSpiritsFromDom();
+    currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:dataUrl});
+    renderSpiritsList();
+    const rows = $('spiritsList').querySelectorAll('.dish-row');
+    rows[rows.length-1].querySelector('.dish-name').focus();
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -2127,8 +2251,9 @@ function renderSpiritItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(s => {
     const spiritHref = safeUrl(s.spiritUrl);
+    const photoHref = safePhotoSrc(s.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}
+      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2478,7 +2603,7 @@ async function saveEntry(){
   readCheesesFromDom();
   const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
   readSpiritsFromDom();
-  const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl);
+  const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl || s.photoUrl);
   const entry = {
     id,
     name,
