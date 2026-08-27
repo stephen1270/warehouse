@@ -1574,6 +1574,32 @@ async function loadEntries(){
 }
 $('retryLoadBtn').addEventListener('click', loadEntries);
 
+// Keeps this wine's restaurant link two-way: after saving, makes sure
+// the linked restaurant's own "Wines had" list includes (or is updated
+// to reflect) this wine — closes the gap where only links initiated
+// from the Restaurants app auto-synced. Updates an existing row for
+// this wine if one's already there, otherwise adds a new one. Errors
+// are logged and swallowed so a sync failure can't block the wine
+// itself from saving.
+async function syncWineBackLinkToRestaurant(wineId, wineName){
+  if(!currentRestaurantId) return;
+  const wineUrl = location.origin + location.pathname.replace(/wine\.html$/, '') + 'wine.html#' + wineId;
+  try{
+    const res = await storage.get('entry:' + currentRestaurantId);
+    const restEntry = JSON.parse(res.value);
+    restEntry.wineItems = restEntry.wineItems || [];
+    const idx = restEntry.wineItems.findIndex(w => w.wineUrl === wineUrl);
+    if(idx > -1){
+      restEntry.wineItems[idx].name = wineName;
+    } else {
+      restEntry.wineItems.push({ name: wineName, note: '', wineUrl, photoUrl: '' });
+    }
+    await storage.set('entry:' + currentRestaurantId, JSON.stringify(restEntry));
+  }catch(err){
+    console.error('Could not sync wine back-link to restaurant', err);
+  }
+}
+
 async function saveEntry(){
   const name = $('f-name').value.trim();
   if(!name){
@@ -1605,6 +1631,7 @@ async function saveEntry(){
   };
   try{
     await storage.set('wine:' + id, JSON.stringify(entry));
+    await syncWineBackLinkToRestaurant(id, name);
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);

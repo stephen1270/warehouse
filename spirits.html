@@ -1580,6 +1580,32 @@ async function loadEntries(){
 }
 $('retryLoadBtn').addEventListener('click', loadEntries);
 
+// Keeps this spirit's restaurant link two-way: after saving, makes
+// sure the linked restaurant's own "Spirits had" list includes (or is
+// updated to reflect) this spirit — closes the gap where only links
+// initiated from the Restaurants app auto-synced. Updates an existing
+// row for this spirit if one's already there, otherwise adds a new
+// one. Errors are logged and swallowed so a sync failure can't block
+// the spirit itself from saving.
+async function syncSpiritBackLinkToRestaurant(spiritId, spiritName){
+  if(!currentRestaurantId) return;
+  const spiritUrl = location.origin + location.pathname.replace(/spirits\.html$/, '') + 'spirits.html#' + spiritId;
+  try{
+    const res = await storage.get('entry:' + currentRestaurantId);
+    const restEntry = JSON.parse(res.value);
+    restEntry.spiritItems = restEntry.spiritItems || [];
+    const idx = restEntry.spiritItems.findIndex(s => s.spiritUrl === spiritUrl);
+    if(idx > -1){
+      restEntry.spiritItems[idx].name = spiritName;
+    } else {
+      restEntry.spiritItems.push({ name: spiritName, note: '', spiritUrl, photoUrl: '' });
+    }
+    await storage.set('entry:' + currentRestaurantId, JSON.stringify(restEntry));
+  }catch(err){
+    console.error('Could not sync spirit back-link to restaurant', err);
+  }
+}
+
 async function saveEntry(){
   const name = $('f-name').value.trim();
   if(!name){
@@ -1611,6 +1637,7 @@ async function saveEntry(){
   };
   try{
     await storage.set('spirits:' + id, JSON.stringify(entry));
+    await syncSpiritBackLinkToRestaurant(id, name);
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);

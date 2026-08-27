@@ -2673,6 +2673,35 @@ async function loadEntries(){
   render();
 }
 
+// Keeps every linked wine/cheese/spirit's own Restaurant field pointed
+// back at this visit — not just items freshly created from this form
+// (createNewWine/createNewCheese/createNewSpirit already set that at
+// creation time), but also existing entries picked from a dropdown,
+// which previously only got a one-way link (this restaurant -> that
+// item, never the reverse). Each linked item's Restaurant field is
+// single-valued, so this intentionally overwrites whatever restaurant
+// it last pointed to — a known limitation of that field, not new
+// behavior introduced here. Failures are logged and swallowed per item
+// so one bad link can't block the restaurant entry itself from saving.
+async function syncBackLinksToItems(restaurantId, restaurantName, wineItems, cheeseItems, spiritItems){
+  const restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + restaurantId;
+  const jobs = [];
+  wineItems.forEach(w => { const id = (w.wineUrl || '').split('#')[1]; if(id) jobs.push({ prefix: 'wine:', id }); });
+  cheeseItems.forEach(c => { const id = (c.cheeseUrl || '').split('#')[1]; if(id) jobs.push({ prefix: 'cheese:', id }); });
+  spiritItems.forEach(s => { const id = (s.spiritUrl || '').split('#')[1]; if(id) jobs.push({ prefix: 'spirits:', id }); });
+  await Promise.allSettled(jobs.map(async ({ prefix, id }) => {
+    try{
+      const res = await storage.get(prefix + id);
+      const item = JSON.parse(res.value);
+      item.restaurant = restaurantName;
+      item.restaurantUrl = restaurantUrl;
+      await storage.set(prefix + id, JSON.stringify(item));
+    }catch(err){
+      console.error('Could not sync restaurant back-link for', prefix + id, err);
+    }
+  }));
+}
+
 async function saveEntry(){
   const name = $('f-name').value.trim();
   if(!name){
@@ -2709,6 +2738,7 @@ async function saveEntry(){
   };
   try{
     await storage.set('entry:' + id, JSON.stringify(entry));
+    await syncBackLinksToItems(id, name, wineItems, cheeseItems, spiritItems);
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);

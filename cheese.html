@@ -1668,6 +1668,32 @@ async function loadEntries(){
 }
 $('retryLoadBtn').addEventListener('click', loadEntries);
 
+// Keeps this cheese's restaurant link two-way: after saving, makes
+// sure the linked restaurant's own "Cheeses had" list includes (or is
+// updated to reflect) this cheese — closes the gap where only links
+// initiated from the Restaurants app auto-synced. Updates an existing
+// row for this cheese if one's already there, otherwise adds a new
+// one. Errors are logged and swallowed so a sync failure can't block
+// the cheese itself from saving.
+async function syncCheeseBackLinkToRestaurant(cheeseId, cheeseName){
+  if(!currentRestaurantId) return;
+  const cheeseUrl = location.origin + location.pathname.replace(/cheese\.html$/, '') + 'cheese.html#' + cheeseId;
+  try{
+    const res = await storage.get('entry:' + currentRestaurantId);
+    const restEntry = JSON.parse(res.value);
+    restEntry.cheeseItems = restEntry.cheeseItems || [];
+    const idx = restEntry.cheeseItems.findIndex(c => c.cheeseUrl === cheeseUrl);
+    if(idx > -1){
+      restEntry.cheeseItems[idx].name = cheeseName;
+    } else {
+      restEntry.cheeseItems.push({ name: cheeseName, note: '', cheeseUrl });
+    }
+    await storage.set('entry:' + currentRestaurantId, JSON.stringify(restEntry));
+  }catch(err){
+    console.error('Could not sync cheese back-link to restaurant', err);
+  }
+}
+
 async function saveEntry(){
   const name = $('f-name').value.trim();
   if(!name){
@@ -1704,6 +1730,7 @@ async function saveEntry(){
   };
   try{
     await storage.set('cheese:' + id, JSON.stringify(entry));
+    await syncCheeseBackLinkToRestaurant(id, name);
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);
