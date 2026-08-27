@@ -156,6 +156,26 @@
   .field textarea{resize:vertical;min-height:54px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 
+  .autofill-field{
+    background:var(--paper-dark);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:20px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--wine);background:var(--wine);color:var(--paper);
+  }
+  .autofill-row button:hover{background:#7a1420;}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  .field-hint{font-size:10px;color:var(--slate);opacity:.8;margin-top:4px;}
+  #autofillStatus.err{color:var(--wine);}
+  #autofillStatus.ok{color:var(--slate);}
+
   .dish-row{
     border-bottom:1px solid var(--line);
     padding-bottom:8px;
@@ -445,6 +465,15 @@
   </div>
 
   <div class="ticket" id="ticket">
+    <div class="field autofill-field">
+      <label>Autofill from URL</label>
+      <div class="autofill-row">
+        <input id="f-autofillUrl" type="url" placeholder="https://the-restaurant.com or a listing page">
+        <button type="button" id="autofillBtn">Fetch</button>
+      </div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find — works best on a restaurant's own site; review everything before saving.</div>
+    </div>
+
     <div class="field">
       <label>Restaurant</label>
       <input id="f-name" type="text" placeholder="Bar Americano">
@@ -882,6 +911,86 @@ function resizeImage(file, maxDim, quality){
     reader.readAsDataURL(file);
   });
 }
+
+// --- Autofill: asks the restaurant-autofill Edge Function to fetch a
+// restaurant's own site or a listing page server-side and pull out
+// best-guess fields. Deliberately narrow scope: Name, Place, Price, and
+// Photo only — Notes and Tags stay untouched since those are personal
+// (occasion, who-with, neighborhood-as-you-call-it) rather than something
+// a webpage states. Only ever fills fields that are currently empty. ---
+function setAutofillStatus(msg, cls){
+  const el = $('autofillStatus');
+  el.textContent = msg;
+  el.className = 'field-hint' + (cls ? ' ' + cls : '');
+}
+
+async function runAutofill(){
+  const url = $('f-autofillUrl').value.trim();
+  if(!url){
+    setAutofillStatus('Paste a URL first.', 'err');
+    return;
+  }
+  const btn = $('autofillBtn');
+  btn.disabled = true;
+  setAutofillStatus('Fetching…');
+
+  let data;
+  try{
+    const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/restaurant-autofill', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ url })
+    });
+    data = await res.json();
+    if(!res.ok || !data.ok){
+      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
+      btn.disabled = false;
+      return;
+    }
+  }catch(err){
+    console.error('Autofill fetch failed', err);
+    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
+    btn.disabled = false;
+    return;
+  }
+
+  try{
+    const filled = [];
+    const fillIfEmpty = (id, value) => {
+      if(value && !$(id).value.trim()){
+        $(id).value = value;
+        filled.push(id);
+      }
+    };
+    fillIfEmpty('f-name', data.name);
+    fillIfEmpty('f-place', data.place);
+    if(data.price && !$('f-price').value){
+      $('f-price').value = data.price;
+      filled.push('f-price');
+    }
+    // Note: no photo field here, deliberately. This entry has no general
+    // top-level photo upload (only per-dish/per-wine), and forcing an
+    // autofilled restaurant photo into an unrelated dish slot would be a
+    // confusing, arbitrary place to put it — so a fetched og:image is
+    // simply not used, rather than force-fit somewhere it doesn't belong.
+
+    if(filled.length){
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially Place and Price.`, 'ok');
+    } else {
+      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+    }
+  }catch(err){
+    console.error('Autofill fetched OK but applying it to the form failed', err);
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
+  }finally{
+    btn.disabled = false;
+  }
+}
+$('autofillBtn').addEventListener('click', runAutofill);
 
 function renderDishesList(){
   const wrap = $('dishesList');
@@ -1714,6 +1823,8 @@ function escapeHtml(str){
 }
 
 function resetForm(){
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
   $('f-name').value='';
   $('f-place').value='';
   $('f-date').value=new Date().toISOString().slice(0,10);
