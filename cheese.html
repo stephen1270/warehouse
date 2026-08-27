@@ -147,6 +147,40 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .field-hint{font-size:10px;color:var(--sage);opacity:.8;margin-top:4px;}
 
+  .cheese-row{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .cheese-row select, .cheese-row input{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+    width:100%;
+  }
+  .cheese-row select:focus, .cheese-row input:focus{outline:none;border-bottom:1px solid var(--rind);}
+
+  .dish-select-wrap{display:flex;align-items:center;gap:4px;min-width:0;}
+  .dish-select-wrap select{flex:1;min-width:0;}
+  .dish-open-link{
+    flex:none;font-size:13px;text-decoration:none;color:var(--sage);
+    padding:2px 4px;line-height:1;
+  }
+  .dish-open-link:hover{color:var(--rind);}
+  .row-rm{
+    background:none;border:none;color:var(--sage);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .row-rm:hover{color:var(--rind);}
+  .ghost-inline{
+    font-family:inherit;font-size:11px;letter-spacing:.04em;
+    color:var(--sage);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:2px 0;
+  }
+  .ghost-inline:hover{color:var(--rind);}
+
   .autocomplete-list{
     position:absolute;top:100%;left:0;right:0;z-index:20;
     background:var(--paper);border:1px solid var(--ink);border-top:none;
@@ -510,6 +544,28 @@
       </div>
     </div>
 
+    <div class="row2">
+      <div class="field">
+        <label>Rennet</label>
+        <select id="f-rennet">
+          <option value="">&mdash;</option>
+          <option>Animal</option>
+          <option>Vegetable</option>
+          <option>Microbial</option>
+          <option>Unknown</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Milk Treatment</label>
+        <select id="f-pasteurization">
+          <option value="">&mdash;</option>
+          <option>Raw</option>
+          <option>Pasteurized</option>
+          <option>Unknown</option>
+        </select>
+      </div>
+    </div>
+
     <div class="field">
       <label>Wrapped</label>
       <select id="f-wrapped">
@@ -543,23 +599,28 @@
 
     <div class="field">
       <label>Paired Wine</label>
-      <select id="f-wine">
-        <option value="">&mdash;</option>
-      </select>
+      <div class="dish-select-wrap">
+        <select id="f-wine">
+          <option value="">&mdash;</option>
+        </select>
+        <a id="f-wine-open" class="dish-open-link" target="_blank" rel="noopener" title="Open this wine's page" style="display:none;">&#8599;</a>
+      </div>
     </div>
 
     <div class="field">
       <label>Paired Spirit</label>
-      <select id="f-spirit">
-        <option value="">&mdash;</option>
-      </select>
+      <div class="dish-select-wrap">
+        <select id="f-spirit">
+          <option value="">&mdash;</option>
+        </select>
+        <a id="f-spirit-open" class="dish-open-link" target="_blank" rel="noopener" title="Open this spirit's page" style="display:none;">&#8599;</a>
+      </div>
     </div>
 
     <div class="field">
-      <label>Restaurant</label>
-      <select id="f-restaurant">
-        <option value="">&mdash;</option>
-      </select>
+      <label>Restaurant visit(s)</label>
+      <div id="restaurantsList"></div>
+      <button type="button" id="addRestaurantBtn" class="ghost-inline">+ Add restaurant</button>
     </div>
 
     <div class="field">
@@ -824,7 +885,7 @@ function render(){
     if(e.wrapped) metaBits.push(escapeHtml(e.wrapped));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
-    if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
+    restaurantVisitsOf(e).forEach(r => metaBits.push(linkOrText(r.name, r.restaurantUrl)));
     if(e.pairedWine) metaBits.push(linkOrText('\ud83c\udf77 ' + e.pairedWine, e.pairedWineUrl));
     if(e.pairedSpirit) metaBits.push(linkOrText('\ud83c\udf78 ' + e.pairedSpirit, e.pairedSpiritUrl));
     if(e.date) metaBits.push(fmtDate(e.date));
@@ -904,10 +965,16 @@ function openLightbox(id){
   if(e.cheesemonger) rows.push(['Cheesemonger', linkOrText(e.cheesemonger, e.cheesemongerUrl)]);
   if(e.milkType) rows.push(['Milk Type', escapeHtml(e.milkType)]);
   if(e.age) rows.push(['Age', escapeHtml(e.age)]);
+  if(e.rennet) rows.push(['Rennet', escapeHtml(e.rennet)]);
+  if(e.pasteurization) rows.push(['Milk Treatment', escapeHtml(e.pasteurization)]);
   if(e.wrapped) rows.push(['Wrapped', escapeHtml(e.wrapped) + (e.wrappedDesc ? ' — ' + escapeHtml(e.wrappedDesc) : '')]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
-  if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
+  const visits = restaurantVisitsOf(e);
+  if(visits.length){
+    const visitVal = visits.map(r => linkOrText(r.name, r.restaurantUrl) + (r.note ? ` <span style="color:var(--sage);">— ${escapeHtml(r.note)}</span>` : '')).join('<br>');
+    rows.push(['Restaurant', visitVal]);
+  }
   if(e.pairedWine) rows.push(['Paired Wine', linkOrText(e.pairedWine, e.pairedWineUrl)]);
   if(e.pairedSpirit) rows.push(['Paired Spirit', linkOrText(e.pairedSpirit, e.pairedSpiritUrl)]);
   if(e.date) rows.push(['Date', escapeHtml(fmtDate(e.date))]);
@@ -1329,7 +1396,7 @@ async function refreshCrossLinkOptions(){
   }
 }
 
-function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel){
+function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel, openLinkEl, openLinkTarget){
   selectEl.innerHTML = '';
   const blankOpt = document.createElement('option');
   blankOpt.value = '';
@@ -1354,16 +1421,39 @@ function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel)
     opt.selected = true;
     selectEl.appendChild(opt);
   }
+  if(openLinkEl && openLinkTarget){
+    updateOpenLinkForSelect(selectEl, openLinkEl, openLinkTarget);
+  }
+}
+
+// Shared by any single <select> cross-link paired with an "open" anchor
+// (e.g. Paired Wine, Paired Spirit) — points the link at the currently
+// selected linked entry's own page, hidden when nothing's selected.
+function updateOpenLinkForSelect(selectEl, linkEl, targetFile){
+  const id = selectEl.value;
+  if(id && id !== '__new__'){
+    linkEl.href = location.pathname.replace(/[^/]+$/, '') + targetFile + '#' + id;
+    linkEl.style.display = '';
+  } else {
+    linkEl.removeAttribute('href');
+    linkEl.style.display = 'none';
+  }
 }
 
 let currentWineId = '';
 let currentSpiritId = '';
-let currentRestaurantId = '';
+
+// currentRestaurantVisits is the repeatable list of restaurant visits
+// this cheese has been had at: {name, restaurantUrl, note}. Was a
+// single dropdown (currentRestaurantId) — converted to a repeatable
+// list since the same cheese can reasonably be had at more than one
+// restaurant over time, and a single field could only ever reflect the
+// most recent one.
+let currentRestaurantVisits = [];
 
 function renderCrossLinkSelects(){
-  buildLinkedSelect($('f-wine'), wineOptions, currentWineId, 'wine', '\ud83c\udf77 + New wine\u2026');
-  buildLinkedSelect($('f-spirit'), spiritOptions, currentSpiritId, 'spirit', '\ud83c\udf78 + New spirit\u2026');
-  buildLinkedSelect($('f-restaurant'), restaurantOptions, currentRestaurantId, 'restaurant', '+ New restaurant visit\u2026');
+  buildLinkedSelect($('f-wine'), wineOptions, currentWineId, 'wine', '\ud83c\udf77 + New wine\u2026', $('f-wine-open'), 'wine.html');
+  buildLinkedSelect($('f-spirit'), spiritOptions, currentSpiritId, 'spirit', '\ud83c\udf78 + New spirit\u2026', $('f-spirit-open'), 'spirits.html');
 }
 
 async function handleNewWineSelection(){
@@ -1444,44 +1534,159 @@ async function handleNewSpiritSelection(){
   }
 }
 
-async function handleNewRestaurantSelection(){
-  const select = $('f-restaurant');
-  const name = prompt('Name of the restaurant:');
-  if(!name || !name.trim()){
-    select.value = currentRestaurantId || '';
-    return;
-  }
-  select.disabled = true;
-  try{
-    const id = 'e' + Date.now() + Math.random().toString(36).slice(2,7);
-    const entry = { id, name: name.trim(), place: '', date: new Date().toISOString().slice(0,10), price: '', rating: 0, dishItems: [], notes: '', tags: [] };
-    const { error } = await supabaseClient
-      .from('kv_store')
-      .upsert({ key: 'entry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
-    if(error) throw error;
-    restaurantOptions.push({ id, name: name.trim() });
-    restaurantOptions.sort((a,b) => a.name.localeCompare(b.name));
-    currentRestaurantId = id;
-    renderCrossLinkSelects();
-  }catch(err){
-    console.error('Could not create new restaurant', err);
-    alert('Could not create the restaurant visit — make sure you\u2019re signed in.');
-    select.disabled = false;
-    select.value = currentRestaurantId || '';
-  }
+// Restaurant visit rows: same repeatable-row pattern used for Wine's
+// Paired Cheese rows — each linked row gets its own "open" link, and
+// supports inline "+ New restaurant visit…" creation the same way the
+// old single dropdown did.
+function renderRestaurantsList(){
+  const wrap = $('restaurantsList');
+  wrap.innerHTML = '';
+  currentRestaurantVisits.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'cheese-row';
+
+    const select = document.createElement('select');
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '\u2014';
+    select.appendChild(blankOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New restaurant visit\u2026';
+    select.appendChild(newOpt);
+    const currentId = (r.restaurantUrl || '').split('#')[1] || '';
+    let matched = false;
+    restaurantOptions.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = opt.name;
+      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
+      select.appendChild(o);
+    });
+    if(currentId && !matched){
+      const o = document.createElement('option');
+      o.value = currentId;
+      o.textContent = '(restaurant not in list)';
+      o.selected = true;
+      select.appendChild(o);
+    }
+
+    const openLink = document.createElement('a');
+    openLink.className = 'dish-open-link';
+    openLink.target = '_blank';
+    openLink.rel = 'noopener';
+    openLink.title = 'Open this restaurant\u2019s page';
+    openLink.textContent = '\u2197';
+    function updateOpenLink(){
+      const id = select.value;
+      if(id && id !== '__new__'){
+        openLink.href = location.origin + location.pathname.replace(/cheese\.html$/, '') + 'restaurants.html#' + id;
+        openLink.style.display = '';
+      } else {
+        openLink.removeAttribute('href');
+        openLink.style.display = 'none';
+      }
+    }
+    updateOpenLink();
+
+    select.addEventListener('change', async () => {
+      if(select.value !== '__new__'){
+        updateOpenLink();
+        return;
+      }
+      const name = prompt('Name of the restaurant:');
+      if(!name || !name.trim()){
+        select.value = currentId || '';
+        updateOpenLink();
+        return;
+      }
+      select.disabled = true;
+      try{
+        const id = 'e' + Date.now() + Math.random().toString(36).slice(2,7);
+        const entry = { id, name: name.trim(), place: '', date: new Date().toISOString().slice(0,10), price: '', rating: 0, dishItems: [], notes: '', tags: [] };
+        const { error } = await supabaseClient
+          .from('kv_store')
+          .upsert({ key: 'entry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+        if(error) throw error;
+        restaurantOptions.push({ id, name: name.trim() });
+        restaurantOptions.sort((a,b) => a.name.localeCompare(b.name));
+        readRestaurantsFromDom();
+        currentRestaurantVisits[i].restaurantUrl = location.origin + location.pathname.replace(/cheese\.html$/, '') + 'restaurants.html#' + id;
+        currentRestaurantVisits[i].name = name.trim();
+        renderRestaurantsList();
+      }catch(err){
+        console.error('Could not create new restaurant', err);
+        alert('Could not create the restaurant visit — make sure you\u2019re signed in.');
+        select.disabled = false;
+        select.value = currentId || '';
+        updateOpenLink();
+      }
+    });
+
+    const selectWrap = document.createElement('div');
+    selectWrap.className = 'dish-select-wrap';
+    selectWrap.append(select, openLink);
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.placeholder = 'Note (optional)';
+    noteInput.value = r.note || '';
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'row-rm';
+    rmBtn.title = 'Remove';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      readRestaurantsFromDom();
+      currentRestaurantVisits.splice(i, 1);
+      renderRestaurantsList();
+    });
+
+    row.append(selectWrap, noteInput, rmBtn);
+    wrap.appendChild(row);
+  });
+}
+
+function readRestaurantsFromDom(){
+  const rows = $('restaurantsList').querySelectorAll('.cheese-row');
+  currentRestaurantVisits = Array.from(rows).map((row, i) => {
+    const select = row.querySelector('select');
+    const id = select.value;
+    const opt = restaurantOptions.find(o => o.id === id);
+    return {
+      name: opt ? opt.name : (currentRestaurantVisits[i] ? currentRestaurantVisits[i].name : ''),
+      restaurantUrl: id && id !== '__new__' ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'restaurants.html#' + id) : '',
+      note: row.querySelector('input').value.trim()
+    };
+  });
+}
+
+$('addRestaurantBtn').addEventListener('click', () => {
+  readRestaurantsFromDom();
+  currentRestaurantVisits.push({name:'', restaurantUrl:'', note:''});
+  renderRestaurantsList();
+});
+
+// Back-compat: old entries have a singular restaurant/restaurantUrl
+// field rather than the restaurantVisits array — wrapped as a one-item
+// list here and never auto-migrated in the database, matching the
+// pattern used elsewhere in Warehouse for this kind of field upgrade.
+function restaurantVisitsOf(e){
+  if(e.restaurantVisits && e.restaurantVisits.length) return e.restaurantVisits;
+  if(e.restaurant) return [{ name: e.restaurant, restaurantUrl: e.restaurantUrl || '', note: '' }];
+  return [];
 }
 
 $('f-wine').addEventListener('change', () => {
   if($('f-wine').value === '__new__') handleNewWineSelection();
   else currentWineId = $('f-wine').value;
+  updateOpenLinkForSelect($('f-wine'), $('f-wine-open'), 'wine.html');
 });
 $('f-spirit').addEventListener('change', () => {
   if($('f-spirit').value === '__new__') handleNewSpiritSelection();
   else currentSpiritId = $('f-spirit').value;
-});
-$('f-restaurant').addEventListener('change', () => {
-  if($('f-restaurant').value === '__new__') handleNewRestaurantSelection();
-  else currentRestaurantId = $('f-restaurant').value;
+  updateOpenLinkForSelect($('f-spirit'), $('f-spirit-open'), 'spirits.html');
 });
 
 // Shows/hides the Wrapped detail field based on whether Wrapped has a
@@ -1505,6 +1710,8 @@ function resetForm(){
   $('cheesemongerRefreshStatus').textContent = '';
   $('f-milk').value='';
   $('f-age').value='';
+  $('f-rennet').value='';
+  $('f-pasteurization').value='';
   $('f-wrapped').value='';
   $('f-wrappedDesc').value='';
   toggleWrappedDescField();
@@ -1512,9 +1719,10 @@ function resetForm(){
   $('f-country').value='';
   currentWineId = '';
   currentSpiritId = '';
-  currentRestaurantId = '';
+  currentRestaurantVisits = [];
+  renderRestaurantsList();
   renderCrossLinkSelects();
-  refreshCrossLinkOptions().then(renderCrossLinkSelects);
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderRestaurantsList(); });
   $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-comment').value='';
   $('f-photos').value='';
@@ -1609,6 +1817,8 @@ function openForEdit(id){
   $('f-cheesemongerUrl').value = e.cheesemongerUrl || '';
   $('f-milk').value = e.milkType || '';
   $('f-age').value = e.age || '';
+  $('f-rennet').value = e.rennet || '';
+  $('f-pasteurization').value = e.pasteurization || '';
   $('f-wrapped').value = e.wrapped || '';
   $('f-wrappedDesc').value = e.wrappedDesc || '';
   toggleWrappedDescField();
@@ -1616,9 +1826,10 @@ function openForEdit(id){
   $('f-country').value = e.country || '';
   currentWineId = (e.pairedWineUrl || '').split('#')[1] || '';
   currentSpiritId = (e.pairedSpiritUrl || '').split('#')[1] || '';
-  currentRestaurantId = (e.restaurantUrl || '').split('#')[1] || '';
+  currentRestaurantVisits = restaurantVisitsOf(e).map(r => ({...r}));
+  renderRestaurantsList();
   renderCrossLinkSelects();
-  refreshCrossLinkOptions().then(renderCrossLinkSelects);
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderRestaurantsList(); });
   $('f-date').value = e.date || '';
   $('f-comment').value = e.comment || '';
   currentPhotos = entryPhotos(e).slice();
@@ -1675,23 +1886,36 @@ $('retryLoadBtn').addEventListener('click', loadEntries);
 // row for this cheese if one's already there, otherwise adds a new
 // one. Errors are logged and swallowed so a sync failure can't block
 // the cheese itself from saving.
+// Keeps this cheese's restaurant links two-way: after saving, makes
+// sure every linked restaurant's own "Cheeses had" list includes (or
+// is updated to reflect) this cheese — closes the gap where only links
+// initiated from the Restaurants app auto-synced. Updates an existing
+// row for this cheese if one's already there, otherwise adds a new
+// one, per restaurant. Runs across all visits (was a single
+// restaurant, now a repeatable list). Errors are logged and swallowed
+// per visit so one bad link can't block the cheese itself from saving.
 async function syncCheeseBackLinkToRestaurant(cheeseId, cheeseName){
-  if(!currentRestaurantId) return;
+  const ids = currentRestaurantVisits
+    .map(r => (r.restaurantUrl || '').split('#')[1])
+    .filter(Boolean);
+  if(!ids.length) return;
   const cheeseUrl = location.origin + location.pathname.replace(/cheese\.html$/, '') + 'cheese.html#' + cheeseId;
-  try{
-    const res = await storage.get('entry:' + currentRestaurantId);
-    const restEntry = JSON.parse(res.value);
-    restEntry.cheeseItems = restEntry.cheeseItems || [];
-    const idx = restEntry.cheeseItems.findIndex(c => c.cheeseUrl === cheeseUrl);
-    if(idx > -1){
-      restEntry.cheeseItems[idx].name = cheeseName;
-    } else {
-      restEntry.cheeseItems.push({ name: cheeseName, note: '', cheeseUrl });
+  await Promise.allSettled(ids.map(async id => {
+    try{
+      const res = await storage.get('entry:' + id);
+      const restEntry = JSON.parse(res.value);
+      restEntry.cheeseItems = restEntry.cheeseItems || [];
+      const idx = restEntry.cheeseItems.findIndex(c => c.cheeseUrl === cheeseUrl);
+      if(idx > -1){
+        restEntry.cheeseItems[idx].name = cheeseName;
+      } else {
+        restEntry.cheeseItems.push({ name: cheeseName, note: '', cheeseUrl });
+      }
+      await storage.set('entry:' + id, JSON.stringify(restEntry));
+    }catch(err){
+      console.error('Could not sync cheese back-link to restaurant', id, err);
     }
-    await storage.set('entry:' + currentRestaurantId, JSON.stringify(restEntry));
-  }catch(err){
-    console.error('Could not sync cheese back-link to restaurant', err);
-  }
+  }));
 }
 
 async function saveEntry(){
@@ -1703,7 +1927,8 @@ async function saveEntry(){
   const id = editingId || ('c' + Date.now() + Math.random().toString(36).slice(2,7));
   const pairedWine = wineOptions.find(w => w.id === currentWineId);
   const pairedSpirit = spiritOptions.find(s => s.id === currentSpiritId);
-  const linkedRestaurant = restaurantOptions.find(r => r.id === currentRestaurantId);
+  readRestaurantsFromDom();
+  const restaurantVisits = currentRestaurantVisits.filter(r => r.restaurantUrl);
   const entry = {
     id,
     name,
@@ -1715,6 +1940,8 @@ async function saveEntry(){
     cheesemongerUrl: $('f-cheesemongerUrl').value.trim(),
     milkType: $('f-milk').value,
     age: $('f-age').value.trim(),
+    rennet: $('f-rennet').value,
+    pasteurization: $('f-pasteurization').value,
     wrapped: $('f-wrapped').value,
     wrappedDesc: $('f-wrappedDesc').value.trim(),
     region: $('f-region').value.trim(),
@@ -1723,8 +1950,7 @@ async function saveEntry(){
     pairedWineUrl: currentWineId ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'wine.html#' + currentWineId) : '',
     pairedSpirit: pairedSpirit ? pairedSpirit.name : '',
     pairedSpiritUrl: currentSpiritId ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'spirits.html#' + currentSpiritId) : '',
-    restaurant: linkedRestaurant ? linkedRestaurant.name : '',
-    restaurantUrl: currentRestaurantId ? (location.origin + location.pathname.replace(/cheese\.html$/, '') + 'restaurants.html#' + currentRestaurantId) : '',
+    restaurantVisits,
     date: $('f-date').value,
     comment: $('f-comment').value.trim()
   };

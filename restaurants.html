@@ -1002,13 +1002,16 @@ async function createCheeseFromUrl(url){
     cheesemonger: data.cheesemonger || '', cheesemongerUrl: data.cheesemongerUrl || '',
     milkType: data.milkType || '', age: data.age || '', wrapped: '', wrappedDesc: '',
     region: data.region || '', country: data.country || '',
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment
   };
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1028,7 +1031,7 @@ async function createNewCheese(name){
     cheesemonger: '', cheesemongerUrl: '',
     milkType: '', age: '', wrapped: '', wrappedDesc: '',
     region: '', country: '',
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment: ''
   };
@@ -1037,8 +1040,11 @@ async function createNewCheese(name){
   // the reciprocal connection for free. A brand-new, not-yet-saved entry
   // has no stable URL to give it yet, so this is skipped in that case.
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1402,13 +1408,16 @@ async function createNewWine(name){
     type: '', vintage: '',
     region: '', country: '',
     pairedCheese: '', pairedCheeseUrl: '',
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment: ''
   };
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1741,15 +1750,19 @@ async function createWineFromUrl(url){
     winemaker: data.winemaker || '',
     merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
     type: data.type || '', vintage: data.vintage || '',
+    grapes: data.grapes || [],
     region: data.region || '', country: data.country || '',
     pairedCheeses: [],
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment: data.comment || ''
   };
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -2073,15 +2086,19 @@ async function createNewSpirit(name){
     distiller: '',
     merchant: '', merchantUrl: '',
     type: '', abv: '',
+    botanicals: [],
     region: '', country: '',
     pairedCheeses: [],
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment: ''
   };
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -2402,15 +2419,19 @@ async function createSpiritFromUrl(url){
     distiller: data.distiller || '',
     merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
     type: data.type || '', abv: data.abv || '',
+    botanicals: data.botanicals || [],
     region: data.region || '', country: data.country || '',
     pairedCheeses: [],
-    restaurant: '', restaurantUrl: '',
+    restaurantVisits: [],
     date: new Date().toISOString().slice(0,10),
     comment: data.comment || ''
   };
   if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantVisits = [{
+      name: $('f-name').value.trim(),
+      restaurantUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId,
+      note: ''
+    }];
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -2772,11 +2793,12 @@ async function loadEntries(){
 // (createNewWine/createNewCheese/createNewSpirit already set that at
 // creation time), but also existing entries picked from a dropdown,
 // which previously only got a one-way link (this restaurant -> that
-// item, never the reverse). Each linked item's Restaurant field is
-// single-valued, so this intentionally overwrites whatever restaurant
-// it last pointed to — a known limitation of that field, not new
-// behavior introduced here. Failures are logged and swallowed per item
-// so one bad link can't block the restaurant entry itself from saving.
+// item, never the reverse). Each item's restaurantVisits is a
+// repeatable list (was single-valued restaurant/restaurantUrl fields),
+// so this adds or updates this restaurant's entry in that list rather
+// than overwriting it — preserving any other restaurants that item was
+// already linked to. Failures are logged and swallowed per item so one
+// bad link can't block the restaurant entry itself from saving.
 async function syncBackLinksToItems(restaurantId, restaurantName, wineItems, cheeseItems, spiritItems){
   const restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + restaurantId;
   const jobs = [];
@@ -2787,8 +2809,17 @@ async function syncBackLinksToItems(restaurantId, restaurantName, wineItems, che
     try{
       const res = await storage.get(prefix + id);
       const item = JSON.parse(res.value);
-      item.restaurant = restaurantName;
-      item.restaurantUrl = restaurantUrl;
+      // Back-compat: fold a legacy singular restaurant field into the
+      // list on first write, so it isn't silently dropped. Never
+      // auto-migrated elsewhere — only folded in here, where we're
+      // already authoring a fresh write to this item.
+      item.restaurantVisits = item.restaurantVisits || (item.restaurant ? [{ name: item.restaurant, restaurantUrl: item.restaurantUrl || '', note: '' }] : []);
+      const idx = item.restaurantVisits.findIndex(r => r.restaurantUrl === restaurantUrl);
+      if(idx > -1){
+        item.restaurantVisits[idx].name = restaurantName;
+      } else {
+        item.restaurantVisits.push({ name: restaurantName, restaurantUrl, note: '' });
+      }
       await storage.set(prefix + id, JSON.stringify(item));
     }catch(err){
       console.error('Could not sync restaurant back-link for', prefix + id, err);
