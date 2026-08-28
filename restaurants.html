@@ -262,12 +262,17 @@
     background:var(--paper-dark);border:1px solid var(--line);border-radius:2px;
     font-size:11px;letter-spacing:.02em;color:var(--wine);font-weight:bold;
   }
-  .attachment-item .attachment-name{
-    flex:1;min-width:0;font-size:13px;color:var(--ink);
-    text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    border-bottom:1px solid var(--line);
+  .attachment-item .attachment-open{
+    flex:none;font-size:15px;text-decoration:none;line-height:1;
+    padding:0 2px;
   }
-  .attachment-item .attachment-name:hover{color:var(--wine);border-color:var(--wine);}
+  .attachment-item .attachment-name-input{
+    flex:1;min-width:0;font-size:13px;color:var(--ink);
+    font-family:inherit;background:transparent;
+    border:none;border-bottom:1px solid var(--line);
+    padding:4px 2px;
+  }
+  .attachment-item .attachment-name-input:focus{outline:none;border-color:var(--wine);}
   .attachment-item .attachment-remove{
     background:none;border:none;color:var(--slate);
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;flex:none;
@@ -1146,12 +1151,23 @@ function renderAttachmentsList(){
     }
 
     const link = document.createElement('a');
-    link.className = 'attachment-name';
+    link.className = 'attachment-open';
     link.href = a.dataUrl;
     link.target = '_blank';
     link.rel = 'noopener';
-    link.textContent = a.name || (a.type === 'pdf' ? 'document.pdf' : 'photo.jpg');
+    link.title = 'Open';
+    link.textContent = '\ud83d\udd17';
     row.appendChild(link);
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'attachment-name-input';
+    nameInput.placeholder = a.type === 'pdf' ? 'document.pdf' : 'photo.jpg';
+    nameInput.value = a.name || '';
+    nameInput.addEventListener('input', () => {
+      currentAttachments[i].name = nameInput.value;
+    });
+    row.appendChild(nameInput);
 
     const rmBtn = document.createElement('button');
     rmBtn.type = 'button';
