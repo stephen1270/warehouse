@@ -29,9 +29,27 @@ from datetime import datetime, timedelta, timezone
 SUPABASE_URL = "https://psbdjeyianlhfkgwwsvt.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_"
 
-# Adjust this if your Warehouse folder lives somewhere else or under a
-# different capitalization — this assumes ~/Desktop/warehouse/Backups.
-BACKUP_DIR = os.path.expanduser("~/Desktop/warehouse/Backups")
+# Deliberately NOT under Desktop/Documents/Downloads — those are
+# TCC-protected on modern macOS, and a background launchd process
+# (unlike Terminal, which you've explicitly granted access to) gets
+# silently blocked from them with "Operation not permitted" even
+# though the same user can read/write them fine interactively.
+#
+# Lives on the external "Mini Storage" drive rather than the internal
+# disk, for actual physical redundancy — a backup that lives on the
+# same drive as the thing it's backing up doesn't protect against
+# drive failure. EXTERNAL_VOLUME_ROOT is checked for existence before
+# anything else runs, so a disconnected drive fails with a clear
+# message in backup.log's *sibling* — see EXTERNAL_MISSING_LOG below —
+# rather than a cryptic mkdir error.
+EXTERNAL_VOLUME_ROOT = "/Volumes/Mini Storage"
+BACKUP_DIR = os.path.join(EXTERNAL_VOLUME_ROOT, "warehouse-backups")
+
+# If the external drive isn't mounted, BACKUP_DIR itself doesn't exist
+# yet, so log() (which writes inside BACKUP_DIR) has nowhere to write
+# either. This sits next to the script itself instead, on the internal
+# disk, specifically so a disconnected-drive failure is still visible.
+EXTERNAL_MISSING_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "external_drive_missing.log")
 
 RETENTION_DAYS = 7
 MONTHLY_RETENTION_DAYS = 90  # backups dated the 1st of the month get extra retention
@@ -121,6 +139,16 @@ def prune_old_backups():
 
 
 def main():
+    if not os.path.isdir(EXTERNAL_VOLUME_ROOT):
+        message = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] BACKUP FAILED — external drive not mounted at {EXTERNAL_VOLUME_ROOT}"
+        print(message)
+        try:
+            with open(EXTERNAL_MISSING_LOG, "a", encoding="utf-8") as f:
+                f.write(message + "\n")
+        except OSError:
+            pass
+        sys.exit(1)
+
     os.makedirs(BACKUP_DIR, exist_ok=True)
 
     try:
