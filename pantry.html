@@ -673,7 +673,7 @@ function renderAuthControl(){
       const email = document.getElementById('authEmail').value.trim();
       const password = document.getElementById('authPassword').value;
       const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      document.getElementById('authError').textContent = error ? 'Sign in failed' : '';
+      const errEl = document.getElementById('authError'); if(errEl) errEl.textContent = error ? 'Sign in failed' : '';
     });
   }
 }
@@ -798,6 +798,30 @@ function resizeImage(file, maxDim, quality){
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+// Generates a genuinely small thumbnail from an already-resized data URL —
+// real bug found and fixed: the card list used to store the FULL-size
+// 1200px photo directly as "thumb" (thumb: currentImages[0]), which meant
+// every product's ~300-500KB photo was duplicated into the single shared
+// pantry-ledger-products blob that every page load/save has to transfer
+// in full. That blob had grown to 14MB across 73 products. This generates
+// an actual small preview (240px, lower quality) instead.
+function makeThumbFromDataUrl(dataUrl, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+      else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
   });
 }
 
@@ -1473,7 +1497,7 @@ async function saveEntry(){
     dryWeightValue: numOrNull(document.getElementById('f_dryWeightValue').value),
     dryWeightUnit: document.getElementById('f_dryWeightUnit').value,
     barcode: document.getElementById('f_barcode').value.trim() || null,
-    thumb: currentImages[0] || null,
+    thumb: currentImages.length ? await makeThumbFromDataUrl(currentImages[0], 240, 0.6) : null,
   };
   data.packedIn = (data.category.toLowerCase() === 'tinned fish')
     ? document.getElementById('f_packedIn').value.trim()
