@@ -221,6 +221,24 @@
     border-bottom:1px solid var(--line);
     padding-bottom:10px;
   }
+  .autofill-field{
+    background:var(--paper-dim);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:16px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--moss);background:var(--moss);color:var(--paper);
+  }
+  .autofill-row button:hover{background:var(--moss-dark);}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  .autofill-hint{font-size:10px;color:var(--ink-soft);opacity:.8;margin-top:4px;}
+  #countryAutofillStatus.err{color:var(--rust);}
   .field{margin-bottom:12px;display:flex;flex-direction:column;gap:4px;position:relative;}
   .autocomplete-list{
     position:absolute;top:100%;left:0;right:0;z-index:20;
@@ -373,6 +391,15 @@
     <h2 id="panelTitle">New entry</h2>
     <input type="hidden" id="editId">
 
+    <div class="field autofill-field">
+      <label for="f_countryAutofillUrl">Autofill Country of Origin from URL</label>
+      <div class="autofill-row">
+        <input type="text" id="f_countryAutofillUrl" placeholder="producer-or-shop.com/this-product">
+        <button type="button" id="countryAutofillBtn">Fetch</button>
+      </div>
+      <div class="autofill-hint" id="countryAutofillStatus">Pulls Country of Origin from the page — defaults to United States if it can't find one.</div>
+    </div>
+
     <div class="field">
       <label for="f_name">Name</label>
       <input type="text" id="f_name" required>
@@ -407,6 +434,11 @@
         <label for="f_price">Price</label>
         <input type="text" id="f_price" inputmode="decimal" placeholder="$">
       </div>
+    </div>
+
+    <div class="field">
+      <label for="f_countryOfOrigin">Country of Origin</label>
+      <input type="text" id="f_countryOfOrigin" autocomplete="off">
     </div>
 
     <div class="row2">
@@ -1028,11 +1060,77 @@ function render(){
   applyAuthGating();
 }
 
+// --- Country of Origin autofill: deliberately scoped to just this one
+// field (see pantry-autofill's own header comment for why). Defaults to
+// United States when the page doesn't state a country, rather than
+// leaving the field blank. ---
+function setCountryAutofillStatus(msg, cls){
+  const el = document.getElementById('countryAutofillStatus');
+  el.textContent = msg;
+  el.className = 'autofill-hint' + (cls ? ' ' + cls : '');
+}
+
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
+async function runCountryAutofill(){
+  const url = normalizeAutofillUrl(document.getElementById('f_countryAutofillUrl').value);
+  if(!url){
+    setCountryAutofillStatus('Paste a URL first.', 'err');
+    return;
+  }
+  const btn = document.getElementById('countryAutofillBtn');
+  btn.disabled = true;
+  setCountryAutofillStatus('Fetching…');
+
+  try{
+    const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/pantry-autofill', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.ok){
+      setCountryAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
+      return;
+    }
+    const field = document.getElementById('f_countryOfOrigin');
+    if(!field.value.trim()){
+      field.value = data.country || 'United States';
+    }
+    setCountryAutofillStatus(data.country
+      ? `Found "${data.country}" on the page.`
+      : 'Nothing found on the page — defaulted to United States.');
+  }catch(err){
+    console.error('Country autofill failed', err);
+    setCountryAutofillStatus('Request failed — check the URL and try again.', 'err');
+  }finally{
+    btn.disabled = false;
+  }
+}
+document.getElementById('countryAutofillBtn').addEventListener('click', runCountryAutofill);
+document.getElementById('f_countryAutofillUrl').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    runCountryAutofill();
+  }
+});
+
 function openNew(prefill){
   prefill = prefill || {};
   document.getElementById('panelTitle').textContent = 'New entry';
   document.getElementById('editId').value = '';
-  ['f_name','f_brand','f_category','f_source','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
+  ['f_name','f_brand','f_category','f_source','f_countryOfOrigin','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_countryAutofillUrl').value = '';
+  setCountryAutofillStatus('Pulls Country of Origin from the page — defaults to United States if it can\'t find one.');
   document.getElementById('f_netWeightUnit').value = 'g';
   document.getElementById('f_dryWeightUnit').value = 'g';
   document.getElementById('deleteBtn').style.display='none';
@@ -1066,7 +1164,7 @@ async function openDetail(id){
   const tagsHtml = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
 
   const infoRows = [
-    ['Brand', p.brand], ['Category', p.category], ['Source', p.source],
+    ['Brand', p.brand], ['Category', p.category], ['Source', p.source], ['Country of Origin', p.countryOfOrigin],
     ['Price', p.price ? '$'+esc(p.price) : null],
     ['Net Weight', netW], ['Dry Weight', dryW],
     ['Barcode', p.barcode],
@@ -1139,6 +1237,7 @@ async function openEdit(id){
   document.getElementById('f_packedIn').value = p.packedIn||'';
   togglePackedInField();
   document.getElementById('f_source').value = p.source||'';
+  document.getElementById('f_countryOfOrigin').value = p.countryOfOrigin||'';
   document.getElementById('f_price').value = p.price||'';
   document.getElementById('f_netWeightValue').value = (p.netWeightValue ?? p.weightValue ?? '');
   document.getElementById('f_netWeightUnit').value = p.netWeightUnit || p.weightUnit || 'g';
@@ -1198,6 +1297,7 @@ async function saveEntry(){
     brand: document.getElementById('f_brand').value.trim(),
     category: document.getElementById('f_category').value.trim(),
     source: document.getElementById('f_source').value.trim(),
+    countryOfOrigin: document.getElementById('f_countryOfOrigin').value.trim(),
     price: document.getElementById('f_price').value.trim(),
     tags,
     notes: document.getElementById('f_notes').value.trim(),

@@ -161,30 +161,6 @@
     width:100%;
   }
   .cheese-row select:focus, .cheese-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
-
-  .dish-select-wrap{display:flex;align-items:center;gap:4px;min-width:0;}
-  .dish-select-wrap select{flex:1;min-width:0;}
-  .dish-open-link{
-    flex:none;font-size:13px;text-decoration:none;color:var(--sage);
-    padding:2px 4px;line-height:1;
-  }
-  .dish-open-link:hover{color:var(--wine);}
-
-  .grape-row{
-    display:grid;
-    grid-template-columns:1fr 60px auto;
-    gap:8px;
-    align-items:center;
-    margin-bottom:8px;
-  }
-  .grape-row input{
-    font-family:inherit;font-size:13px;
-    background:transparent;border:none;border-bottom:1px solid var(--line);
-    padding:5px 2px;color:var(--ink);
-    width:100%;
-  }
-  .grape-row input:focus{outline:none;border-bottom:1px solid var(--wine);}
-  .grape-row input.grape-percent{text-align:right;}
   .row-rm{
     background:none;border:none;color:var(--sage);
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
@@ -493,7 +469,7 @@
         <input id="f-autofillUrl" type="text" placeholder="merchant-or-producer.com/this-wine">
         <button type="button" id="autofillBtn">Fetch</button>
       </div>
-      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page—review everything before saving.</div>
+      <div class="field-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
     </div>
 
     <div class="field">
@@ -560,19 +536,13 @@
       </div>
     </div>
 
-    <div class="field">
-      <label>Grape(s)</label>
-      <div id="grapesList"></div>
-      <button type="button" id="addGrapeBtn" class="ghost-inline">+ Add grape</button>
-    </div>
-
     <div class="row2">
       <div class="field">
         <label>State / Region</label>
         <input id="f-region" type="text" placeholder="Veneto">
       </div>
       <div class="field">
-        <label>Country</label>
+        <label>Country of Origin</label>
         <input id="f-country" type="text" placeholder="Italy">
       </div>
     </div>
@@ -584,9 +554,10 @@
     </div>
 
     <div class="field">
-      <label>Restaurant visit(s)</label>
-      <div id="restaurantsList"></div>
-      <button type="button" id="addRestaurantBtn" class="ghost-inline">+ Add restaurant</button>
+      <label>Restaurant</label>
+      <select id="f-restaurant">
+        <option value="">&mdash;</option>
+      </select>
     </div>
 
     <div class="field">
@@ -673,7 +644,7 @@ let supabaseInitError = null;
 
 function makeSupabaseAdapter(){
   if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    supabaseInitError = 'Supabase library did not load—running on this browser only until the page is refreshed with a connection.';
+    supabaseInitError = 'Supabase library did not load — running on this browser only until the page is refreshed with a connection.';
     return null;
   }
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -717,7 +688,7 @@ function makeSupabaseAdapter(){
       const items = data || [];
       try{
         for(const row of items) localStorage.setItem(row.key, row.value);
-      }catch(e){ /* localStorage full/unavailable—safe to skip */ }
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
       return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
@@ -792,7 +763,7 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 
-// Only allow http(s) URLs through as href values—guards against
+// Only allow http(s) URLs through as href values — guards against
 // javascript: or other schemes sneaking into a link field.
 function safeUrl(u){
   if(!u) return null;
@@ -848,7 +819,6 @@ function render(){
     if(e.merchant) metaBits.push(linkOrText(e.merchant, e.merchantUrl));
     if(e.type) metaBits.push(escapeHtml(e.type));
     if(e.vintage) metaBits.push(escapeHtml(e.vintage));
-    if(grapesOf(e).length) metaBits.push(escapeHtml(formatGrapes(grapesOf(e))));
     const place = [e.region, e.country].filter(Boolean).join(', ');
     if(place) metaBits.push(escapeHtml(place));
     if(e.pairedCheeses && e.pairedCheeses.length){
@@ -856,7 +826,7 @@ function render(){
     } else if(e.pairedCheese){
       metaBits.push(linkOrText('\ud83e\uddc0 ' + e.pairedCheese, e.pairedCheeseUrl));
     }
-    restaurantVisitsOf(e).forEach(r => metaBits.push(linkOrText(r.name, r.restaurantUrl)));
+    if(e.restaurant) metaBits.push(linkOrText(e.restaurant, e.restaurantUrl));
     if(e.date) metaBits.push(fmtDate(e.date));
 
     return `
@@ -934,7 +904,6 @@ function openLightbox(id){
   if(e.merchant) rows.push(['Merchant', linkOrText(e.merchant, e.merchantUrl)]);
   if(e.type) rows.push(['Type', escapeHtml(e.type)]);
   if(e.vintage) rows.push(['Vintage', escapeHtml(e.vintage)]);
-  if(grapesOf(e).length) rows.push(['Grape(s)', escapeHtml(formatGrapes(grapesOf(e)))]);
   const place = [e.region, e.country].filter(Boolean).join(', ');
   if(place) rows.push(['Region', escapeHtml(place)]);
   const cheeseItems = cheeseItemsOf(e);
@@ -942,11 +911,7 @@ function openLightbox(id){
     const val = cheeseItems.map(c => linkOrText(c.name, c.cheeseUrl) + (c.note ? ` <span style="color:var(--sage);">— ${escapeHtml(c.note)}</span>` : '')).join('<br>');
     rows.push(['Paired Cheese', val]);
   }
-  const visits = restaurantVisitsOf(e);
-  if(visits.length){
-    const visitVal = visits.map(r => linkOrText(r.name, r.restaurantUrl) + (r.note ? ` <span style="color:var(--sage);">— ${escapeHtml(r.note)}</span>` : '')).join('<br>');
-    rows.push(['Restaurant', visitVal]);
-  }
+  if(e.restaurant) rows.push(['Restaurant', linkOrText(e.restaurant, e.restaurantUrl)]);
   if(e.date) rows.push(['Date', escapeHtml(fmtDate(e.date))]);
 
   $('lb-fields').innerHTML = rows.map(([label, val]) =>
@@ -1075,7 +1040,7 @@ setupAutocomplete('f-merchant', 'f-merchant-options');
 
 // --- Cross-app cross-links: Paired Cheese and Restaurant are dropdowns
 // sourced from the shared kv_store via the lightweight list_kv_names()
-// RPC (name + key only—never the full record, which for Cheese can
+// RPC (name + key only — never the full record, which for Cheese can
 // carry large embedded photos). Both support inline "+ New ..." creation,
 // writing a real stub entry directly into the other app's data with the
 // same schema/id-scheme that app itself writes, so it's a genuine entry
@@ -1086,7 +1051,7 @@ let restaurantOptions = []; // {id, name}
 async function refreshCrossLinkOptions(){
   cheeseOptions = [];
   restaurantOptions = [];
-  if(!supabaseClient) return; // no live Supabase (local/artifact mode)—dropdowns stay empty, still usable
+  if(!supabaseClient) return; // no live Supabase (local/artifact mode) — dropdowns stay empty, still usable
   try{
     const [cheeseRes, restRes] = await Promise.all([
       supabaseClient.rpc('list_kv_names', { prefix: 'cheese:' }),
@@ -1132,164 +1097,45 @@ function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel)
   }
 }
 
-// currentRestaurantVisits is the repeatable list of restaurant visits
-// this wine has been had at: {name, restaurantUrl, note}. Was a single
-// dropdown (currentRestaurantId)—converted to a repeatable list since
-// the same wine can reasonably be had at more than one restaurant over
-// time, and a single field could only ever reflect the most recent one.
-let currentRestaurantVisits = [];
+// currentRestaurantId tracks the entry-being-edited's linked restaurant id
+// across re-renders of the select (e.g. after creating a new restaurant
+// inline), since the <select>'s own DOM state gets wiped each time
+// buildLinkedSelect() rebuilds its options.
+let currentRestaurantId = '';
 
 // currentCheeses is the repeatable list of paired cheeses, matching the
 // style of Restaurants' Dishes had / Wines had rows: {name, cheeseUrl, note}.
 let currentCheeses = [];
 
-// currentGrapes is the repeatable list of grape varieties + percentages
-// making up this wine's blend: {grape, percent}. Purely local to this
-// entry—no cross-app linking, unlike Paired Cheese.
-let currentGrapes = [];
-
-// Restaurant visit rows: same repeatable-row pattern as Paired Cheese,
-// but pointing at Restaurants instead—each linked row gets its own
-// "open" link, and supports inline "+ New restaurant visit…" creation
-// the same way the old single dropdown did.
-function renderRestaurantsList(){
-  const wrap = $('restaurantsList');
-  wrap.innerHTML = '';
-  currentRestaurantVisits.forEach((r, i) => {
-    const row = document.createElement('div');
-    row.className = 'cheese-row';
-
-    const select = document.createElement('select');
-    const blankOpt = document.createElement('option');
-    blankOpt.value = '';
-    blankOpt.textContent = '\u2014';
-    select.appendChild(blankOpt);
-    const newOpt = document.createElement('option');
-    newOpt.value = '__new__';
-    newOpt.textContent = '+ New restaurant visit\u2026';
-    select.appendChild(newOpt);
-    const currentId = (r.restaurantUrl || '').split('#')[1] || '';
-    let matched = false;
-    restaurantOptions.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.id;
-      o.textContent = opt.name;
-      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
-      select.appendChild(o);
-    });
-    if(currentId && !matched){
-      const o = document.createElement('option');
-      o.value = currentId;
-      o.textContent = '(restaurant not in list)';
-      o.selected = true;
-      select.appendChild(o);
-    }
-
-    const openLink = document.createElement('a');
-    openLink.className = 'dish-open-link';
-    openLink.target = '_blank';
-    openLink.rel = 'noopener';
-    openLink.title = 'Open this restaurant\u2019s page';
-    openLink.textContent = '\u2197';
-    function updateOpenLink(){
-      const id = select.value;
-      if(id && id !== '__new__'){
-        openLink.href = location.origin + location.pathname.replace(/wine\.html$/, '') + 'restaurants.html#' + id;
-        openLink.style.display = '';
-      } else {
-        openLink.removeAttribute('href');
-        openLink.style.display = 'none';
-      }
-    }
-    updateOpenLink();
-
-    select.addEventListener('change', async () => {
-      if(select.value !== '__new__'){
-        updateOpenLink();
-        return;
-      }
-      const name = prompt('Name of the restaurant:');
-      if(!name || !name.trim()){
-        select.value = currentId || '';
-        updateOpenLink();
-        return;
-      }
-      select.disabled = true;
-      try{
-        const id = 'e' + Date.now() + Math.random().toString(36).slice(2,7);
-        const entry = { id, name: name.trim(), place: '', date: new Date().toISOString().slice(0,10), price: '', rating: 0, dishItems: [], notes: '', tags: [] };
-        const { error } = await supabaseClient
-          .from('kv_store')
-          .upsert({ key: 'entry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
-        if(error) throw error;
-        restaurantOptions.push({ id, name: name.trim() });
-        restaurantOptions.sort((a,b) => a.name.localeCompare(b.name));
-        readRestaurantsFromDom();
-        currentRestaurantVisits[i].restaurantUrl = location.origin + location.pathname.replace(/wine\.html$/, '') + 'restaurants.html#' + id;
-        currentRestaurantVisits[i].name = name.trim();
-        renderRestaurantsList();
-      }catch(err){
-        console.error('Could not create new restaurant', err);
-        alert('Could not create the restaurant visit—make sure you\u2019re signed in.');
-        select.disabled = false;
-        select.value = currentId || '';
-        updateOpenLink();
-      }
-    });
-
-    const selectWrap = document.createElement('div');
-    selectWrap.className = 'dish-select-wrap';
-    selectWrap.append(select, openLink);
-
-    const noteInput = document.createElement('input');
-    noteInput.type = 'text';
-    noteInput.placeholder = 'Note (optional)';
-    noteInput.value = r.note || '';
-
-    const rmBtn = document.createElement('button');
-    rmBtn.type = 'button';
-    rmBtn.className = 'row-rm';
-    rmBtn.title = 'Remove';
-    rmBtn.textContent = '\u00d7';
-    rmBtn.addEventListener('click', () => {
-      readRestaurantsFromDom();
-      currentRestaurantVisits.splice(i, 1);
-      renderRestaurantsList();
-    });
-
-    row.append(selectWrap, noteInput, rmBtn);
-    wrap.appendChild(row);
-  });
+function renderCrossLinkSelects(){
+  buildLinkedSelect($('f-restaurant'), restaurantOptions, currentRestaurantId, 'restaurant', '+ New restaurant visit\u2026');
 }
 
-function readRestaurantsFromDom(){
-  const rows = $('restaurantsList').querySelectorAll('.cheese-row');
-  currentRestaurantVisits = Array.from(rows).map((row, i) => {
-    const select = row.querySelector('select');
-    const id = select.value;
-    const opt = restaurantOptions.find(o => o.id === id);
-    return {
-      name: opt ? opt.name : (currentRestaurantVisits[i] ? currentRestaurantVisits[i].name : ''),
-      restaurantUrl: id && id !== '__new__' ? (location.origin + location.pathname.replace(/wine\.html$/, '') + 'restaurants.html#' + id) : '',
-      note: row.querySelector('input').value.trim()
-    };
-  });
-}
-
-$('addRestaurantBtn').addEventListener('click', () => {
-  readRestaurantsFromDom();
-  currentRestaurantVisits.push({name:'', restaurantUrl:'', note:''});
-  renderRestaurantsList();
-});
-
-// Back-compat: old entries have a singular restaurant/restaurantUrl
-// field rather than the restaurantVisits array—wrapped as a one-item
-// list here and never auto-migrated in the database, matching the
-// pattern used elsewhere in Warehouse for this kind of field upgrade.
-function restaurantVisitsOf(e){
-  if(e.restaurantVisits && e.restaurantVisits.length) return e.restaurantVisits;
-  if(e.restaurant) return [{ name: e.restaurant, restaurantUrl: e.restaurantUrl || '', note: '' }];
-  return [];
+async function handleNewRestaurantSelection(){
+  const select = $('f-restaurant');
+  const name = prompt('Name of the restaurant:');
+  if(!name || !name.trim()){
+    select.value = currentRestaurantId || '';
+    return;
+  }
+  select.disabled = true;
+  try{
+    const id = 'e' + Date.now() + Math.random().toString(36).slice(2,7);
+    const entry = { id, name: name.trim(), place: '', date: new Date().toISOString().slice(0,10), price: '', rating: 0, dishItems: [], notes: '', tags: [] };
+    const { error } = await supabaseClient
+      .from('kv_store')
+      .upsert({ key: 'entry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+    if(error) throw error;
+    restaurantOptions.push({ id, name: name.trim() });
+    restaurantOptions.sort((a,b) => a.name.localeCompare(b.name));
+    currentRestaurantId = id;
+    renderCrossLinkSelects();
+  }catch(err){
+    console.error('Could not create new restaurant', err);
+    alert('Could not create the restaurant visit — make sure you\u2019re signed in.');
+    select.disabled = false;
+    select.value = currentRestaurantId || '';
+  }
 }
 
 // Creates a genuinely new Cheese entry (same schema cheese.html writes) —
@@ -1316,7 +1162,7 @@ async function createNewCheeseStub(name){
 }
 
 // Cheese rows are built via DOM APIs (createElement + .value), not
-// innerHTML string interpolation—escapeHtml() doesn't escape quote
+// innerHTML string interpolation — escapeHtml() doesn't escape quote
 // characters, which is fine for text nodes but unsafe inside a
 // value="..." attribute, so building elements directly sidesteps that.
 function renderCheesesList(){
@@ -1329,7 +1175,7 @@ function renderCheesesList(){
     const select = document.createElement('select');
     const blankOpt = document.createElement('option');
     blankOpt.value = '';
-    blankOpt.textContent = '\ud83e\uddc0 Cheese—none';
+    blankOpt.textContent = '\ud83e\uddc0 Cheese — none';
     select.appendChild(blankOpt);
     const newOpt = document.createElement('option');
     newOpt.value = '__new__';
@@ -1369,33 +1215,11 @@ function renderCheesesList(){
         renderCheesesList();
       }catch(err){
         console.error('Could not create new cheese', err);
-        alert('Could not create the cheese—make sure you\u2019re signed in.');
+        alert('Could not create the cheese — make sure you\u2019re signed in.');
         select.disabled = false;
         select.value = currentId || '';
       }
     });
-
-    const openLink = document.createElement('a');
-    openLink.className = 'dish-open-link';
-    openLink.target = '_blank';
-    openLink.rel = 'noopener';
-    openLink.title = 'Open this cheese\u2019s page';
-    openLink.textContent = '\u2197';
-    function updateOpenLink(){
-      const id = select.value;
-      if(id && id !== '__new__'){
-        openLink.href = location.origin + location.pathname.replace(/wine\.html$/, '') + 'cheese.html#' + id;
-        openLink.style.display = '';
-      } else {
-        openLink.removeAttribute('href');
-        openLink.style.display = 'none';
-      }
-    }
-    updateOpenLink();
-    select.addEventListener('change', updateOpenLink);
-    const selectWrap = document.createElement('div');
-    selectWrap.className = 'dish-select-wrap';
-    selectWrap.append(select, openLink);
 
     const noteInput = document.createElement('input');
     noteInput.type = 'text';
@@ -1413,7 +1237,7 @@ function renderCheesesList(){
       renderCheesesList();
     });
 
-    row.append(selectWrap, noteInput, rmBtn);
+    row.append(select, noteInput, rmBtn);
     wrap.appendChild(row);
   });
 }
@@ -1444,79 +1268,14 @@ function cheeseItemsOf(e){
   return [];
 }
 
-// Grape(s): a simple repeatable list of {grape, percent} rows—no
-// cross-app linking, so this is much lighter than the Cheese rows
-// above (plain text inputs, no dropdown/creation flow).
-function renderGrapesList(){
-  const wrap = $('grapesList');
-  wrap.innerHTML = '';
-  currentGrapes.forEach((g, i) => {
-    const row = document.createElement('div');
-    row.className = 'grape-row';
-
-    const grapeInput = document.createElement('input');
-    grapeInput.type = 'text';
-    grapeInput.placeholder = 'Grenache';
-    grapeInput.value = g.grape || '';
-
-    const percentInput = document.createElement('input');
-    percentInput.type = 'text';
-    percentInput.className = 'grape-percent';
-    percentInput.placeholder = '%';
-    percentInput.value = g.percent || '';
-
-    const rmBtn = document.createElement('button');
-    rmBtn.type = 'button';
-    rmBtn.className = 'row-rm';
-    rmBtn.title = 'Remove';
-    rmBtn.textContent = '\u00d7';
-    rmBtn.addEventListener('click', () => {
-      readGrapesFromDom();
-      currentGrapes.splice(i, 1);
-      renderGrapesList();
-    });
-
-    row.append(grapeInput, percentInput, rmBtn);
-    wrap.appendChild(row);
-  });
-}
-
-function readGrapesFromDom(){
-  const rows = $('grapesList').querySelectorAll('.grape-row');
-  currentGrapes = Array.from(rows).map(row => {
-    const inputs = row.querySelectorAll('input');
-    return {
-      grape: inputs[0].value.trim(),
-      percent: inputs[1].value.trim().replace(/%\s*$/, '')
-    };
-  });
-}
-
-$('addGrapeBtn').addEventListener('click', () => {
-  readGrapesFromDom();
-  currentGrapes.push({grape:'', percent:''});
-  renderGrapesList();
-  const rows = $('grapesList').querySelectorAll('.grape-row');
-  rows[rows.length-1].querySelector('input').focus();
+$('f-restaurant').addEventListener('change', () => {
+  if($('f-restaurant').value === '__new__') handleNewRestaurantSelection();
+  else currentRestaurantId = $('f-restaurant').value;
 });
-
-function grapesOf(e){
-  return e.grapes || [];
-}
-
-// Formats a grape list for display: "60% Grenache, 40% Syrah" when
-// percentages are given, or just "Grenache, Syrah" when they're not —
-// percent is optional per row, so this doesn't assume every row has one.
-function formatGrapes(grapes){
-  return grapes
-    .filter(g => g.grape)
-    .map(g => g.percent ? `${g.percent}% ${g.grape}` : g.grape)
-    .join(', ');
-}
 
 function resetForm(){
   $('f-autofillUrl').value='';
-  setAutofillStatus('Pulls whatever it can find from the page—review everything before saving.');
+  setAutofillStatus('Pulls whatever it can find from the page — review everything before saving.');
   $('f-name').value='';
   $('f-producer').value='';
   $('f-producerUrl').value='';
@@ -1529,11 +1288,9 @@ function resetForm(){
   $('f-country').value='';
   currentCheeses = [];
   renderCheesesList();
-  currentGrapes = [];
-  renderGrapesList();
-  currentRestaurantVisits = [];
-  renderRestaurantsList();
-  refreshCrossLinkOptions().then(() => { renderCheesesList(); renderRestaurantsList(); });
+  currentRestaurantId = '';
+  renderCrossLinkSelects();
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
   $('f-date').value=new Date().toISOString().slice(0,10);
   $('f-comment').value='';
   $('f-photos').value='';
@@ -1546,7 +1303,7 @@ function resetForm(){
 // or producer page server-side (browsers can't fetch arbitrary cross-
 // origin pages directly) and pull out best-guess fields. Only ever fills
 // in fields that are currently empty, so it never clobbers what's already
-// been typed—review everything it fills before saving. ---
+// been typed — review everything it fills before saving. ---
 const AUTOFILL_URL = SUPABASE_URL + '/functions/v1/wine-autofill';
 
 function setAutofillStatus(msg, cls){
@@ -1614,7 +1371,7 @@ async function runAutofill(){
     }
   }catch(err){
     console.error('Autofill fetch failed', err);
-    setAutofillStatus('Autofill request failed—check the URL and try again.', 'err');
+    setAutofillStatus('Autofill request failed — check the URL and try again.', 'err');
     btn.disabled = false;
     return;
   }
@@ -1635,8 +1392,10 @@ async function runAutofill(){
     fillIfEmpty('f-merchantUrl', data.merchantUrl);
     fillIfEmpty('f-vintage', data.vintage);
     fillIfEmpty('f-region', data.region);
-    if(data.country && !$('f-country').value.trim()){
-      $('f-country').value = data.country;
+    if(!$('f-country').value.trim()){
+      // Country of Origin defaults to United States when autofill can't
+      // find one, rather than being left blank.
+      $('f-country').value = data.country || 'United States';
       filled.push('f-country');
     }
     if(data.type && !$('f-type').value){
@@ -1644,11 +1403,6 @@ async function runAutofill(){
       filled.push('f-type');
     }
     fillIfEmpty('f-comment', data.comment);
-    if(data.grapes && data.grapes.length && currentGrapes.length === 0){
-      currentGrapes = data.grapes.map(g => ({ grape: g.grape || '', percent: g.percent || '' }));
-      renderGrapesList();
-      filled.push('grapes');
-    }
     if(data.photo && currentPhotos.length === 0){
       try{
         currentPhotos.push(await resizeDataUrl(data.photo, 1000, 0.72));
@@ -1661,13 +1415,13 @@ async function runAutofill(){
     }
 
     if(filled.length){
-      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''}—double-check them, especially type, vintage, and region/country.`, 'ok');
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — double-check them, especially type, vintage, and region/country.`, 'ok');
     } else {
-      setAutofillStatus('Fetched the page but found nothing new to fill in—the rest is already set or wasn\'t on the page.', 'ok');
+      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
     }
   }catch(err){
     console.error('Autofill fetched OK but applying it to the form failed', err);
-    setAutofillStatus('Fetched the page, but hit a problem filling in the form—check the browser console for details.', 'err');
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
   }finally{
     btn.disabled = false;
   }
@@ -1710,7 +1464,7 @@ function renderGallery(){
     });
   });
   $('photoHint').textContent = currentPhotos.length
-    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached—the starred one is used as the card photo.`
+    ? `${currentPhotos.length} photo${currentPhotos.length>1?'s':''} attached — the starred one is used as the card photo.`
     : 'Add one or more photos of the wheel, wedge, or label.';
 }
 
@@ -1770,11 +1524,9 @@ function openForEdit(id){
   $('f-country').value = e.country || '';
   currentCheeses = cheeseItemsOf(e).map(c => ({...c}));
   renderCheesesList();
-  currentGrapes = grapesOf(e).map(g => ({...g}));
-  renderGrapesList();
-  currentRestaurantVisits = restaurantVisitsOf(e).map(r => ({...r}));
-  renderRestaurantsList();
-  refreshCrossLinkOptions().then(() => { renderCheesesList(); renderRestaurantsList(); });
+  currentRestaurantId = (e.restaurantUrl || '').split('#')[1] || '';
+  renderCrossLinkSelects();
+  refreshCrossLinkOptions().then(() => { renderCrossLinkSelects(); renderCheesesList(); });
   $('f-date').value = e.date || '';
   $('f-comment').value = e.comment || '';
   currentPhotos = entryPhotos(e).slice();
@@ -1796,7 +1548,7 @@ async function loadEntries(){
       return;
     }
     // Fallback for storage backends without a batch method (Claude artifact
-    // storage, plain localStorage)—one request per entry.
+    // storage, plain localStorage) — one request per entry.
     const result = await storage.list('wine:');
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
@@ -1818,43 +1570,11 @@ async function loadEntries(){
   }catch(err){
     console.error('Wine Collection: failed to load entries', err);
     setLoadError(supabaseInitError ||
-      `Couldn't load your entries (${err.message || err}). Your data is safe in storage—this looks like a connection hiccup, not lost data.`);
+      `Couldn't load your entries (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
   }
   render();
 }
 $('retryLoadBtn').addEventListener('click', loadEntries);
-
-// Keeps this wine's restaurant links two-way: after saving, makes sure
-// every linked restaurant's own "Wines had" list includes (or is
-// updated to reflect) this wine—closes the gap where only links
-// initiated from the Restaurants app auto-synced. Updates an existing
-// row for this wine if one's already there, otherwise adds a new one,
-// per restaurant. Runs across all visits (was a single restaurant,
-// now a repeatable list). Errors are logged and swallowed per visit so
-// one bad link can't block the wine itself from saving.
-async function syncWineBackLinkToRestaurant(wineId, wineName){
-  const ids = currentRestaurantVisits
-    .map(r => (r.restaurantUrl || '').split('#')[1])
-    .filter(Boolean);
-  if(!ids.length) return;
-  const wineUrl = location.origin + location.pathname.replace(/wine\.html$/, '') + 'wine.html#' + wineId;
-  await Promise.allSettled(ids.map(async id => {
-    try{
-      const res = await storage.get('entry:' + id);
-      const restEntry = JSON.parse(res.value);
-      restEntry.wineItems = restEntry.wineItems || [];
-      const idx = restEntry.wineItems.findIndex(w => w.wineUrl === wineUrl);
-      if(idx > -1){
-        restEntry.wineItems[idx].name = wineName;
-      } else {
-        restEntry.wineItems.push({ name: wineName, note: '', wineUrl, photoUrl: '' });
-      }
-      await storage.set('entry:' + id, JSON.stringify(restEntry));
-    }catch(err){
-      console.error('Could not sync wine back-link to restaurant', id, err);
-    }
-  }));
-}
 
 async function saveEntry(){
   const name = $('f-name').value.trim();
@@ -1865,10 +1585,7 @@ async function saveEntry(){
   const id = editingId || ('w' + Date.now() + Math.random().toString(36).slice(2,7));
   readCheesesFromDom();
   const pairedCheeses = currentCheeses.filter(c => c.cheeseUrl);
-  readGrapesFromDom();
-  const grapes = currentGrapes.filter(g => g.grape || g.percent);
-  readRestaurantsFromDom();
-  const restaurantVisits = currentRestaurantVisits.filter(r => r.restaurantUrl);
+  const linkedRestaurant = restaurantOptions.find(r => r.id === currentRestaurantId);
   const entry = {
     id,
     name,
@@ -1880,17 +1597,16 @@ async function saveEntry(){
     merchantUrl: $('f-merchantUrl').value.trim(),
     type: $('f-type').value,
     vintage: $('f-vintage').value.trim(),
-    grapes,
     region: $('f-region').value.trim(),
     country: $('f-country').value.trim(),
     pairedCheeses,
-    restaurantVisits,
+    restaurant: linkedRestaurant ? linkedRestaurant.name : '',
+    restaurantUrl: currentRestaurantId ? (location.origin + location.pathname.replace(/wine\.html$/, '') + 'restaurants.html#' + currentRestaurantId) : '',
     date: $('f-date').value,
     comment: $('f-comment').value.trim()
   };
   try{
     await storage.set('wine:' + id, JSON.stringify(entry));
-    await syncWineBackLinkToRestaurant(id, name);
     if(editingId){
       const idx = entries.findIndex(e=>e.id===id);
       if(idx>-1) entries[idx] = entry; else entries.push(entry);

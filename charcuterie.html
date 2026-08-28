@@ -548,7 +548,7 @@
         <input id="f-region" type="text" placeholder="Tuscany">
       </div>
       <div class="field">
-        <label>Country</label>
+        <label>Country of Origin</label>
         <input id="f-country" type="text" placeholder="Italy">
       </div>
     </div>
@@ -1093,8 +1093,10 @@ async function runAutofill(){
     fillIfEmpty('f-purveyorUrl', data.purveyorUrl);
     fillIfEmpty('f-age', data.age);
     fillIfEmpty('f-region', data.region);
-    if(data.country && !$('f-country').value.trim()){
-      $('f-country').value = data.country;
+    if(!$('f-country').value.trim()){
+      // Country of Origin defaults to United States when autofill can't
+      // find one, rather than being left blank.
+      $('f-country').value = data.country || 'United States';
       filled.push('f-country');
     }
     if(data.type && !$('f-type').value){
