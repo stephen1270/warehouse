@@ -1061,7 +1061,7 @@ function render(){
       ${onHandBadge}
       <h3>${esc(p.name)}</h3>
       ${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}
-      <div class="meta">${[p.category, p.source, p.price?('$'+esc(p.price)):null].filter(Boolean).join(' · ')}</div>
+      <div class="meta">${[p.category, p.source, p.countryOfOrigin].filter(Boolean).join(' · ')}</div>
       ${subrates?`<div class="subrates">${subrates}</div>`:''}
       ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
       ${tags?`<div class="tags">${tags}</div>`:''}
