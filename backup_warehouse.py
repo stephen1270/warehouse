@@ -66,6 +66,10 @@ def fetch_all_rows():
         req.add_header("Authorization", f"Bearer {SUPABASE_ANON_KEY}")
         req.add_header("Range-Unit", "items")
         req.add_header("Range", f"{offset}-{offset + PAGE_SIZE - 1}")
+        # Python's default User-Agent (Python-urllib/3.x) appears to get
+        # blocked at Supabase's edge — curl with the exact same request
+        # succeeds, so this pretends to be curl instead.
+        req.add_header("User-Agent", "curl/8.0")
 
         with urllib.request.urlopen(req, timeout=60) as resp:
             page = json.loads(resp.read().decode("utf-8"))
