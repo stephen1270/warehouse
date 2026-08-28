@@ -699,13 +699,45 @@ const storage = (typeof window !== 'undefined' && window.storage)
   ? window.storage
   : (makeSupabaseAdapter() || localStorageAdapter);
 
-// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+// --- Auth: read is public, only a signed-in session can add/edit/delete.
+// 2FA (TOTP) enrollment lives in Pantry (one-time setup), but the
+// sign-in-time challenge check below applies here too, since it's the
+// same underlying Supabase Auth account. ---
 let currentUser = null;
+let mfaSatisfied = true; // becomes false when a factor is enrolled but this session hasn't cleared the challenge yet
+
+async function checkMfaStatus(){
+  if(!currentUser || !supabaseClient){ mfaSatisfied = true; return; }
+  const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  mfaSatisfied = error ? true : (data.currentLevel === data.nextLevel);
+}
 
 function renderAuthControl(){
   const el = document.getElementById('authControl');
   if(!supabaseClient){
     el.innerHTML = '';
+    return;
+  }
+  if(currentUser && !mfaSatisfied){
+    el.innerHTML = `
+      <form id="mfaChallengeForm">
+        <input type="text" id="mfaChallengeCode" placeholder="6-digit code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code">
+        <button type="submit">Verify</button>
+      </form>
+      <span class="auth-error" id="mfaChallengeError"></span>`;
+    document.getElementById('mfaChallengeForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const code = document.getElementById('mfaChallengeCode').value.trim();
+      const errEl = document.getElementById('mfaChallengeError');
+      const { data: factors, error: listErr } = await supabaseClient.auth.mfa.listFactors();
+      const factor = listErr ? null : (factors.totp || []).find(f => f.status === 'verified');
+      if(!factor){ errEl.textContent = 'No 2FA factor found on this account.'; return; }
+      const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+      if(error){ errEl.textContent = 'Incorrect code — try again.'; return; }
+      await checkMfaStatus();
+      renderAuthControl();
+      applyAuthGating();
+    });
     return;
   }
   if(currentUser){
@@ -734,7 +766,7 @@ function renderAuthControl(){
 }
 
 function applyAuthGating(){
-  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local/artifact mode)
+  const loggedIn = !supabaseClient || (!!currentUser && mfaSatisfied); // if no Supabase, don't block (local/artifact mode)
   const newBtn = document.getElementById('toggleForm');
   if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.entry-actions').forEach(el=>{
@@ -743,13 +775,15 @@ function applyAuthGating(){
 }
 
 if(supabaseClient){
-  supabaseClient.auth.getSession().then(({data})=>{
+  supabaseClient.auth.getSession().then(async ({data})=>{
     currentUser = data.session ? data.session.user : null;
+    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
   });
-  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+  supabaseClient.auth.onAuthStateChange(async (_event, session)=>{
     currentUser = session ? session.user : null;
+    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
   });

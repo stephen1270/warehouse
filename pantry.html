@@ -333,6 +333,7 @@
     <h1>Pantry</h1>
     <div class="tally" id="tally">0 entries</div>
     <div id="authControl" class="auth-control"></div>
+    <div id="mfaEnrollWrap" class="auth-control" style="margin-left:8px;"></div>
   </header>
 
   <div class="toolbar">
@@ -607,13 +608,49 @@ const storage = (typeof window !== 'undefined' && window.storage)
   ? window.storage
   : (makeSupabaseAdapter() || localStorageAdapter);
 
-// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+// --- Auth: read is public, only a signed-in session can add/edit/delete.
+// 2FA (TOTP) is layered on top: if this Supabase Auth account has an
+// enrolled factor, a session only counts as "signed in" once it's also
+// cleared the MFA challenge (Authenticator Assurance Level 2, "aal2") —
+// a password alone (aal1) isn't enough. Enrollment itself only lives
+// here in Pantry (one-time setup), but the challenge-on-sign-in check
+// applies everywhere, since it's the same underlying account. ---
 let currentUser = null;
+let mfaSatisfied = true; // becomes false when a factor is enrolled but this session hasn't cleared the challenge yet
+
+async function checkMfaStatus(){
+  if(!currentUser || !supabaseClient){ mfaSatisfied = true; return; }
+  const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  mfaSatisfied = error ? true : (data.currentLevel === data.nextLevel);
+}
 
 function renderAuthControl(){
   const el = document.getElementById('authControl');
   if(!supabaseClient){
     el.innerHTML = ''; // no Supabase (local/offline mode) — no gating possible, leave open
+    return;
+  }
+  if(currentUser && !mfaSatisfied){
+    el.innerHTML = `
+      <form id="mfaChallengeForm">
+        <input type="text" id="mfaChallengeCode" placeholder="6-digit code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code">
+        <button class="ghost small" type="submit">Verify</button>
+      </form>
+      <span class="auth-error" id="mfaChallengeError"></span>`;
+    document.getElementById('mfaChallengeForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const code = document.getElementById('mfaChallengeCode').value.trim();
+      const errEl = document.getElementById('mfaChallengeError');
+      const { data: factors, error: listErr } = await supabaseClient.auth.mfa.listFactors();
+      const factor = listErr ? null : (factors.totp || []).find(f => f.status === 'verified');
+      if(!factor){ errEl.textContent = 'No 2FA factor found on this account.'; return; }
+      const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+      if(error){ errEl.textContent = 'Incorrect code — try again.'; return; }
+      await checkMfaStatus();
+      renderAuthControl();
+      applyAuthGating();
+      refreshMfaEnrollmentUI();
+    });
     return;
   }
   if(currentUser){
@@ -641,8 +678,75 @@ function renderAuthControl(){
   }
 }
 
+// --- 2FA enrollment UI (Pantry only — a one-time setup step, no need to
+// duplicate this across every app since it's the same account). Shows a
+// "Set up 2FA" button once fully signed in and not yet enrolled, or a
+// "Turn off 2FA" option once it is. ---
+async function refreshMfaEnrollmentUI(){
+  const wrap = document.getElementById('mfaEnrollWrap');
+  if(!wrap) return;
+  if(!supabaseClient || !currentUser || !mfaSatisfied){ wrap.innerHTML = ''; return; }
+  const { data, error } = await supabaseClient.auth.mfa.listFactors();
+  if(error){ wrap.innerHTML = ''; return; }
+  const verified = (data.totp || []).find(f => f.status === 'verified');
+  if(verified){
+    wrap.innerHTML = `<span style="color:var(--moss);">2FA enabled</span> <button class="ghost small" id="disable2faBtn">Turn off</button>`;
+    document.getElementById('disable2faBtn').addEventListener('click', async ()=>{
+      if(!confirm('Turn off 2FA for this account?')) return;
+      await supabaseClient.auth.mfa.unenroll({ factorId: verified.id });
+      refreshMfaEnrollmentUI();
+    });
+  } else {
+    wrap.innerHTML = `<button class="ghost small" id="setup2faBtn">Set up 2FA</button>`;
+    document.getElementById('setup2faBtn').addEventListener('click', startMfaEnrollment);
+  }
+}
+
+async function startMfaEnrollment(){
+  const wrap = document.getElementById('mfaEnrollWrap');
+  // Clean up a dangling unverified factor from an abandoned previous
+  // attempt (e.g. the page was closed mid-setup) before starting fresh.
+  const { data: existing } = await supabaseClient.auth.mfa.listFactors();
+  const dangling = existing ? (existing.totp || []).find(f => f.status === 'unverified') : null;
+  if(dangling) await supabaseClient.auth.mfa.unenroll({ factorId: dangling.id });
+
+  const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+  if(error){ alert('Could not start 2FA setup: ' + error.message); return; }
+
+  wrap.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;" id="mfaEnrollOverlay">
+      <div style="background:var(--paper);border:1px solid var(--line);padding:20px;border-radius:4px;max-width:320px;text-align:center;">
+        <div style="margin-bottom:10px;font-weight:bold;">Set up 2FA</div>
+        <div style="font-size:0.8rem;margin-bottom:10px;">Scan this with your authenticator app:</div>
+        <img src="${data.totp.qr_code}" style="width:180px;height:180px;">
+        <div style="font-size:0.65rem;color:var(--ink-soft);margin:10px 0;word-break:break-all;">Can't scan? Enter manually: <code>${esc(data.totp.secret)}</code></div>
+        <input type="text" id="mfaVerifyCode" placeholder="6-digit code" inputmode="numeric" maxlength="6" style="width:120px;text-align:center;margin-bottom:8px;">
+        <div style="display:flex;gap:6px;justify-content:center;">
+          <button id="mfaVerifyBtn">Enable</button>
+          <button id="mfaCancelBtn" class="ghost">Cancel</button>
+        </div>
+        <div id="mfaEnrollStatus" style="font-size:0.75rem;margin-top:8px;color:var(--rust);"></div>
+      </div>
+    </div>`;
+  document.getElementById('mfaCancelBtn').addEventListener('click', async ()=>{
+    await supabaseClient.auth.mfa.unenroll({ factorId: data.id });
+    refreshMfaEnrollmentUI();
+  });
+  document.getElementById('mfaVerifyBtn').addEventListener('click', async ()=>{
+    const code = document.getElementById('mfaVerifyCode').value.trim();
+    const statusEl = document.getElementById('mfaEnrollStatus');
+    const { data: challenge, error: challErr } = await supabaseClient.auth.mfa.challenge({ factorId: data.id });
+    if(challErr){ statusEl.textContent = challErr.message; return; }
+    const { error: verErr } = await supabaseClient.auth.mfa.verify({ factorId: data.id, challengeId: challenge.id, code });
+    if(verErr){ statusEl.textContent = 'Incorrect code — try again.'; return; }
+    statusEl.style.color = 'var(--moss)';
+    statusEl.textContent = '2FA enabled!';
+    setTimeout(refreshMfaEnrollmentUI, 900);
+  });
+}
+
 function applyAuthGating(){
-  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local mode)
+  const loggedIn = !supabaseClient || (!!currentUser && mfaSatisfied); // if no Supabase, don't block (local mode)
   const addBtn = document.getElementById('addBtn');
   if(addBtn) addBtn.style.display = loggedIn ? '' : 'none';
   const manageBtn = document.getElementById('manageListsBtn');
@@ -655,15 +759,19 @@ function applyAuthGating(){
 }
 
 if(supabaseClient){
-  supabaseClient.auth.getSession().then(({data})=>{
+  supabaseClient.auth.getSession().then(async ({data})=>{
     currentUser = data.session ? data.session.user : null;
+    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
+    refreshMfaEnrollmentUI();
   });
-  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+  supabaseClient.auth.onAuthStateChange(async (_event, session)=>{
     currentUser = session ? session.user : null;
+    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
+    refreshMfaEnrollmentUI();
   });
 } else {
   renderAuthControl();
