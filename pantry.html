@@ -238,7 +238,7 @@
   .autofill-row button:hover{background:var(--moss-dark);}
   .autofill-row button:disabled{opacity:.5;cursor:default;}
   .autofill-hint{font-size:10px;color:var(--ink-soft);opacity:.8;margin-top:4px;}
-  #countryAutofillStatus.err{color:var(--rust);}
+  #autofillStatus.err{color:var(--rust);}
   .field{margin-bottom:12px;display:flex;flex-direction:column;gap:4px;position:relative;}
   .autocomplete-list{
     position:absolute;top:100%;left:0;right:0;z-index:20;
@@ -392,12 +392,12 @@
     <input type="hidden" id="editId">
 
     <div class="field autofill-field">
-      <label for="f_countryAutofillUrl">Autofill Country of Origin from URL</label>
+      <label for="f_autofillUrl">Autofill from URL</label>
       <div class="autofill-row">
-        <input type="text" id="f_countryAutofillUrl" placeholder="producer-or-shop.com/this-product">
-        <button type="button" id="countryAutofillBtn">Fetch</button>
+        <input type="text" id="f_autofillUrl" placeholder="producer-or-shop.com/this-product">
+        <button type="button" id="autofillBtn">Fetch</button>
       </div>
-      <div class="autofill-hint" id="countryAutofillStatus">Pulls Country of Origin from the page — defaults to United States if it can't find one.</div>
+      <div class="autofill-hint" id="autofillStatus">Pulls whatever it can find from the page — review everything before saving.</div>
     </div>
 
     <div class="field">
@@ -434,6 +434,11 @@
         <label for="f_price">Price</label>
         <input type="text" id="f_price" inputmode="decimal" placeholder="$">
       </div>
+    </div>
+
+    <div class="field">
+      <label for="f_productUrl">Product Link (optional)</label>
+      <input type="text" id="f_productUrl" placeholder="https://…">
     </div>
 
     <div class="field">
@@ -991,6 +996,15 @@ function esc(s){
   return (s||'').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+// Only allow http(s) URLs through as href values — guards against
+// javascript: or other schemes sneaking into a pasted link field.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
 function render(){
   refreshFilterOptions();
   const q = document.getElementById('search').value.trim().toLowerCase();
@@ -1060,12 +1074,15 @@ function render(){
   applyAuthGating();
 }
 
-// --- Country of Origin autofill: deliberately scoped to just this one
-// field (see pantry-autofill's own header comment for why). Defaults to
-// United States when the page doesn't state a country, rather than
-// leaving the field blank. ---
-function setCountryAutofillStatus(msg, cls){
-  const el = document.getElementById('countryAutofillStatus');
+// --- Autofill: mirrors the "Autofill from URL" pattern used throughout
+// the rest of the suite (Wine, Cheese, etc.) — asks pantry-autofill to
+// fetch a product/shop page server-side and pull out best-guess fields.
+// Only ever fills fields that are currently empty. Country of Origin
+// specifically defaults to United States when the page doesn't state one,
+// rather than being left blank — everything else just stays blank if not
+// found, same as every other autofill in this suite. ---
+function setAutofillStatus(msg, cls){
+  const el = document.getElementById('autofillStatus');
   el.textContent = msg;
   el.className = 'autofill-hint' + (cls ? ' ' + cls : '');
 }
@@ -1077,16 +1094,17 @@ function normalizeAutofillUrl(u){
   return u;
 }
 
-async function runCountryAutofill(){
-  const url = normalizeAutofillUrl(document.getElementById('f_countryAutofillUrl').value);
+async function runAutofill(){
+  const url = normalizeAutofillUrl(document.getElementById('f_autofillUrl').value);
   if(!url){
-    setCountryAutofillStatus('Paste a URL first.', 'err');
+    setAutofillStatus('Paste a URL first.', 'err');
     return;
   }
-  const btn = document.getElementById('countryAutofillBtn');
+  const btn = document.getElementById('autofillBtn');
   btn.disabled = true;
-  setCountryAutofillStatus('Fetching…');
+  setAutofillStatus('Fetching…');
 
+  let data;
   try{
     const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/pantry-autofill', {
       method: 'POST',
@@ -1097,30 +1115,63 @@ async function runCountryAutofill(){
       },
       body: JSON.stringify({ url })
     });
-    const data = await res.json();
+    data = await res.json();
     if(!res.ok || !data.ok){
-      setCountryAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
+      setAutofillStatus(data.error || `Could not fetch that page (HTTP ${res.status}).`, 'err');
       return;
     }
-    const field = document.getElementById('f_countryOfOrigin');
-    if(!field.value.trim()){
-      field.value = data.country || 'United States';
-    }
-    setCountryAutofillStatus(data.country
-      ? `Found "${data.country}" on the page.`
-      : 'Nothing found on the page — defaulted to United States.');
   }catch(err){
-    console.error('Country autofill failed', err);
-    setCountryAutofillStatus('Request failed — check the URL and try again.', 'err');
+    console.error('Autofill fetch failed', err);
+    setAutofillStatus('Request failed — check the URL and try again.', 'err');
+    return;
+  }
+
+  try{
+    const filled = [];
+    const fillIfEmpty = (id, value) => {
+      const field = document.getElementById(id);
+      if(value && !field.value.trim()){
+        field.value = value;
+        filled.push(id);
+      }
+    };
+    fillIfEmpty('f_name', data.name);
+    fillIfEmpty('f_productUrl', data.sourceUrl);
+    fillIfEmpty('f_brand', data.brand);
+    fillIfEmpty('f_source', data.source);
+    fillIfEmpty('f_price', data.price);
+    fillIfEmpty('f_barcode', data.barcode);
+    if(data.barcode) document.getElementById('barcodeField').style.display = '';
+    fillIfEmpty('f_netWeightValue', data.netWeightValue);
+    if(data.netWeightUnit && data.netWeightValue){
+      document.getElementById('f_netWeightUnit').value = data.netWeightUnit;
+    }
+    // Country of Origin defaults to United States when nothing was found,
+    // rather than staying blank — the one field in this suite that works
+    // this way, since it was the original, specific ask.
+    const countryField = document.getElementById('f_countryOfOrigin');
+    if(!countryField.value.trim()){
+      countryField.value = data.country || 'United States';
+      filled.push('f_countryOfOrigin');
+    }
+
+    if(filled.length){
+      setAutofillStatus(`Filled ${filled.length} field${filled.length>1?'s':''} — review before saving.`, 'ok');
+    } else {
+      setAutofillStatus('Fetched the page but found nothing new to fill in — the rest is already set or wasn\'t on the page.', 'ok');
+    }
+  }catch(err){
+    console.error('Autofill fetched OK but applying it to the form failed', err);
+    setAutofillStatus('Fetched the page, but hit a problem filling in the form — check the browser console for details.', 'err');
   }finally{
     btn.disabled = false;
   }
 }
-document.getElementById('countryAutofillBtn').addEventListener('click', runCountryAutofill);
-document.getElementById('f_countryAutofillUrl').addEventListener('keydown', e => {
+document.getElementById('autofillBtn').addEventListener('click', runAutofill);
+document.getElementById('f_autofillUrl').addEventListener('keydown', e => {
   if(e.key === 'Enter'){
     e.preventDefault();
-    runCountryAutofill();
+    runAutofill();
   }
 });
 
@@ -1128,8 +1179,8 @@ function openNew(prefill){
   prefill = prefill || {};
   document.getElementById('panelTitle').textContent = 'New entry';
   document.getElementById('editId').value = '';
-  ['f_name','f_brand','f_category','f_source','f_countryOfOrigin','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f_countryAutofillUrl').value = '';
+  ['f_name','f_brand','f_category','f_source','f_productUrl','f_countryOfOrigin','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_autofillUrl').value = '';
   setCountryAutofillStatus('Pulls Country of Origin from the page — defaults to United States if it can\'t find one.');
   document.getElementById('f_netWeightUnit').value = 'g';
   document.getElementById('f_dryWeightUnit').value = 'g';
@@ -1163,11 +1214,13 @@ async function openDetail(id){
   const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
   const tagsHtml = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
 
+  const productLinkHref = safeUrl(p.productUrl);
   const infoRows = [
     ['Brand', p.brand], ['Category', p.category], ['Source', p.source], ['Country of Origin', p.countryOfOrigin],
     ['Price', p.price ? '$'+esc(p.price) : null],
     ['Net Weight', netW], ['Dry Weight', dryW],
     ['Barcode', p.barcode],
+    ['Product Link', productLinkHref ? `<a href="${esc(productLinkHref)}" target="_blank" rel="noopener">${esc(p.productUrl)}</a>` : null],
   ].filter(([,v])=>v);
 
   const isOnHand = p.onHand !== false; // undefined (older entries) counts as on-hand
@@ -1238,6 +1291,7 @@ async function openEdit(id){
   togglePackedInField();
   document.getElementById('f_source').value = p.source||'';
   document.getElementById('f_countryOfOrigin').value = p.countryOfOrigin||'';
+  document.getElementById('f_productUrl').value = p.productUrl||'';
   document.getElementById('f_price').value = p.price||'';
   document.getElementById('f_netWeightValue').value = (p.netWeightValue ?? p.weightValue ?? '');
   document.getElementById('f_netWeightUnit').value = p.netWeightUnit || p.weightUnit || 'g';
@@ -1298,6 +1352,7 @@ async function saveEntry(){
     category: document.getElementById('f_category').value.trim(),
     source: document.getElementById('f_source').value.trim(),
     countryOfOrigin: document.getElementById('f_countryOfOrigin').value.trim(),
+    productUrl: normalizeAutofillUrl(document.getElementById('f_productUrl').value),
     price: document.getElementById('f_price').value.trim(),
     tags,
     notes: document.getElementById('f_notes').value.trim(),
