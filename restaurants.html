@@ -247,6 +247,32 @@
     font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex:none;
   }
   .dish-photo-clear:hover{color:var(--wine);}
+
+  .attachment-item{
+    display:flex;align-items:center;gap:10px;
+    padding:6px 0;border-bottom:1px solid var(--line);
+  }
+  .attachment-item img.attachment-thumb{
+    width:36px;height:36px;object-fit:cover;border-radius:2px;
+    border:1px solid var(--line);flex:none;
+  }
+  .attachment-item .attachment-pdf-icon{
+    width:36px;height:36px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--paper-dark);border:1px solid var(--line);border-radius:2px;
+    font-size:11px;letter-spacing:.02em;color:var(--wine);font-weight:bold;
+  }
+  .attachment-item .attachment-name{
+    flex:1;min-width:0;font-size:13px;color:var(--ink);
+    text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border-bottom:1px solid var(--line);
+  }
+  .attachment-item .attachment-name:hover{color:var(--wine);border-color:var(--wine);}
+  .attachment-item .attachment-remove{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;flex:none;
+  }
+  .attachment-item .attachment-remove:hover{color:var(--wine);}
   .dish-row input, .dish-row select{
     font-family:inherit;font-size:13px;
     background:transparent;border:none;border-bottom:1px solid var(--line);
@@ -563,6 +589,13 @@
       </div>
     </div>
     <div class="field">
+      <label>Attachments (photos, receipts, menus)</label>
+      <div id="attachmentsList"></div>
+      <button type="button" id="addAttachmentBtn" class="ghost-inline">+ Add attachment</button>
+      <input type="file" id="attachmentInput" accept="image/jpeg,application/pdf" multiple style="display:none;">
+      <div class="field-hint">JPEG or PDF, up to 4MB each.</div>
+    </div>
+    <div class="field">
       <label>Dishes had</label>
       <div id="dishesList"></div>
       <button type="button" id="addDishBtn" class="ghost-inline">+ Add dish</button>
@@ -641,6 +674,9 @@
     </div>
     <div class="lightbox-notes" id="lb-charcuterie-wrap" style="display:none;">
       <span class="lbl">Charcuterie</span><div id="lb-charcuterie"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-attachments-wrap" style="display:none;">
+      <span class="lbl">Attachments</span><div id="lb-attachments"></div>
     </div>
     <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
       <span class="lbl">Notes</span><span id="lb-notes"></span>
@@ -883,6 +919,7 @@ function render(){
       ${renderCheeseItemsHtml(e)}
       ${renderSpiritItemsHtml(e)}
       ${renderCharcuterieItemsHtml(e)}
+      ${renderAttachmentsHtml(e)}
       ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
       ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -1066,6 +1103,98 @@ function resizeImage(file, maxDim, quality){
     reader.readAsDataURL(file);
   });
 }
+
+// Reads a file as a plain base64 data URL, no processing — used for PDFs,
+// which can't go through the canvas-based resizeImage() pipeline above
+// (a <canvas> can only draw actual raster images, not render PDF pages).
+function readFileAsDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- Attachments: a general-purpose upload for the entry itself (not
+// tied to a specific dish/wine/etc.) — receipts, menus, or photos of the
+// visit. Accepts JPEG (resized/compressed like every other photo in this
+// app) and PDF (stored as-is, since it can't be resized — capped at 4MB
+// raw to keep entries from ballooning; PDFs are usually larger than
+// photos, so this is a looser cap than the 1.5MB used for og:image
+// fetches elsewhere in the suite). ---
+let currentAttachments = []; // {name, type: 'image'|'pdf', dataUrl}
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+
+function renderAttachmentsList(){
+  const wrap = $('attachmentsList');
+  wrap.innerHTML = '';
+  currentAttachments.forEach((a, i) => {
+    const row = document.createElement('div');
+    row.className = 'attachment-item';
+
+    if(a.type === 'image'){
+      const thumb = document.createElement('img');
+      thumb.className = 'attachment-thumb';
+      thumb.src = a.dataUrl;
+      row.appendChild(thumb);
+    } else {
+      const icon = document.createElement('div');
+      icon.className = 'attachment-pdf-icon';
+      icon.textContent = 'PDF';
+      row.appendChild(icon);
+    }
+
+    const link = document.createElement('a');
+    link.className = 'attachment-name';
+    link.href = a.dataUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = a.name || (a.type === 'pdf' ? 'document.pdf' : 'photo.jpg');
+    row.appendChild(link);
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'attachment-remove';
+    rmBtn.title = 'Remove attachment';
+    rmBtn.textContent = '\u00d7';
+    rmBtn.addEventListener('click', () => {
+      currentAttachments.splice(i, 1);
+      renderAttachmentsList();
+    });
+    row.appendChild(rmBtn);
+
+    wrap.appendChild(row);
+  });
+}
+
+$('addAttachmentBtn').addEventListener('click', () => $('attachmentInput').click());
+$('attachmentInput').addEventListener('change', async () => {
+  const files = Array.from($('attachmentInput').files);
+  $('attachmentInput').value = '';
+  for(const file of files){
+    if(file.size > MAX_ATTACHMENT_BYTES){
+      alert(`"${file.name}" is too large (over 4MB) — please use a smaller file.`);
+      continue;
+    }
+    try{
+      if(file.type === 'application/pdf'){
+        const dataUrl = await readFileAsDataUrl(file);
+        currentAttachments.push({ name: file.name, type: 'pdf', dataUrl });
+      } else if(file.type === 'image/jpeg'){
+        const dataUrl = await resizeImage(file, 1400, 0.8);
+        currentAttachments.push({ name: file.name, type: 'image', dataUrl });
+      } else {
+        alert(`"${file.name}" isn't a JPEG or PDF — skipped.`);
+        continue;
+      }
+    }catch(err){
+      console.error('Could not process attachment', file.name, err);
+      alert(`Could not read "${file.name}" — please try again.`);
+    }
+  }
+  renderAttachmentsList();
+});
 
 // --- Autofill: asks the restaurant-autofill Edge Function to fetch a
 // restaurant's own site or a listing page server-side and pull out
@@ -2518,6 +2647,27 @@ function renderCharcuterieItemsHtml(e){
   }).join('')}</div>`;
 }
 
+// Read-only display of an entry's attachments — used on the card and in
+// the lightbox. Images and PDFs are both stored as data: URLs, so
+// safePhotoSrc() (which accepts data:image/... in addition to http(s))
+// covers the image case; PDFs get a plain safeUrl-style data: check
+// inline since safePhotoSrc is image-specific.
+function renderAttachmentsHtml(e){
+  const items = (e.attachments && e.attachments.length) ? e.attachments : [];
+  if(!items.length) return '';
+  return `<div class="dish-list">${items.map(a => {
+    const isPdf = a.type === 'pdf';
+    const href = (a.dataUrl || '').startsWith('data:') ? a.dataUrl : safeUrl(a.dataUrl);
+    if(!href) return '';
+    const thumb = isPdf
+      ? `<span style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;font-size:9px;font-weight:bold;background:var(--paper-dark);border:1px solid var(--line);border-radius:2px;vertical-align:middle;">PDF</span>`
+      : `<img class="dish-photo-thumb" src="${escapeHtml(href)}" alt="">`;
+    return `<div class="dish-item">
+      <a href="${escapeHtml(href)}" target="_blank" rel="noopener" title="${escapeHtml(a.name || '')}" style="text-decoration:none;">${thumb} <span class="dish-item-name">${escapeHtml(a.name || (isPdf ? 'document.pdf' : 'photo.jpg'))}</span></a>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // Resolves an entry's dishes for display, whether it has the new
 // structured dishItems array or only the old flat comma-separated
 // `dishes` string (kept, never migrated in the database, so nothing
@@ -2641,6 +2791,13 @@ function openLightbox(id){
     $('lb-charcuterie-wrap').style.display = 'none';
   }
 
+  if(e.attachments && e.attachments.length){
+    $('lb-attachments-wrap').style.display = 'block';
+    $('lb-attachments').innerHTML = renderAttachmentsHtml(e);
+  } else {
+    $('lb-attachments-wrap').style.display = 'none';
+  }
+
   if(e.notes){
     $('lb-notes-wrap').style.display = 'block';
     $('lb-notes').innerHTML = notesHtml;
@@ -2756,6 +2913,8 @@ function resetForm(){
   renderSpiritsList();
   currentCharcuterie = [];
   renderCharcuterieList();
+  currentAttachments = [];
+  renderAttachmentsList();
   // Cheese/wine/spirit/charcuterie options are fetched async so opening
   // the form never waits on a network round trip; re-render in place once
   // they land. Reads whatever was typed in the meantime first, so a fast
@@ -2814,6 +2973,8 @@ function openForEdit(id){
   currentCharcuterie = (e.charcuterieItems && e.charcuterieItems.length) ? e.charcuterieItems.map(c => ({...c})) : [];
   renderCharcuterieList();
   refreshCharcuterieOptions().then(() => { readCharcuterieFromDom(); renderCharcuterieList(); });
+  currentAttachments = (e.attachments && e.attachments.length) ? e.attachments.map(a => ({...a})) : [];
+  renderAttachmentsList();
   $('f-notes').value = e.notes || '';
   $('f-tags').value = (e.tags||[]).join(', ');
   setStars(e.rating || 0);
@@ -2896,6 +3057,7 @@ async function saveEntry(){
     cheeseItems,
     spiritItems,
     charcuterieItems,
+    attachments: currentAttachments,
     notes: $('f-notes').value.trim(),
     tags
   };
