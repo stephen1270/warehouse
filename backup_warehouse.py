@@ -34,6 +34,7 @@ SUPABASE_ANON_KEY = "sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_"
 BACKUP_DIR = os.path.expanduser("~/Desktop/warehouse/Backups")
 
 RETENTION_DAYS = 7
+MONTHLY_RETENTION_DAYS = 90  # backups dated the 1st of the month get extra retention
 PAGE_SIZE = 500  # rows per request; paginates automatically if the table grows past this
 
 FILENAME_RE = re.compile(r"^warehouse_backup_(\d{4}-\d{2}-\d{2})\.json$")
@@ -97,6 +98,7 @@ def fetch_all_rows():
 
 def prune_old_backups():
     cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
+    monthly_cutoff = datetime.now(timezone.utc) - timedelta(days=MONTHLY_RETENTION_DAYS)
     removed = 0
     for name in os.listdir(BACKUP_DIR):
         m = FILENAME_RE.match(name)
@@ -106,7 +108,10 @@ def prune_old_backups():
             file_date = datetime.strptime(m.group(1), "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             continue
-        if file_date < cutoff:
+        # The 1st-of-the-month backup gets a longer runway — cheap extra
+        # insurance against a problem that isn't noticed within a week.
+        effective_cutoff = monthly_cutoff if file_date.day == 1 else cutoff
+        if file_date < effective_cutoff:
             try:
                 os.remove(os.path.join(BACKUP_DIR, name))
                 removed += 1
