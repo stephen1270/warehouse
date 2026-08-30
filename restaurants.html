@@ -1591,6 +1591,45 @@ async function createNewWine(name){
   return { id, name };
 }
 
+// Shared by the toolbar's "+ Add by photo" and any per-row camera-icon
+// upload that finds the row still nameless: takes a resized photo data
+// URL, asks wine-label-lookup to identify it, and — if confident — hands
+// the match to wine-autofill via createWineFromUrl for the full extract.
+// Returns a wine-row object ({name, note, wineUrl, photoUrl}) either way;
+// on anything less than a confident match it just carries the photo
+// through with an empty name, same as the manual fallback always did.
+async function identifyWineFromPhoto(dataUrl, existingNote){
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      const created = await createWineFromUrl(lookup.url);
+      wineOptions.push({ id: created.id, name: created.name });
+      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+      return {
+        name: created.name,
+        note: existingNote || '',
+        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+        photoUrl: dataUrl
+      };
+    }
+    if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
+    return { name: lookup.name || '', note: existingNote || '', wineUrl: '', photoUrl: dataUrl };
+  }catch(err){
+    console.error('Wine photo lookup/autofill failed', err);
+    return { name: '', note: existingNote || '', wineUrl: '', photoUrl: dataUrl };
+  }
+}
+
 function renderWinesList(){
   const wrap = $('winesList');
   wrap.innerHTML = '';
@@ -1701,7 +1740,26 @@ function renderWinesList(){
       try{
         const dataUrl = await resizeImage(file, 900, 0.7);
         readWinesFromDom();
-        currentWines[i].photoUrl = dataUrl;
+        // If this row doesn't have a name yet, try identifying the wine
+        // from the label (same lookup the toolbar's "+ Add by photo" runs)
+        // before falling back to just attaching the photo. A row that
+        // already has a name was presumably typed/picked on purpose, so
+        // that case stays a plain photo attach — no risk of overwriting it.
+        if(!currentWines[i].name){
+          const originalIcon = uploadBtn.textContent;
+          uploadBtn.textContent = '…';
+          uploadBtn.disabled = true;
+          try{
+            const result = await identifyWineFromPhoto(dataUrl, currentWines[i].note);
+            readWinesFromDom();
+            currentWines[i] = result;
+          } finally {
+            uploadBtn.textContent = originalIcon;
+            uploadBtn.disabled = false;
+          }
+        } else {
+          currentWines[i].photoUrl = dataUrl;
+        }
         renderWinesList();
       }catch(err){
         console.error('Could not process photo', err);
@@ -1772,59 +1830,20 @@ $('wineByPhotoInput').addEventListener('change', async () => {
     return;
   }
 
-  // Try to identify the wine from the label (vision + web search), then
-  // hand any URL it finds straight to wine-autofill for the full extract.
-  // If identification isn't set up yet, fails, or comes back low-confidence,
-  // this falls back to the original behavior: just attach the photo and
-  // let the person type the name themselves.
+  // Identify via the shared lookup helper, then push a new row with
+  // whatever it found — a confident match, a bare photo, or (if the
+  // request itself failed) just the photo, same fallback either way.
   btn.textContent = 'Identifying…';
   btn.disabled = true;
   try{
-    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-      },
-      body: JSON.stringify({ image: dataUrl })
-    });
-    const lookup = await lookupRes.json();
-
-    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
-      btn.textContent = 'Fetching details…';
-      const created = await createWineFromUrl(lookup.url);
-      wineOptions.push({ id: created.id, name: created.name });
-      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
-      readWinesFromDom();
-      currentWines.push({
-        name: created.name,
-        note: '',
-        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
-        photoUrl: dataUrl
-      });
-      renderWinesList();
-    } else {
-      // Couldn't confidently identify it (or lookup isn't configured) —
-      // fall back to attaching just the photo, same as before.
-      if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
-      readWinesFromDom();
-      currentWines.push({name: lookup.name || '', note:'', wineUrl:'', photoUrl:dataUrl});
-      renderWinesList();
-      if(!lookup.name){
-        const rows = $('winesList').querySelectorAll('.dish-row');
-        rows[rows.length-1].querySelector('.dish-name').focus();
-      }
-    }
-  }catch(err){
-    console.error('Wine photo lookup/autofill failed', err);
-    // Still attach the photo even if identification broke entirely —
-    // never lose the photo the person just took.
+    const result = await identifyWineFromPhoto(dataUrl, '');
     readWinesFromDom();
-    currentWines.push({name:'', note:'', wineUrl:'', photoUrl:dataUrl});
+    currentWines.push(result);
     renderWinesList();
-    const rows = $('winesList').querySelectorAll('.dish-row');
-    rows[rows.length-1].querySelector('.dish-name').focus();
+    if(!result.name){
+      const rows = $('winesList').querySelectorAll('.dish-row');
+      rows[rows.length-1].querySelector('.dish-name').focus();
+    }
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
