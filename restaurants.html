@@ -1475,7 +1475,7 @@ function renderDishesList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 900, 0.7);
+        const dataUrl = await resizeImage(file, 640, 0.6);
         readDishesFromDom();
         currentDishes[i].photoUrl = dataUrl;
         renderDishesList();
@@ -1761,7 +1761,7 @@ function renderWinesList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 900, 0.7);
+        const dataUrl = await resizeImage(file, 640, 0.6);
         readWinesFromDom();
         // If this row doesn't have a name yet, try identifying the wine
         // from the label (same lookup the toolbar's "+ Add by photo" runs)
@@ -1846,7 +1846,7 @@ $('wineByPhotoInput').addEventListener('change', async () => {
   const originalText = btn.textContent;
   let dataUrl;
   try{
-    dataUrl = await resizeImage(file, 900, 0.7);
+    dataUrl = await resizeImage(file, 640, 0.6);
   }catch(err){
     console.error('Could not process photo', err);
     alert('Could not read that photo — please try another.');
@@ -2355,7 +2355,7 @@ function renderSpiritsList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 900, 0.7);
+        const dataUrl = await resizeImage(file, 640, 0.6);
         readSpiritsFromDom();
         if(!currentSpirits[i].name){
           const originalIcon = uploadBtn.textContent;
@@ -2464,7 +2464,7 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
   const originalText = btn.textContent;
   let dataUrl;
   try{
-    dataUrl = await resizeImage(file, 900, 0.7);
+    dataUrl = await resizeImage(file, 640, 0.6);
   }catch(err){
     console.error('Could not process photo', err);
     alert('Could not read that photo — please try another.');
