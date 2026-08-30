@@ -2147,6 +2147,43 @@ async function createNewSpirit(name){
   return { id, name };
 }
 
+// Spirits' version of identifyWineFromPhoto — same pattern: identify the
+// bottle from its label, hand any match to spirits-autofill via
+// createSpiritFromUrl, and always return a usable row (confident match,
+// bare photo, or empty name on failure) so the caller never has to think
+// about which branch it landed in.
+async function identifySpiritFromPhoto(dataUrl, existingNote){
+  try{
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      const created = await createSpiritFromUrl(lookup.url);
+      spiritOptions.push({ id: created.id, name: created.name });
+      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+      return {
+        name: created.name,
+        note: existingNote || '',
+        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+        photoUrl: dataUrl
+      };
+    }
+    if(!lookup.ok) console.warn('Spirit label lookup unavailable:', lookup.error);
+    return { name: lookup.name || '', note: existingNote || '', spiritUrl: '', photoUrl: dataUrl };
+  }catch(err){
+    console.error('Spirit photo lookup/autofill failed', err);
+    return { name: '', note: existingNote || '', spiritUrl: '', photoUrl: dataUrl };
+  }
+}
+
 function renderSpiritsList(){
   const wrap = $('spiritsList');
   wrap.innerHTML = '';
@@ -2257,7 +2294,21 @@ function renderSpiritsList(){
       try{
         const dataUrl = await resizeImage(file, 900, 0.7);
         readSpiritsFromDom();
-        currentSpirits[i].photoUrl = dataUrl;
+        if(!currentSpirits[i].name){
+          const originalIcon = uploadBtn.textContent;
+          uploadBtn.textContent = '…';
+          uploadBtn.disabled = true;
+          try{
+            const result = await identifySpiritFromPhoto(dataUrl, currentSpirits[i].note);
+            readSpiritsFromDom();
+            currentSpirits[i] = result;
+          } finally {
+            uploadBtn.textContent = originalIcon;
+            uploadBtn.disabled = false;
+          }
+        } else {
+          currentSpirits[i].photoUrl = dataUrl;
+        }
         renderSpiritsList();
       }catch(err){
         console.error('Could not process photo', err);
@@ -2357,55 +2408,18 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
     return;
   }
 
-  // Try to identify the bottle from the label (vision + web search), then
-  // hand any URL it finds straight to spirits-autofill for the full
-  // extract. If identification isn't set up yet, fails, or comes back
-  // low-confidence, this falls back to just attaching the photo and
-  // letting the person type the name themselves — mirrors Wine exactly.
+  // Identify via the shared lookup helper — mirrors Wine's simplified flow.
   btn.textContent = 'Identifying…';
   btn.disabled = true;
   try{
-    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-      },
-      body: JSON.stringify({ image: dataUrl })
-    });
-    const lookup = await lookupRes.json();
-
-    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
-      btn.textContent = 'Fetching details…';
-      const created = await createSpiritFromUrl(lookup.url);
-      spiritOptions.push({ id: created.id, name: created.name });
-      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
-      readSpiritsFromDom();
-      currentSpirits.push({
-        name: created.name,
-        note: '',
-        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
-        photoUrl: dataUrl
-      });
-      renderSpiritsList();
-    } else {
-      if(!lookup.ok) console.warn('Spirits label lookup unavailable:', lookup.error);
-      readSpiritsFromDom();
-      currentSpirits.push({name: lookup.name || '', note:'', spiritUrl:'', photoUrl:dataUrl});
-      renderSpiritsList();
-      if(!lookup.name){
-        const rows = $('spiritsList').querySelectorAll('.dish-row');
-        rows[rows.length-1].querySelector('.dish-name').focus();
-      }
-    }
-  }catch(err){
-    console.error('Spirits photo lookup/autofill failed', err);
+    const result = await identifySpiritFromPhoto(dataUrl, '');
     readSpiritsFromDom();
-    currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:dataUrl});
+    currentSpirits.push(result);
     renderSpiritsList();
-    const rows = $('spiritsList').querySelectorAll('.dish-row');
-    rows[rows.length-1].querySelector('.dish-name').focus();
+    if(!result.name){
+      const rows = $('spiritsList').querySelectorAll('.dish-row');
+      rows[rows.length-1].querySelector('.dish-name').focus();
+    }
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
