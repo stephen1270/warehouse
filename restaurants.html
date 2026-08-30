@@ -303,6 +303,10 @@
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
   }
   .dish-rm:hover{color:var(--wine);}
+  .dish-row-links .dish-cheese-link{
+    text-decoration:none;font-size:15px;line-height:1;
+    display:inline-flex;align-items:center;padding:0 2px;
+  }
   .ghost-inline{
     font-family:inherit;font-size:11px;letter-spacing:.04em;
     color:var(--slate);background:none;border:none;cursor:pointer;
@@ -1717,7 +1721,26 @@ function renderWinesList(){
       renderWinesList();
     });
 
-    // Photo control: same paste-or-upload pattern as Dishes had.
+    // Open-in-new-tab link to this row's linked Wine entry, when there is
+    // one — lets you jump straight to wine.html to check or edit it
+    // without first saving and leaving this form.
+    const openWineLink = document.createElement('a');
+    openWineLink.className = 'dish-cheese-link';
+    openWineLink.title = 'Open this wine\u2019s entry';
+    openWineLink.textContent = '\ud83c\udf77';
+    openWineLink.target = '_blank';
+    openWineLink.rel = 'noopener';
+    openWineLink.style.display = currentId ? 'inline-flex' : 'none';
+    if(currentId) openWineLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + currentId;
+    wineSelect.addEventListener('change', () => {
+      if(wineSelect.value && wineSelect.value !== '__new__'){
+        openWineLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineSelect.value;
+        openWineLink.style.display = 'inline-flex';
+      } else if(!wineSelect.value){
+        openWineLink.style.display = 'none';
+      }
+    });
+
     const photoWrap = document.createElement('div');
     photoWrap.className = 'dish-photo-wrap';
     const photoInput = document.createElement('input');
@@ -1787,7 +1810,7 @@ function renderWinesList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(wineSelect, photoWrap, rmBtn);
+    links.append(wineSelect, openWineLink, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -2271,6 +2294,25 @@ function renderSpiritsList(){
       renderSpiritsList();
     });
 
+    // Open-in-new-tab link to this row's linked Spirits entry — mirrors
+    // Wine's equivalent link exactly.
+    const openSpiritLink = document.createElement('a');
+    openSpiritLink.className = 'dish-cheese-link';
+    openSpiritLink.title = 'Open this spirit\u2019s entry';
+    openSpiritLink.textContent = '\ud83c\udf78';
+    openSpiritLink.target = '_blank';
+    openSpiritLink.rel = 'noopener';
+    openSpiritLink.style.display = currentId ? 'inline-flex' : 'none';
+    if(currentId) openSpiritLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + currentId;
+    spiritSelect.addEventListener('change', () => {
+      if(spiritSelect.value && spiritSelect.value !== '__new__'){
+        openSpiritLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritSelect.value;
+        openSpiritLink.style.display = 'inline-flex';
+      } else if(!spiritSelect.value){
+        openSpiritLink.style.display = 'none';
+      }
+    });
+
     // Photo control: same paste-or-upload pattern as Dishes/Wines had.
     const photoWrap = document.createElement('div');
     photoWrap.className = 'dish-photo-wrap';
@@ -2336,7 +2378,7 @@ function renderSpiritsList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(spiritSelect, photoWrap, rmBtn);
+    links.append(spiritSelect, openSpiritLink, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
