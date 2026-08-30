@@ -1924,6 +1924,27 @@ async function createWineFromUrl(url){
   if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
   if(!data.name) throw new Error('Could not find a wine name on that page.');
 
+  // Guard against creating a duplicate: if a wine with this exact name
+  // and producer link already exists, reuse it instead of minting a new
+  // record. Matters most for the photo-identify flow, where the same
+  // bottle can get identified twice (two rows, or a retried upload) and
+  // would otherwise silently create two entries for the same wine.
+  if(data.producerUrl){
+    try{
+      const { data: candidates } = await supabaseClient
+        .from('kv_store')
+        .select('key,value')
+        .like('key', 'wine:%')
+        .ilike('value', `%${data.producerUrl}%`);
+      const match = (candidates || [])
+        .map(r => { try{ return JSON.parse(r.value); }catch(e){ return null; } })
+        .find(w => w && w.name === data.name && w.producerUrl === data.producerUrl);
+      if(match) return { id: match.id, name: match.name };
+    }catch(err){
+      console.warn('Duplicate-wine check failed, proceeding to create a new entry', err);
+    }
+  }
+
   const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
     id, name: data.name,
@@ -2484,6 +2505,23 @@ async function createSpiritFromUrl(url){
   const data = await res.json();
   if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
   if(!data.name) throw new Error('Could not find a spirit name on that page.');
+
+  // Same duplicate guard as createWineFromUrl.
+  if(data.producerUrl){
+    try{
+      const { data: candidates } = await supabaseClient
+        .from('kv_store')
+        .select('key,value')
+        .like('key', 'spirits:%')
+        .ilike('value', `%${data.producerUrl}%`);
+      const match = (candidates || [])
+        .map(r => { try{ return JSON.parse(r.value); }catch(e){ return null; } })
+        .find(s => s && s.name === data.name && s.producerUrl === data.producerUrl);
+      if(match) return { id: match.id, name: match.name };
+    }catch(err){
+      console.warn('Duplicate-spirit check failed, proceeding to create a new entry', err);
+    }
+  }
 
   const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
