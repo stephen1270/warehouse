@@ -492,6 +492,9 @@
     text-transform:uppercase;display:block;margin-bottom:4px;
   }
   .lightbox-notes{font-size:13px;line-height:1.55;margin-bottom:14px;}
+  .visit-block{padding-top:14px;border-top:1px solid var(--line);margin-bottom:18px;}
+  .visit-block:first-child{padding-top:0;border-top:none;}
+  .visit-block .entry-actions button{font-size:10px;}
   .note-block{margin-bottom:16px;}
   .note-block:last-child{margin-bottom:0;}
   .note-block p{margin:0;white-space:pre-wrap;}
@@ -664,29 +667,8 @@
     <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
-    <div class="lightbox-photos" id="lb-photos"></div>
-    <div class="lightbox-notes" id="lb-dishes-wrap" style="display:none;">
-      <span class="lbl">Dishes</span><div id="lb-dishes"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-wines-wrap" style="display:none;">
-      <span class="lbl">Wines</span><div id="lb-wines"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-cheeses-wrap" style="display:none;">
-      <span class="lbl">Cheeses</span><div id="lb-cheeses"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-spirits-wrap" style="display:none;">
-      <span class="lbl">Spirits</span><div id="lb-spirits"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-charcuterie-wrap" style="display:none;">
-      <span class="lbl">Charcuterie</span><div id="lb-charcuterie"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-attachments-wrap" style="display:none;">
-      <span class="lbl">Attachments</span><div id="lb-attachments"></div>
-    </div>
-    <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
-      <span class="lbl">Notes</span><span id="lb-notes"></span>
-    </div>
     <div class="lightbox-tags" id="lb-tags"></div>
+    <div id="lb-visits"></div>
   </div>
 </div>
 
@@ -695,8 +677,9 @@
 </div>
 
 <script>
-let entries = [];
-let editingId = null;
+let entries = []; // each entry is a restaurant record: {id, name, website, neighborhood, place, state, country, tags, visits:[...]}
+let editingId = null; // restaurant id being edited/added-to (null = brand new restaurant)
+let editingVisitId = null; // null = appending a new visit to editingId's restaurant; set = editing that specific past visit in place
 let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
@@ -935,48 +918,66 @@ function render(){
     return;
   }
 
-  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  // Sort restaurants by their most recent visit, most recent first.
+  const sorted = [...filtered].sort((a,b) => (latestVisit(b).date||'').localeCompare(latestVisit(a).date||''));
 
-  wrap.innerHTML = sorted.map(e => `
-    <div class="entry" data-id="${e.id}">
+  wrap.innerHTML = sorted.map(r => {
+    const v = latestVisit(r);
+    const visitCount = (r.visits || []).length;
+    return `
+    <div class="entry" data-id="${r.id}">
       <div class="entry-actions">
+        <button class="visitBtn">+ visit</button>
         <button class="editBtn">edit</button>
         <button class="delBtn">delete</button>
       </div>
       <div class="entry-top">
         <div>
-          <div class="entry-name">${safeUrl(e.website) ? `<a href="${escapeHtml(safeUrl(e.website))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(e.name || 'Untitled')}</a>` : escapeHtml(e.name || 'Untitled')}</div>
+          <div class="entry-name">${safeUrl(r.website) ? `<a href="${escapeHtml(safeUrl(r.website))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(r.name || 'Untitled')}</a>` : escapeHtml(r.name || 'Untitled')}</div>
           <div class="entry-meta">
-            ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
-            ${placeLine(e) ? `<span>${escapeHtml(placeLine(e))}</span>` : ''}
+            ${v.date ? `<span>${fmtDate(v.date)}</span>` : ''}
+            ${placeLine(r) ? `<span>${escapeHtml(placeLine(r))}</span>` : ''}
+            ${visitCount > 1 ? `<span>${visitCount} visits</span>` : ''}
           </div>
         </div>
-        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
+        ${v.rating ? `<div class="entry-rating">${starsHtml(v.rating)}</div>` : ''}
       </div>
-      ${renderDishItemsHtml(e)}
-      ${renderWineItemsHtml(e)}
-      ${renderCheeseItemsHtml(e)}
-      ${renderSpiritItemsHtml(e)}
-      ${renderCharcuterieItemsHtml(e)}
-      ${renderAttachmentsHtml(e)}
-      ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
-      ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
-      ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${renderDishItemsHtml(v)}
+      ${renderWineItemsHtml(v)}
+      ${renderCheeseItemsHtml(v)}
+      ${renderSpiritItemsHtml(v)}
+      ${renderCharcuterieItemsHtml(v)}
+      ${renderAttachmentsHtml(v)}
+      ${v.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(v.notes))}</div>` : ''}
+      ${(v.photos && v.photos.length) ? `<div class="entry-thumbs">${v.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
+      ${(r.tags && r.tags.length) ? `<div class="entry-tags">${r.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 
+  wrap.querySelectorAll('.visitBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = e.target.closest('.entry').dataset.id;
+      openForNewVisit(id);
+    });
+  });
   wrap.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      openForEdit(id);
+      const r = entries.find(x=>x.id===id);
+      if(r) openForEditVisit(id, latestVisit(r).id);
     });
   });
   wrap.querySelectorAll('.delBtn').forEach(btn=>{
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      if(confirm('Remove this entry?')){
+      const r = entries.find(x=>x.id===id);
+      const visitCount = r ? (r.visits||[]).length : 0;
+      const msg = visitCount > 1 ? `Remove this restaurant and all ${visitCount} visits?` : 'Remove this entry?';
+      if(confirm(msg)){
         await deleteEntry(id);
       }
     });
@@ -2781,99 +2782,95 @@ function renderNotesWithPhotos(e){
   return { html, leftoverPhotos };
 }
 
+// Builds the markup for a single visit within the lightbox: its own
+// date/price/rating header (with edit/delete just for that visit), then
+// the same dish/wine/cheese/spirit/charcuterie/attachment/notes sections
+// the single-visit view always had — those renderers just read whatever
+// object they're handed, so passing a visit instead of a whole entry
+// works unchanged.
+function renderVisitBlockHtml(restaurantId, visit){
+  const metaBits = [];
+  if(visit.date) metaBits.push(fmtDate(visit.date));
+  if(visit.price) metaBits.push(visit.price);
+  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(visit);
+  const dishesHtml = renderDishItemsHtml(visit);
+  const winesHtml = renderWineItemsHtml(visit);
+  const cheesesHtml = renderCheeseItemsHtml(visit);
+  const spiritsHtml = renderSpiritItemsHtml(visit);
+  const charcuterieHtml = renderCharcuterieItemsHtml(visit);
+  const attachmentsHtml = renderAttachmentsHtml(visit);
+  return `
+    <div class="lightbox-notes visit-block" data-visit-id="${escapeHtml(visit.id)}">
+      <div class="entry-top" style="margin-bottom:6px;">
+        <span class="lbl" style="margin:0;">${metaBits.map(escapeHtml).join(' · ') || 'Visit'}</span>
+        ${visit.rating ? `<div class="entry-rating">${starsHtml(visit.rating)}</div>` : ''}
+      </div>
+      ${dishesHtml ? `<div><span class="lbl">Dishes</span>${dishesHtml}</div>` : ''}
+      ${winesHtml ? `<div><span class="lbl">Wines</span>${winesHtml}</div>` : ''}
+      ${cheesesHtml ? `<div><span class="lbl">Cheeses</span>${cheesesHtml}</div>` : ''}
+      ${spiritsHtml ? `<div><span class="lbl">Spirits</span>${spiritsHtml}</div>` : ''}
+      ${charcuterieHtml ? `<div><span class="lbl">Charcuterie</span>${charcuterieHtml}</div>` : ''}
+      ${attachmentsHtml ? `<div><span class="lbl">Attachments</span>${attachmentsHtml}</div>` : ''}
+      ${notesHtml ? `<div><span class="lbl">Notes</span>${notesHtml}</div>` : ''}
+      ${(leftoverPhotos && leftoverPhotos.length) ? `<div class="lightbox-photos" style="display:grid;">${leftoverPhotos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
+      <div class="entry-actions" style="position:static;display:flex;gap:8px;margin-top:6px;">
+        <button type="button" class="visitEditBtn">edit visit</button>
+        <button type="button" class="visitDelBtn">delete visit</button>
+      </div>
+    </div>`;
+}
+
 function openLightbox(id){
-  const e = entries.find(x => x.id === id);
-  if(!e) return;
+  const r = entries.find(x => x.id === id);
+  if(!r) return;
   currentLightboxId = id;
 
-  const websiteHref = safeUrl(e.website);
+  const websiteHref = safeUrl(r.website);
   if(websiteHref){
-    $('lb-name').innerHTML = `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(e.name || 'Untitled')}</a>`;
+    $('lb-name').innerHTML = `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(r.name || 'Untitled')}</a>`;
   } else {
-    $('lb-name').textContent = e.name || 'Untitled';
+    $('lb-name').textContent = r.name || 'Untitled';
   }
 
+  const visits = [...(r.visits || [])].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   const metaBits = [];
-  if(e.date) metaBits.push(fmtDate(e.date));
-  if(placeLine(e)) metaBits.push(placeLine(e));
-  if(e.rating) metaBits.push(starsHtml(e.rating));
-  $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
+  if(placeLine(r)) metaBits.push(placeLine(r));
+  metaBits.push(visits.length + (visits.length === 1 ? ' visit' : ' visits'));
+  $('lb-meta').innerHTML = metaBits.map(m => `<span>${escapeHtml(m)}</span>`).join('');
 
-  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(e);
+  $('lb-tags').innerHTML = (r.tags && r.tags.length)
+    ? r.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
+    : '';
 
-  const dishItems = dishItemsOf(e);
-  if(dishItems.length){
-    $('lb-dishes-wrap').style.display = 'block';
-    $('lb-dishes').innerHTML = renderDishItemsHtml(e);
-  } else {
-    $('lb-dishes-wrap').style.display = 'none';
-  }
+  $('lb-visits').innerHTML = visits.map(v => renderVisitBlockHtml(r.id, v)).join('');
 
-  const wineItems = wineItemsOf(e);
-  if(wineItems.length){
-    $('lb-wines-wrap').style.display = 'block';
-    $('lb-wines').innerHTML = renderWineItemsHtml(e);
-  } else {
-    $('lb-wines-wrap').style.display = 'none';
-  }
-
-  const cheeseItems = cheeseItemsOf(e);
-  if(cheeseItems.length){
-    $('lb-cheeses-wrap').style.display = 'block';
-    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
-  } else {
-    $('lb-cheeses-wrap').style.display = 'none';
-  }
-
-  const spiritItems = spiritItemsOf(e);
-  if(spiritItems.length){
-    $('lb-spirits-wrap').style.display = 'block';
-    $('lb-spirits').innerHTML = renderSpiritItemsHtml(e);
-  } else {
-    $('lb-spirits-wrap').style.display = 'none';
-  }
-
-  const charcuterieItems = charcuterieItemsOf(e);
-  if(charcuterieItems.length){
-    $('lb-charcuterie-wrap').style.display = 'block';
-    $('lb-charcuterie').innerHTML = renderCharcuterieItemsHtml(e);
-  } else {
-    $('lb-charcuterie-wrap').style.display = 'none';
-  }
-
-  if(e.attachments && e.attachments.length){
-    $('lb-attachments-wrap').style.display = 'block';
-    $('lb-attachments').innerHTML = renderAttachmentsHtml(e);
-  } else {
-    $('lb-attachments-wrap').style.display = 'none';
-  }
-
-  if(e.notes){
-    $('lb-notes-wrap').style.display = 'block';
-    $('lb-notes').innerHTML = notesHtml;
-  } else {
-    $('lb-notes-wrap').style.display = 'none';
-  }
-
-  const photosWrap = $('lb-photos');
-  if(leftoverPhotos && leftoverPhotos.length){
-    photosWrap.style.display = 'grid';
-    photosWrap.innerHTML = leftoverPhotos.map(p => `<img src="${photoUrl(p)}" alt="">`).join('');
-  } else {
-    photosWrap.style.display = 'none';
-    photosWrap.innerHTML = '';
-  }
-
-  $('lightbox').querySelectorAll('.note-photo, #lb-photos img').forEach(img=>{
+  $('lightbox').querySelectorAll('.note-photo, .lightbox-photos img').forEach(img=>{
     img.addEventListener('click', ev => {
       ev.stopPropagation();
       openPhotoZoom(img.src);
     });
   });
 
-  $('lb-tags').innerHTML = (e.tags && e.tags.length)
-    ? e.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
-    : '';
+  $('lb-visits').querySelectorAll('.visitEditBtn').forEach(btn=>{
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const visitId = btn.closest('.visit-block').dataset.visitId;
+      closeLightbox();
+      openForEditVisit(r.id, visitId);
+    });
+  });
+  $('lb-visits').querySelectorAll('.visitDelBtn').forEach(btn=>{
+    btn.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      const visitId = btn.closest('.visit-block').dataset.visitId;
+      const restaurant = entries.find(x=>x.id===r.id);
+      const only = restaurant && (restaurant.visits||[]).length <= 1;
+      const msg = only ? 'This is the only visit — deleting it removes the whole restaurant entry. Continue?' : 'Remove this visit?';
+      if(confirm(msg)){
+        await deleteVisit(r.id, visitId);
+      }
+    });
+  });
 
   $('lightbox').classList.add('open');
 }
@@ -2977,6 +2974,86 @@ function resetForm(){
   $('f-tags').value='';
   setStars(0);
   editingId = null;
+  editingVisitId = null;
+  $('saveBtn').textContent = 'Save Entry';
+}
+
+// Fills just the restaurant-level fields (name/website/location/tags) from
+// an existing restaurant record — shared by both "add a visit" and
+// "edit a past visit", since both keep those fields editable alongside
+// whichever visit is being worked on.
+function fillRestaurantFields(r){
+  $('f-name').value = r.name || '';
+  $('f-website').value = r.website || '';
+  $('f-neighborhood').value = r.neighborhood || '';
+  $('f-place').value = r.place || '';
+  $('f-state').value = r.state || '';
+  $('f-country').value = r.country || '';
+  $('f-tags').value = (r.tags||[]).join(', ');
+}
+
+// Fills the visit-level fields (date/price/rating/dishes/wines/.../notes)
+// from a given visit object — everything that's unique to one meal there,
+// as opposed to the restaurant itself.
+function fillVisitFields(v){
+  $('f-date').value = v.date || '';
+  $('f-price').value = v.price || '';
+  currentDishes = (v.dishItems && v.dishItems.length)
+    ? v.dishItems.map(d => ({...d}))
+    : (v.dishes ? v.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
+  renderDishesList();
+  currentWines = (v.wineItems && v.wineItems.length) ? v.wineItems.map(w => ({...w})) : [];
+  renderWinesList();
+  currentCheeses = (v.cheeseItems && v.cheeseItems.length)
+    ? v.cheeseItems.map(c => ({...c}))
+    : (v.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
+  renderCheesesList();
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  currentSpirits = (v.spiritItems && v.spiritItems.length) ? v.spiritItems.map(s => ({...s})) : [];
+  renderSpiritsList();
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
+  currentCharcuterie = (v.charcuterieItems && v.charcuterieItems.length) ? v.charcuterieItems.map(c => ({...c})) : [];
+  renderCharcuterieList();
+  refreshCharcuterieOptions().then(() => { readCharcuterieFromDom(); renderCharcuterieList(); });
+  currentAttachments = (v.attachments && v.attachments.length) ? v.attachments.map(a => ({...a})) : [];
+  renderAttachmentsList();
+  $('f-notes').value = v.notes || '';
+  setStars(v.rating || 0);
+}
+
+function openTicket(){
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// "+ Visit" on a restaurant card: keeps that restaurant's info, starts a
+// blank visit dated today, appends as a new visit on save.
+function openForNewVisit(restaurantId){
+  const r = entries.find(x=>x.id===restaurantId);
+  if(!r) return;
+  resetForm();
+  editingId = restaurantId;
+  editingVisitId = null;
+  fillRestaurantFields(r);
+  $('f-date').value = new Date().toISOString().slice(0,10);
+  $('saveBtn').textContent = 'Save Visit';
+  openTicket();
+}
+
+// Editing one specific past visit (or, from the card's own "edit" button,
+// the most recent one) — updates that visit in place on save.
+function openForEditVisit(restaurantId, visitId){
+  const r = entries.find(x=>x.id===restaurantId);
+  if(!r) return;
+  const v = (r.visits||[]).find(x=>x.id===visitId);
+  if(!v) return;
+  editingId = restaurantId;
+  editingVisitId = visitId;
+  fillRestaurantFields(r);
+  fillVisitFields(v);
+  $('saveBtn').textContent = 'Update Visit';
+  openTicket();
 }
 
 function setStars(n){
@@ -2986,50 +3063,23 @@ function setStars(n){
   });
 }
 
-function openForEdit(id){
-  const e = entries.find(x=>x.id===id);
-  if(!e) return;
-  editingId = id;
-  $('f-name').value = e.name || '';
-  $('f-website').value = e.website || '';
-  $('f-neighborhood').value = e.neighborhood || '';
-  $('f-place').value = e.place || '';
-  $('f-state').value = e.state || '';
-  $('f-country').value = e.country || '';
-  $('f-date').value = e.date || '';
-  $('f-price').value = e.price || '';
-  // Structured dishItems if present; otherwise convert the legacy flat
-  // `dishes` string into rows as an editable starting point — nothing is
-  // silently discarded or auto-migrated in the database, this only
-  // affects what you see when you open the form.
-  currentDishes = (e.dishItems && e.dishItems.length)
-    ? e.dishItems.map(d => ({...d}))
-    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
-  renderDishesList();
-  currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
-  renderWinesList();
-  // Structured cheeseItems if present; otherwise pull forward any cheese
-  // links still sitting on individual dishes from before Cheese moved out
-  // into its own section, so the connection isn't lost on first re-edit.
-  currentCheeses = (e.cheeseItems && e.cheeseItems.length)
-    ? e.cheeseItems.map(c => ({...c}))
-    : (e.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
-  renderCheesesList();
-  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
-  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
-  currentSpirits = (e.spiritItems && e.spiritItems.length) ? e.spiritItems.map(s => ({...s})) : [];
-  renderSpiritsList();
-  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
-  currentCharcuterie = (e.charcuterieItems && e.charcuterieItems.length) ? e.charcuterieItems.map(c => ({...c})) : [];
-  renderCharcuterieList();
-  refreshCharcuterieOptions().then(() => { readCharcuterieFromDom(); renderCharcuterieList(); });
-  currentAttachments = (e.attachments && e.attachments.length) ? e.attachments.map(a => ({...a})) : [];
-  renderAttachmentsList();
-  $('f-notes').value = e.notes || '';
-  $('f-tags').value = (e.tags||[]).join(', ');
-  setStars(e.rating || 0);
-  $('ticket').classList.add('open');
-  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+// One-time shape migration: entries used to be one row per visit (date,
+// dishItems, wineItems, ... all top-level alongside name/website/etc).
+// Now each row is one restaurant with a `visits` array holding those same
+// per-visit fields, so repeat visits live under one record instead of
+// spawning a duplicate restaurant card each time. Any entry loaded without
+// a `visits` array gets wrapped into one on the fly and written straight
+// back to storage — happens once per legacy entry, then never again.
+const VISIT_FIELD_KEYS = ['date','price','rating','dishItems','wineItems','cheeseItems','spiritItems','charcuterieItems','attachments','notes','dishes','photos'];
+
+function migrateEntryToVisits(raw){
+  if(raw && raw.visits) return { entry: raw, migrated: false };
+  const visit = { id: 'v' + Date.now() + Math.random().toString(36).slice(2,7) };
+  VISIT_FIELD_KEYS.forEach(k => { if(raw[k] !== undefined) visit[k] = raw[k]; });
+  const restaurant = { ...raw };
+  VISIT_FIELD_KEYS.forEach(k => { delete restaurant[k]; });
+  restaurant.visits = [visit];
+  return { entry: restaurant, migrated: true };
 }
 
 async function loadEntries(){
@@ -3040,37 +3090,46 @@ async function loadEntries(){
     // 'entry:m-...'. A bare 'entry:' prefix here would match both, silently
     // pulling every Music track into this app's own entry list (this
     // actually happened — it's what was surfacing as "Untitled" cards).
+    let loaded = [];
     if(storage.listWithValues){
       // Fast path: one request for everything.
       const result = await storage.listWithValues('entry:e');
-      entries = (result.items || [])
+      loaded = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
-      render();
-      return;
-    }
-    // Fallback for storage backends without a batch method (Claude artifact
-    // storage, plain localStorage) — one request per entry.
-    const result = await storage.list('entry:e');
-    if(!result || !result.keys || result.keys.length === 0){
-      entries = [];
-      render();
-      return;
-    }
-    const loaded = [];
-    for(const key of result.keys){
-      try{
-        const r = await storage.get(key);
-        if(r && r.value){
-          loaded.push(JSON.parse(r.value));
+    } else {
+      // Fallback for storage backends without a batch method (Claude
+      // artifact storage, plain localStorage) — one request per entry.
+      const result = await storage.list('entry:e');
+      if(result && result.keys && result.keys.length){
+        for(const key of result.keys){
+          try{
+            const r = await storage.get(key);
+            if(r && r.value) loaded.push(JSON.parse(r.value));
+          }catch(err){ /* skip missing */ }
         }
-      }catch(err){ /* skip missing */ }
+      }
     }
-    entries = loaded;
+
+    const migratedEntries = [];
+    for(const raw of loaded){
+      const { entry, migrated } = migrateEntryToVisits(raw);
+      migratedEntries.push(entry);
+      if(migrated){
+        try{ await storage.set('entry:' + entry.id, JSON.stringify(entry)); }
+        catch(err){ console.error('Could not persist visit-shape migration for', entry.id, err); }
+      }
+    }
+    entries = migratedEntries;
   }catch(err){
     entries = [];
   }
   render();
+}
+
+function latestVisit(r){
+  if(!r.visits || !r.visits.length) return {};
+  return [...r.visits].sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
 }
 
 async function saveEntry(){
@@ -3091,14 +3150,10 @@ async function saveEntry(){
   const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl || s.photoUrl);
   readCharcuterieFromDom();
   const charcuterieItems = currentCharcuterie.filter(c => c.charcuterieUrl);
-  const entry = {
-    id,
-    name,
-    website: normalizeAutofillUrl($('f-website').value),
-    neighborhood: $('f-neighborhood').value.trim(),
-    place: $('f-place').value.trim(),
-    state: $('f-state').value.trim(),
-    country: $('f-country').value.trim(),
+
+  const visitId = editingVisitId || ('v' + Date.now() + Math.random().toString(36).slice(2,7));
+  const visit = {
+    id: visitId,
     date: $('f-date').value,
     price: $('f-price').value,
     rating: currentStars,
@@ -3108,17 +3163,30 @@ async function saveEntry(){
     spiritItems,
     charcuterieItems,
     attachments: currentAttachments,
-    notes: $('f-notes').value.trim(),
-    tags
+    notes: $('f-notes').value.trim()
   };
+
+  const existing = entries.find(x=>x.id===id);
+  const restaurant = existing ? {...existing} : { id, visits: [] };
+  restaurant.name = name;
+  restaurant.website = normalizeAutofillUrl($('f-website').value);
+  restaurant.neighborhood = $('f-neighborhood').value.trim();
+  restaurant.place = $('f-place').value.trim();
+  restaurant.state = $('f-state').value.trim();
+  restaurant.country = $('f-country').value.trim();
+  restaurant.tags = tags;
+  restaurant.visits = existing ? [...existing.visits] : [];
+  if(editingVisitId){
+    const vIdx = restaurant.visits.findIndex(v=>v.id===editingVisitId);
+    if(vIdx>-1) restaurant.visits[vIdx] = visit; else restaurant.visits.push(visit);
+  } else {
+    restaurant.visits.push(visit);
+  }
+
   try{
-    await storage.set('entry:' + id, JSON.stringify(entry));
-    if(editingId){
-      const idx = entries.findIndex(e=>e.id===id);
-      if(idx>-1) entries[idx] = entry; else entries.push(entry);
-    } else {
-      entries.push(entry);
-    }
+    await storage.set('entry:' + id, JSON.stringify(restaurant));
+    const idx = entries.findIndex(e=>e.id===id);
+    if(idx>-1) entries[idx] = restaurant; else entries.push(restaurant);
     render();
     closeForm();
   }catch(err){
@@ -3127,6 +3195,7 @@ async function saveEntry(){
   }
 }
 
+// Removes the whole restaurant record (all of its visits).
 async function deleteEntry(id){
   try{
     await storage.delete('entry:' + id);
@@ -3134,6 +3203,33 @@ async function deleteEntry(id){
     render();
   }catch(err){
     alert('Could not delete entry. Please try again.');
+    console.error(err);
+  }
+}
+
+// Removes one visit from a restaurant's history. If it's the last visit,
+// this removes the whole restaurant record instead (nothing meaningful is
+// left to keep), and the lightbox is closed since there's nothing to show.
+async function deleteVisit(restaurantId, visitId){
+  const r = entries.find(x=>x.id===restaurantId);
+  if(!r) return;
+  const remaining = (r.visits||[]).filter(v=>v.id!==visitId);
+  if(remaining.length === 0){
+    closeLightbox();
+    await deleteEntry(restaurantId);
+    return;
+  }
+  const updated = {...r, visits: remaining};
+  try{
+    await storage.set('entry:' + restaurantId, JSON.stringify(updated));
+    const idx = entries.findIndex(e=>e.id===restaurantId);
+    if(idx>-1) entries[idx] = updated;
+    render();
+    if($('lightbox').classList.contains('open') && currentLightboxId === restaurantId){
+      openLightbox(restaurantId);
+    }
+  }catch(err){
+    alert('Could not delete visit. Please try again.');
     console.error(err);
   }
 }
