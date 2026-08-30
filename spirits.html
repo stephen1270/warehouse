@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="common.js"></script>
 <style>
   :root{
     --paper:#f3ece0;
@@ -622,88 +623,6 @@ function entryPhotos(e){
 // sync across devices instead of being trapped in one browser. Falls back
 // to localStorage if Supabase can't be reached, and to Claude's
 // window.storage when running inside a Claude artifact.
-const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
-
-const localStorageAdapter = {
-  async get(key){
-    const v = localStorage.getItem(key);
-    if(v === null) throw new Error('not found');
-    return {key, value: v};
-  },
-  async set(key, value){
-    localStorage.setItem(key, value);
-    return {key, value};
-  },
-  async delete(key){
-    localStorage.removeItem(key);
-    return {key, deleted: true};
-  },
-  async list(prefix){
-    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
-    return {keys};
-  }
-};
-
-let supabaseClient = null;
-let supabaseInitError = null;
-
-function makeSupabaseAdapter(){
-  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    supabaseInitError = 'Supabase library did not load — running on this browser only until the page is refreshed with a connection.';
-    return null;
-  }
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const client = supabaseClient;
-  return {
-    async get(key){
-      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
-      if(error) throw error;
-      if(!data) throw new Error('not found');
-      try{ localStorage.setItem(key, data.value); }catch(e){}
-      return {key, value: data.value};
-    },
-    async set(key, value){
-      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
-      if(error) throw error;
-      try{ localStorage.setItem(key, value); }catch(e){}
-      return {key, value};
-    },
-    async delete(key){
-      const { error } = await client.from('kv_store').delete().eq('key', key);
-      if(error) throw error;
-      try{ localStorage.removeItem(key); }catch(e){}
-      return {key, deleted: true};
-    },
-    async list(prefix){
-      let query = client.from('kv_store').select('key');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      return { keys: (data||[]).map(r => r.key) };
-    },
-    // Fetches every key+value under a prefix in ONE request, instead of
-    // list() + a get() per key. With hundreds of entries, one-request-per-
-    // entry means hundreds of sequential round trips before the page can
-    // render anything.
-    async listWithValues(prefix){
-      let query = client.from('kv_store').select('key,value');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      const items = data || [];
-      try{
-        for(const row of items) localStorage.setItem(row.key, row.value);
-      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
-      return { items: items.map(r => ({ key: r.key, value: r.value })) };
-    }
-  };
-}
-
-// Priority: Claude artifact storage > Supabase > localStorage
-const storage = (typeof window !== 'undefined' && window.storage)
-  ? window.storage
-  : (makeSupabaseAdapter() || localStorageAdapter);
 
 // --- Auth: read is public, only a signed-in session can add/edit/delete.
 // 2FA (TOTP) enrollment lives in Pantry (one-time setup), but the
@@ -1510,27 +1429,6 @@ function renderGallery(){
 
 // Resize/compress to a reasonable web size before storing as base64 —
 // keeps entries light and quick to load across the collection.
-function resizeImage(file, maxDim, quality){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
-        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 $('addPhotoTile').addEventListener('click', () => $('f-photos').click());
 $('f-photos').addEventListener('change', async () => {

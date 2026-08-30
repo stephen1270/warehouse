@@ -325,6 +325,7 @@
   button.danger{border-color:var(--rust);color:var(--rust);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="common.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -538,75 +539,6 @@ let currentImages = []; // full-size base64 images for the entry currently being
 // trapped in one browser's localStorage. Falls back to localStorage if
 // Supabase can't be reached (e.g. offline), and to Claude's window.storage
 // when running inside a Claude artifact.
-const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
-
-const localStorageAdapter = {
-  async get(key){
-    const v = localStorage.getItem(key);
-    if(v === null) throw new Error('not found');
-    return {key, value: v};
-  },
-  async set(key, value){
-    localStorage.setItem(key, value);
-    return {key, value};
-  },
-  async delete(key){
-    localStorage.removeItem(key);
-    return {key, deleted: true};
-  },
-  async list(prefix){
-    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
-    return {keys};
-  }
-};
-
-let supabaseClient = null;
-let supabaseInitError = null;
-
-function makeSupabaseAdapter(){
-  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    supabaseInitError = "Couldn't load the Supabase library (blocked by an ad blocker/network filter, or a connectivity issue) — showing this browser's local copy only. Entries saved from other devices won't appear until this loads successfully.";
-    console.error('Pantry Ledger:', supabaseInitError);
-    return null;
-  }
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const client = supabaseClient;
-  return {
-    async get(key){
-      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
-      if(error) throw error;
-      if(!data) throw new Error('not found');
-      // keep a local mirror so the app still works offline
-      try{ localStorage.setItem(key, data.value); }catch(e){}
-      return {key, value: data.value};
-    },
-    async set(key, value){
-      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
-      if(error) throw error;
-      try{ localStorage.setItem(key, value); }catch(e){}
-      return {key, value};
-    },
-    async delete(key){
-      const { error } = await client.from('kv_store').delete().eq('key', key);
-      if(error) throw error;
-      try{ localStorage.removeItem(key); }catch(e){}
-      return {key, deleted: true};
-    },
-    async list(prefix){
-      let query = client.from('kv_store').select('key');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      return { keys: (data||[]).map(r => r.key) };
-    }
-  };
-}
-
-// Priority: Claude artifact storage > Supabase > localStorage
-const storage = (typeof window !== 'undefined' && window.storage)
-  ? window.storage
-  : (makeSupabaseAdapter() || localStorageAdapter);
 
 // --- Auth: read is public, only a signed-in session can add/edit/delete.
 // 2FA (TOTP) is layered on top: if this Supabase Auth account has an
@@ -779,27 +711,6 @@ if(supabaseClient){
 
 function imagesKey(id){ return 'pantry-ledger-images:' + id; }
 
-function resizeImage(file, maxDim, quality){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
-        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 // Generates a genuinely small thumbnail from an already-resized data URL —
 // real bug found and fixed: the card list used to store the FULL-size
@@ -811,6 +722,10 @@ function resizeImage(file, maxDim, quality){
 function makeThumbFromDataUrl(dataUrl, maxDim, quality){
   return new Promise((resolve, reject)=>{
     const img = new Image();
+    // Photos are now Storage URLs (cross-origin from stephen1270.github.io),
+    // not just inline data: URLs -- crossOrigin is required so the canvas
+    // read below doesn't get tainted. Harmless no-op for data: URLs.
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       let w = img.width, h = img.height;
       if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
@@ -823,6 +738,40 @@ function makeThumbFromDataUrl(dataUrl, maxDim, quality){
     img.onerror = reject;
     img.src = dataUrl;
   });
+}
+
+// Uploads any newly-captured photos (data: URLs) in `images` to the
+// pantry-photos Storage bucket, leaving already-migrated https:// URLs
+// (loaded back from a previous save) untouched. Returns the array with
+// data: URLs replaced by their public Storage URLs -- this is what
+// actually gets written to pantry-ledger-images now, instead of raw
+// base64. Falls back to storing images as-is (old inline behavior) if
+// Supabase isn't reachable, so offline/local mode still works.
+async function uploadImagesToStorage(images, id){
+  if(!supabaseClient) return images;
+  const out = [];
+  for(let i=0;i<images.length;i++){
+    const img = images[i];
+    if(typeof img !== 'string' || !img.startsWith('data:')){ out.push(img); continue; }
+    const match = img.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+    if(!match){ out.push(img); continue; }
+    const mime = match[1];
+    const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
+    const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+    const path = `${id}/${i}.${ext}`;
+    try{
+      const { error } = await supabaseClient.storage
+        .from('pantry-photos')
+        .upload(path, bytes, { contentType: mime, upsert: true });
+      if(error) throw error;
+      const { data: pub } = supabaseClient.storage.from('pantry-photos').getPublicUrl(path);
+      out.push(pub.publicUrl);
+    }catch(err){
+      console.error('Photo upload to Storage failed, keeping inline copy for now', err);
+      out.push(img); // safe fallback: entry still saves, just not migrated yet
+    }
+  }
+  return out;
 }
 
 function renderGallery(){
@@ -1513,6 +1462,7 @@ async function saveEntry(){
 
   try{
     if(currentImages.length){
+      currentImages = await uploadImagesToStorage(currentImages, id);
       await storage.set(imagesKey(id), JSON.stringify(currentImages));
     }else{
       try{ await storage.delete(imagesKey(id)); }catch(e){ /* no images existed, fine */ }
