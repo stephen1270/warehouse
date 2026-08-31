@@ -1469,12 +1469,12 @@ async function refreshWineOptions(){
   }
 }
 
-async function createNewWine(name){
+async function createNewWine(name, photoUrl){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
     id, name,
-    photos: [],
+    photos: photoUrl ? [photoUrl] : [],
     producer: '', producerUrl: '',
     winemaker: '',
     merchant: '', merchantUrl: '',
@@ -1517,7 +1517,7 @@ async function identifyWineFromPhoto(dataUrl, existingNote){
     const lookup = await lookupRes.json();
 
     if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
-      const created = await createWineFromUrl(lookup.url);
+      const created = await createWineFromUrl(lookup.url, dataUrl);
       wineOptions.push({ id: created.id, name: created.name });
       wineOptions.sort((a,b) => a.name.localeCompare(b.name));
       return {
@@ -1597,7 +1597,12 @@ function renderWinesList(){
       }
       wineSelect.disabled = true;
       try{
-        const created = await createNewWine(name.trim());
+        // currentWines[i].photoUrl is kept in sync directly by the photo
+        // upload/clear handlers below (not just via readWinesFromDom), so
+        // it's already accurate here even if the row's name/note fields
+        // haven't been re-synced from the DOM yet — pass it through so a
+        // photo already on this row propagates to the wine being created.
+        const created = await createNewWine(name.trim(), currentWines[i].photoUrl);
         wineOptions.push(created);
         wineOptions.sort((a,b) => a.name.localeCompare(b.name));
         readWinesFromDom();
@@ -1810,7 +1815,12 @@ $('addWineByUrlBtn').addEventListener('click', async () => {
 // Fetches wine-autofill for a URL and writes a real, populated Wine entry
 // directly into the shared kv_store (not just a name stub) — reuses the
 // exact same edge function wine.html's own Autofill button calls.
-async function createWineFromUrl(url){
+// Optional extraPhoto is the actual photo the user took of this bottle
+// (from the photo-identify flow) — when present it's put first in the
+// new entry's photos array, ahead of anything wine-autofill scraped off
+// the producer's page, since a real photo of this specific bottle is
+// more useful than a generic product shot.
+async function createWineFromUrl(url, extraPhoto){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-autofill', {
     method: 'POST',
@@ -1849,7 +1859,9 @@ async function createWineFromUrl(url){
   const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
     id, name: data.name,
-    photos: data.photo ? [data.photo] : [],
+    photos: extraPhoto
+      ? [extraPhoto, ...(data.photo ? [data.photo] : [])]
+      : (data.photo ? [data.photo] : []),
     producer: data.producer || '', producerUrl: data.producerUrl || '',
     winemaker: data.winemaker || '',
     merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
