@@ -129,7 +129,6 @@
   .entry-body{flex:1;min-width:0;}
   .entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .entry-title{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:19px;line-height:1.3;}
-  .entry-studio{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--marquee);margin-bottom:2px;}
   .entry-meta{font-size:11px;color:var(--slate);opacity:.85;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
   .entry-rating{color:var(--marquee);font-size:13px;white-space:nowrap;}
   .entry-imdb{font-size:10px;color:var(--slate);opacity:.8;white-space:nowrap;}
@@ -152,7 +151,7 @@
   <header>
     <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; A Collection Of Collections</div>
     <h1>Movies</h1>
-    <div class="sub">DVDs and Blu-rays, cataloged from CLZ &mdash; genre, studio, director, condition</div>
+    <div class="sub">DVDs and Blu-rays, cataloged from CLZ &mdash; genre, director, condition</div>
     <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
     <div class="rule"></div>
   </header>
@@ -176,11 +175,7 @@
       <label>Title</label>
       <input id="f-title" type="text" placeholder="The Tree of Life">
     </div>
-    <div class="row3">
-      <div class="field">
-        <label>Studio</label>
-        <input id="f-studio" type="text" placeholder="Fox Searchlight Pictures">
-      </div>
+    <div class="row2">
       <div class="field">
         <label>Year</label>
         <input id="f-year" type="text" placeholder="2011">
@@ -263,7 +258,7 @@
   </div>
 
   <div class="filters">
-    <input class="f-search" id="filterSearch" type="text" placeholder="Search title, studio, director, plot…">
+    <input class="f-search" id="filterSearch" type="text" placeholder="Search title, director, plot…">
     <select class="f-sel" id="filterGenre"><option value="">All genres</option></select>
     <select class="f-sel" id="filterSort">
       <option value="title">Sort: Title</option>
@@ -468,7 +463,7 @@ function getFiltered(){
   let list = entries.filter(e=>{
     if(genre && !(e.genres||[]).includes(genre)) return false;
     if(q){
-      const hay = [e.title, e.studio, e.director, e.plot].join(' ').toLowerCase();
+      const hay = [e.title, e.director, e.plot].join(' ').toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
@@ -514,7 +509,6 @@ function render(){
         </div>
         <div class="entry-top">
           <div>
-            ${e.studio ? `<div class="entry-studio">${escapeHtml(e.studio)}</div>` : ''}
             <div class="entry-title">${escapeHtml(e.title || 'Untitled')}</div>
             <div class="entry-meta">
               ${e.year ? `<span>${escapeHtml(e.year)}</span>` : ''}
@@ -560,7 +554,6 @@ function render(){
 
 function resetForm(){
   $('f-title').value='';
-  $('f-studio').value='';
   $('f-year').value='';
   $('f-runtime').value='';
   $('f-director').value='';
@@ -592,7 +585,6 @@ function openForEdit(id){
   if(!e) return;
   editingId = id;
   $('f-title').value = e.title || '';
-  $('f-studio').value = e.studio || '';
   $('f-year').value = e.year || '';
   $('f-runtime').value = e.runtime || '';
   $('f-director').value = e.director || '';
@@ -658,7 +650,6 @@ async function saveEntry(){
   const entry = {
     id,
     title,
-    studio: $('f-studio').value.trim(),
     year: $('f-year').value.trim(),
     runtime: $('f-runtime').value.trim(),
     director: $('f-director').value.trim(),
@@ -763,8 +754,6 @@ function parseClzXml(xmlText){
     const hash = txt(m, 'hash');
     const year = txt(m, 'releasedate > year > displayname');
     const genres = Array.from(m.querySelectorAll('genres > genre')).map(g => txt(g,'displayname')).filter(Boolean);
-    const studioNames = Array.from(m.querySelectorAll('studios > studio')).map(s => txt(s,'displayname')).filter(Boolean);
-    const studio = studioNames.join(' / ');
     const country = txt(m, 'country > displayname');
     const language = txt(m, 'language > displayname');
     const plotEl = m.querySelector('plot');
@@ -782,7 +771,7 @@ function parseClzXml(xmlText){
     const addedDate = addedTs ? new Date(parseInt(addedTs) * 1000).toISOString().slice(0,10) : '';
     const id = hash ? hash.slice(0,8) : (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
     return {
-      id, title, year, genres, studio, country, language, plot,
+      id, title, year, genres, country, language, plot,
       imdbRating, imdbUrl, runtime, discs, quantity, edition,
       audienceRating, cover, rating, addedDate, director: '', condition: ''
     };
