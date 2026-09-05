@@ -2307,6 +2307,35 @@ function latestVisit(r){
   return [...r.visits].sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
 }
 
+// Keeps a Bread/Pastry/Pie item's own record in sync with the Bakery it's
+// linked to. This matters most for a brand-new bakery: createNewBread/
+// createNewPastry/createNewPie can only write the back-link when editingId
+// already exists (see those functions above) — a bakery that hasn't been
+// saved yet has no stable id to link to. Calling this after every save
+// closes that gap by revisiting each linked item and writing the
+// now-final bakery id/name onto it. Idempotent and safe to run on every
+// save (not just new bakeries): it fetches the item's current record and
+// only touches the bakery/bakeryUrl fields, so photos/producer/type/etc.
+// set later in bread.html/pastry.html/pie.html are never clobbered.
+async function syncItemBakeryBacklink(prefix, itemUrl, bakeryName, bakeryId){
+  if(!supabaseClient || !itemUrl) return;
+  const linkedId = itemUrl.split('#')[1];
+  if(!linkedId) return;
+  const key = prefix + linkedId;
+  const bakeryUrl = location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bakeries.html#' + bakeryId;
+  try{
+    const { data, error } = await supabaseClient.from('kv_store').select('value').eq('key', key).maybeSingle();
+    if(error || !data) return;
+    const record = JSON.parse(data.value);
+    if(record.bakery === bakeryName && record.bakeryUrl === bakeryUrl) return; // already in sync
+    record.bakery = bakeryName;
+    record.bakeryUrl = bakeryUrl;
+    await supabaseClient.from('kv_store').upsert({ key, value: JSON.stringify(record), updated_at: new Date().toISOString() });
+  }catch(err){
+    console.error('Could not sync bakery back-link for', key, err);
+  }
+}
+
 async function saveEntry(){
   const name = $('f-name').value.trim();
   if(!name){
@@ -2358,6 +2387,14 @@ async function saveEntry(){
     if(idx>-1) entries[idx] = restaurant; else entries.push(restaurant);
     render();
     closeForm();
+    // Fire-and-forget: now that this bakery has a final id, make sure every
+    // linked Bread/Pastry/Pie item actually points back to it. Doesn't
+    // block the UI — the form is already closed by this point.
+    await Promise.all([
+      ...breadItems.map(item => syncItemBakeryBacklink('bread:', item.breadUrl, name, id)),
+      ...pastryItems.map(item => syncItemBakeryBacklink('pastry:', item.pastryUrl, name, id)),
+      ...pieItems.map(item => syncItemBakeryBacklink('pie:', item.pieUrl, name, id)),
+    ]);
   }catch(err){
     alert('Could not save entry. Please try again.');
     console.error(err);
