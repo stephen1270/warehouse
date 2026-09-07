@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>Restaurants</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="common.js"></script>
 <style>
   :root{
     --paper:#f4f1e8;
@@ -132,7 +130,22 @@
   .ticket::before{top:-6px;transform:rotate(180deg);}
   .ticket::after{bottom:-6px;}
 
-  .field{margin-bottom:14px;}
+  .field{margin-bottom:14px;position:relative;}
+  .autocomplete-list{
+    position:absolute;top:100%;left:0;right:0;z-index:20;
+    background:var(--paper);border:1px solid var(--ink);border-top:none;
+    max-height:160px;overflow-y:auto;display:none;
+  }
+  .autocomplete-list.open{display:block;}
+  .autocomplete-list div{
+    padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .autocomplete-list div:hover, .autocomplete-list div.active{
+    background:var(--paper-dark);
+  }
+  .autocomplete-list .visit-hint{
+    font-size:10px;color:var(--slate);opacity:.7;margin-left:6px;
+  }
   .field label{
     display:block;
     font-size:10px;
@@ -305,10 +318,6 @@
     font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
   }
   .dish-rm:hover{color:var(--wine);}
-  .dish-row-links .dish-cheese-link{
-    text-decoration:none;font-size:15px;line-height:1;
-    display:inline-flex;align-items:center;padding:0 2px;
-  }
   .ghost-inline{
     font-family:inherit;font-size:11px;letter-spacing:.04em;
     color:var(--slate);background:none;border:none;cursor:pointer;
@@ -554,7 +563,8 @@
 
     <div class="field">
       <label>Restaurant</label>
-      <input id="f-name" type="text" placeholder="Bar Americano">
+      <input id="f-name" type="text" placeholder="Bar Americano" autocomplete="off">
+      <div class="autocomplete-list" id="f-name-options"></div>
     </div>
     <div class="field">
       <label>Restaurant link (optional)</label>
@@ -700,6 +710,86 @@ const $ = (id) => document.getElementById(id);
 // sync across devices instead of being trapped in one browser. Falls back
 // to localStorage if Supabase can't be reached, and to Claude's
 // window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything — this is what was making load slow.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
 
 // --- Auth: read is public, only a signed-in session can add/edit/delete.
 // 2FA (TOTP) enrollment lives in Pantry (one-time setup), but the
@@ -1048,6 +1138,27 @@ async function createNewCheese(name){
 // mirrors cheese.html/wine.html's gallery upload pipeline. Restaurants
 // never had a photo-upload mechanism before this (only paste-a-URL), so
 // this is new here.
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // Reads a file as a plain base64 data URL, no processing — used for PDFs,
 // which can't go through the canvas-based resizeImage() pipeline above
@@ -1376,7 +1487,7 @@ function renderDishesList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 640, 0.6);
+        const dataUrl = await resizeImage(file, 900, 0.7);
         readDishesFromDom();
         currentDishes[i].photoUrl = dataUrl;
         renderDishesList();
@@ -1469,12 +1580,12 @@ async function refreshWineOptions(){
   }
 }
 
-async function createNewWine(name, photoUrl){
+async function createNewWine(name){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
     id, name,
-    photos: photoUrl ? [photoUrl] : [],
+    photos: [],
     producer: '', producerUrl: '',
     winemaker: '',
     merchant: '', merchantUrl: '',
@@ -1494,45 +1605,6 @@ async function createNewWine(name, photoUrl){
     .upsert({ key: 'wine:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
   if(error) throw error;
   return { id, name };
-}
-
-// Shared by the toolbar's "+ Add by photo" and any per-row camera-icon
-// upload that finds the row still nameless: takes a resized photo data
-// URL, asks wine-label-lookup to identify it, and — if confident — hands
-// the match to wine-autofill via createWineFromUrl for the full extract.
-// Returns a wine-row object ({name, note, wineUrl, photoUrl}) either way;
-// on anything less than a confident match it just carries the photo
-// through with an empty name, same as the manual fallback always did.
-async function identifyWineFromPhoto(dataUrl, existingNote){
-  try{
-    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-      },
-      body: JSON.stringify({ image: dataUrl })
-    });
-    const lookup = await lookupRes.json();
-
-    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
-      const created = await createWineFromUrl(lookup.url, dataUrl);
-      wineOptions.push({ id: created.id, name: created.name });
-      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
-      return {
-        name: created.name,
-        note: existingNote || '',
-        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
-        photoUrl: dataUrl
-      };
-    }
-    if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
-    return { name: lookup.name || '', note: existingNote || '', wineUrl: '', photoUrl: dataUrl };
-  }catch(err){
-    console.error('Wine photo lookup/autofill failed', err);
-    return { name: '', note: existingNote || '', wineUrl: '', photoUrl: dataUrl };
-  }
 }
 
 function renderWinesList(){
@@ -1597,12 +1669,7 @@ function renderWinesList(){
       }
       wineSelect.disabled = true;
       try{
-        // currentWines[i].photoUrl is kept in sync directly by the photo
-        // upload/clear handlers below (not just via readWinesFromDom), so
-        // it's already accurate here even if the row's name/note fields
-        // haven't been re-synced from the DOM yet — pass it through so a
-        // photo already on this row propagates to the wine being created.
-        const created = await createNewWine(name.trim(), currentWines[i].photoUrl);
+        const created = await createNewWine(name.trim());
         wineOptions.push(created);
         wineOptions.sort((a,b) => a.name.localeCompare(b.name));
         readWinesFromDom();
@@ -1627,26 +1694,7 @@ function renderWinesList(){
       renderWinesList();
     });
 
-    // Open-in-new-tab link to this row's linked Wine entry, when there is
-    // one — lets you jump straight to wine.html to check or edit it
-    // without first saving and leaving this form.
-    const openWineLink = document.createElement('a');
-    openWineLink.className = 'dish-cheese-link';
-    openWineLink.title = 'Open this wine\u2019s entry';
-    openWineLink.textContent = '\ud83c\udf77';
-    openWineLink.target = '_blank';
-    openWineLink.rel = 'noopener';
-    openWineLink.style.display = currentId ? 'inline-flex' : 'none';
-    if(currentId) openWineLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + currentId;
-    wineSelect.addEventListener('change', () => {
-      if(wineSelect.value && wineSelect.value !== '__new__'){
-        openWineLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + wineSelect.value;
-        openWineLink.style.display = 'inline-flex';
-      } else if(!wineSelect.value){
-        openWineLink.style.display = 'none';
-      }
-    });
-
+    // Photo control: same paste-or-upload pattern as Dishes had.
     const photoWrap = document.createElement('div');
     photoWrap.className = 'dish-photo-wrap';
     const photoInput = document.createElement('input');
@@ -1667,28 +1715,9 @@ function renderWinesList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 640, 0.6);
+        const dataUrl = await resizeImage(file, 900, 0.7);
         readWinesFromDom();
-        // If this row doesn't have a name yet, try identifying the wine
-        // from the label (same lookup the toolbar's "+ Add by photo" runs)
-        // before falling back to just attaching the photo. A row that
-        // already has a name was presumably typed/picked on purpose, so
-        // that case stays a plain photo attach — no risk of overwriting it.
-        if(!currentWines[i].name){
-          const originalIcon = uploadBtn.textContent;
-          uploadBtn.textContent = '…';
-          uploadBtn.disabled = true;
-          try{
-            const result = await identifyWineFromPhoto(dataUrl, currentWines[i].note);
-            readWinesFromDom();
-            currentWines[i] = result;
-          } finally {
-            uploadBtn.textContent = originalIcon;
-            uploadBtn.disabled = false;
-          }
-        } else {
-          currentWines[i].photoUrl = dataUrl;
-        }
+        currentWines[i].photoUrl = dataUrl;
         renderWinesList();
       }catch(err){
         console.error('Could not process photo', err);
@@ -1716,7 +1745,7 @@ function renderWinesList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(wineSelect, openWineLink, photoWrap, rmBtn);
+    links.append(wineSelect, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -1752,27 +1781,66 @@ $('wineByPhotoInput').addEventListener('change', async () => {
   const originalText = btn.textContent;
   let dataUrl;
   try{
-    dataUrl = await resizeImage(file, 640, 0.6);
+    dataUrl = await resizeImage(file, 900, 0.7);
   }catch(err){
     console.error('Could not process photo', err);
     alert('Could not read that photo — please try another.');
     return;
   }
 
-  // Identify via the shared lookup helper, then push a new row with
-  // whatever it found — a confident match, a bare photo, or (if the
-  // request itself failed) just the photo, same fallback either way.
+  // Try to identify the wine from the label (vision + web search), then
+  // hand any URL it finds straight to wine-autofill for the full extract.
+  // If identification isn't set up yet, fails, or comes back low-confidence,
+  // this falls back to the original behavior: just attach the photo and
+  // let the person type the name themselves.
   btn.textContent = 'Identifying…';
   btn.disabled = true;
   try{
-    const result = await identifyWineFromPhoto(dataUrl, '');
-    readWinesFromDom();
-    currentWines.push(result);
-    renderWinesList();
-    if(!result.name){
-      const rows = $('winesList').querySelectorAll('.dish-row');
-      rows[rows.length-1].querySelector('.dish-name').focus();
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createWineFromUrl(lookup.url);
+      wineOptions.push({ id: created.id, name: created.name });
+      wineOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readWinesFromDom();
+      currentWines.push({
+        name: created.name,
+        note: '',
+        wineUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'wine.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderWinesList();
+    } else {
+      // Couldn't confidently identify it (or lookup isn't configured) —
+      // fall back to attaching just the photo, same as before.
+      if(!lookup.ok) console.warn('Wine label lookup unavailable:', lookup.error);
+      readWinesFromDom();
+      currentWines.push({name: lookup.name || '', note:'', wineUrl:'', photoUrl:dataUrl});
+      renderWinesList();
+      if(!lookup.name){
+        const rows = $('winesList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
     }
+  }catch(err){
+    console.error('Wine photo lookup/autofill failed', err);
+    // Still attach the photo even if identification broke entirely —
+    // never lose the photo the person just took.
+    readWinesFromDom();
+    currentWines.push({name:'', note:'', wineUrl:'', photoUrl:dataUrl});
+    renderWinesList();
+    const rows = $('winesList').querySelectorAll('.dish-row');
+    rows[rows.length-1].querySelector('.dish-name').focus();
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -1815,12 +1883,7 @@ $('addWineByUrlBtn').addEventListener('click', async () => {
 // Fetches wine-autofill for a URL and writes a real, populated Wine entry
 // directly into the shared kv_store (not just a name stub) — reuses the
 // exact same edge function wine.html's own Autofill button calls.
-// Optional extraPhoto is the actual photo the user took of this bottle
-// (from the photo-identify flow) — when present it's put first in the
-// new entry's photos array, ahead of anything wine-autofill scraped off
-// the producer's page, since a real photo of this specific bottle is
-// more useful than a generic product shot.
-async function createWineFromUrl(url, extraPhoto){
+async function createWineFromUrl(url){
   if(!supabaseClient) throw new Error('Not connected to Supabase');
   const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/wine-autofill', {
     method: 'POST',
@@ -1835,33 +1898,10 @@ async function createWineFromUrl(url, extraPhoto){
   if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
   if(!data.name) throw new Error('Could not find a wine name on that page.');
 
-  // Guard against creating a duplicate: if a wine with this exact name
-  // and producer link already exists, reuse it instead of minting a new
-  // record. Matters most for the photo-identify flow, where the same
-  // bottle can get identified twice (two rows, or a retried upload) and
-  // would otherwise silently create two entries for the same wine.
-  if(data.producerUrl){
-    try{
-      const { data: candidates } = await supabaseClient
-        .from('kv_store')
-        .select('key,value')
-        .like('key', 'wine:%')
-        .ilike('value', `%${data.producerUrl}%`);
-      const match = (candidates || [])
-        .map(r => { try{ return JSON.parse(r.value); }catch(e){ return null; } })
-        .find(w => w && w.name === data.name && w.producerUrl === data.producerUrl);
-      if(match) return { id: match.id, name: match.name };
-    }catch(err){
-      console.warn('Duplicate-wine check failed, proceeding to create a new entry', err);
-    }
-  }
-
   const id = 'w' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
     id, name: data.name,
-    photos: extraPhoto
-      ? [extraPhoto, ...(data.photo ? [data.photo] : [])]
-      : (data.photo ? [data.photo] : []),
+    photos: data.photo ? [data.photo] : [],
     producer: data.producer || '', producerUrl: data.producerUrl || '',
     winemaker: data.winemaker || '',
     merchant: data.merchant || '', merchantUrl: data.merchantUrl || '',
@@ -2104,43 +2144,6 @@ async function createNewSpirit(name){
   return { id, name };
 }
 
-// Spirits' version of identifyWineFromPhoto — same pattern: identify the
-// bottle from its label, hand any match to spirits-autofill via
-// createSpiritFromUrl, and always return a usable row (confident match,
-// bare photo, or empty name on failure) so the caller never has to think
-// about which branch it landed in.
-async function identifySpiritFromPhoto(dataUrl, existingNote){
-  try{
-    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-      },
-      body: JSON.stringify({ image: dataUrl })
-    });
-    const lookup = await lookupRes.json();
-
-    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
-      const created = await createSpiritFromUrl(lookup.url);
-      spiritOptions.push({ id: created.id, name: created.name });
-      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
-      return {
-        name: created.name,
-        note: existingNote || '',
-        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
-        photoUrl: dataUrl
-      };
-    }
-    if(!lookup.ok) console.warn('Spirit label lookup unavailable:', lookup.error);
-    return { name: lookup.name || '', note: existingNote || '', spiritUrl: '', photoUrl: dataUrl };
-  }catch(err){
-    console.error('Spirit photo lookup/autofill failed', err);
-    return { name: '', note: existingNote || '', spiritUrl: '', photoUrl: dataUrl };
-  }
-}
-
 function renderSpiritsList(){
   const wrap = $('spiritsList');
   wrap.innerHTML = '';
@@ -2228,25 +2231,6 @@ function renderSpiritsList(){
       renderSpiritsList();
     });
 
-    // Open-in-new-tab link to this row's linked Spirits entry — mirrors
-    // Wine's equivalent link exactly.
-    const openSpiritLink = document.createElement('a');
-    openSpiritLink.className = 'dish-cheese-link';
-    openSpiritLink.title = 'Open this spirit\u2019s entry';
-    openSpiritLink.textContent = '\ud83c\udf78';
-    openSpiritLink.target = '_blank';
-    openSpiritLink.rel = 'noopener';
-    openSpiritLink.style.display = currentId ? 'inline-flex' : 'none';
-    if(currentId) openSpiritLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + currentId;
-    spiritSelect.addEventListener('change', () => {
-      if(spiritSelect.value && spiritSelect.value !== '__new__'){
-        openSpiritLink.href = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + spiritSelect.value;
-        openSpiritLink.style.display = 'inline-flex';
-      } else if(!spiritSelect.value){
-        openSpiritLink.style.display = 'none';
-      }
-    });
-
     // Photo control: same paste-or-upload pattern as Dishes/Wines had.
     const photoWrap = document.createElement('div');
     photoWrap.className = 'dish-photo-wrap';
@@ -2268,23 +2252,9 @@ function renderSpiritsList(){
       const file = fileInput.files[0];
       if(!file) return;
       try{
-        const dataUrl = await resizeImage(file, 640, 0.6);
+        const dataUrl = await resizeImage(file, 900, 0.7);
         readSpiritsFromDom();
-        if(!currentSpirits[i].name){
-          const originalIcon = uploadBtn.textContent;
-          uploadBtn.textContent = '…';
-          uploadBtn.disabled = true;
-          try{
-            const result = await identifySpiritFromPhoto(dataUrl, currentSpirits[i].note);
-            readSpiritsFromDom();
-            currentSpirits[i] = result;
-          } finally {
-            uploadBtn.textContent = originalIcon;
-            uploadBtn.disabled = false;
-          }
-        } else {
-          currentSpirits[i].photoUrl = dataUrl;
-        }
+        currentSpirits[i].photoUrl = dataUrl;
         renderSpiritsList();
       }catch(err){
         console.error('Could not process photo', err);
@@ -2312,7 +2282,7 @@ function renderSpiritsList(){
       photoWrap.append(photoInput);
     }
 
-    links.append(spiritSelect, openSpiritLink, photoWrap, rmBtn);
+    links.append(spiritSelect, photoWrap, rmBtn);
     row.append(main, links);
     wrap.appendChild(row);
   });
@@ -2377,25 +2347,62 @@ $('spiritByPhotoInput').addEventListener('change', async () => {
   const originalText = btn.textContent;
   let dataUrl;
   try{
-    dataUrl = await resizeImage(file, 640, 0.6);
+    dataUrl = await resizeImage(file, 900, 0.7);
   }catch(err){
     console.error('Could not process photo', err);
     alert('Could not read that photo — please try another.');
     return;
   }
 
-  // Identify via the shared lookup helper — mirrors Wine's simplified flow.
+  // Try to identify the bottle from the label (vision + web search), then
+  // hand any URL it finds straight to spirits-autofill for the full
+  // extract. If identification isn't set up yet, fails, or comes back
+  // low-confidence, this falls back to just attaching the photo and
+  // letting the person type the name themselves — mirrors Wine exactly.
   btn.textContent = 'Identifying…';
   btn.disabled = true;
   try{
-    const result = await identifySpiritFromPhoto(dataUrl, '');
-    readSpiritsFromDom();
-    currentSpirits.push(result);
-    renderSpiritsList();
-    if(!result.name){
-      const rows = $('spiritsList').querySelectorAll('.dish-row');
-      rows[rows.length-1].querySelector('.dish-name').focus();
+    const lookupRes = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/spirits-label-lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
+        'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
+      },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const lookup = await lookupRes.json();
+
+    if(lookup.ok && lookup.url && lookup.confidence !== 'low'){
+      btn.textContent = 'Fetching details…';
+      const created = await createSpiritFromUrl(lookup.url);
+      spiritOptions.push({ id: created.id, name: created.name });
+      spiritOptions.sort((a,b) => a.name.localeCompare(b.name));
+      readSpiritsFromDom();
+      currentSpirits.push({
+        name: created.name,
+        note: '',
+        spiritUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'spirits.html#' + created.id,
+        photoUrl: dataUrl
+      });
+      renderSpiritsList();
+    } else {
+      if(!lookup.ok) console.warn('Spirits label lookup unavailable:', lookup.error);
+      readSpiritsFromDom();
+      currentSpirits.push({name: lookup.name || '', note:'', spiritUrl:'', photoUrl:dataUrl});
+      renderSpiritsList();
+      if(!lookup.name){
+        const rows = $('spiritsList').querySelectorAll('.dish-row');
+        rows[rows.length-1].querySelector('.dish-name').focus();
+      }
     }
+  }catch(err){
+    console.error('Spirits photo lookup/autofill failed', err);
+    readSpiritsFromDom();
+    currentSpirits.push({name:'', note:'', spiritUrl:'', photoUrl:dataUrl});
+    renderSpiritsList();
+    const rows = $('spiritsList').querySelectorAll('.dish-row');
+    rows[rows.length-1].querySelector('.dish-name').focus();
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
@@ -2418,23 +2425,6 @@ async function createSpiritFromUrl(url){
   const data = await res.json();
   if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
   if(!data.name) throw new Error('Could not find a spirit name on that page.');
-
-  // Same duplicate guard as createWineFromUrl.
-  if(data.producerUrl){
-    try{
-      const { data: candidates } = await supabaseClient
-        .from('kv_store')
-        .select('key,value')
-        .like('key', 'spirits:%')
-        .ilike('value', `%${data.producerUrl}%`);
-      const match = (candidates || [])
-        .map(r => { try{ return JSON.parse(r.value); }catch(e){ return null; } })
-        .find(s => s && s.name === data.name && s.producerUrl === data.producerUrl);
-      if(match) return { id: match.id, name: match.name };
-    }catch(err){
-      console.warn('Duplicate-spirit check failed, proceeding to create a new entry', err);
-    }
-  }
 
   const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
   const entry = {
@@ -3283,6 +3273,43 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
 });
 
 $('search').addEventListener('input', render);
+
+// Restaurant-name autocomplete: as you type in "+ New Entry", suggests
+// restaurants you've already logged (sourced straight from the in-memory
+// `entries` list — no network call needed). Picking one switches the form
+// into "add a visit to that restaurant" instead of creating a duplicate
+// record with the same name. Harmless if triggered while already editing
+// that same restaurant — it just re-fills the name.
+function restaurantNameOptions(){
+  return entries
+    .map(r => ({ id: r.id, name: r.name }))
+    .filter(o => o.name)
+    .sort((a,b) => a.name.localeCompare(b.name));
+}
+function renderNameSuggestions(){
+  const list = $('f-name-options');
+  // Only offer this while creating a brand-new restaurant (editingId is
+  // null). If a visit is already being added/edited, silently switching
+  // restaurants here could discard whatever's been filled in so far.
+  if(editingId){ list.classList.remove('open'); return; }
+  const q = $('f-name').value.trim().toLowerCase();
+  const opts = restaurantNameOptions().filter(o => !q || o.name.toLowerCase().includes(q));
+  if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
+  list.innerHTML = opts.map(o => `<div data-id="${escapeHtml(o.id)}" data-name="${escapeHtml(o.name)}">${escapeHtml(o.name)}<span class="visit-hint">(${(entries.find(r=>r.id===o.id).visits||[]).length} visit${(entries.find(r=>r.id===o.id).visits||[]).length===1?'':'s'} logged)</span></div>`).join('');
+  list.classList.add('open');
+}
+function hideNameSuggestions(){ $('f-name-options').classList.remove('open'); }
+
+$('f-name').addEventListener('focus', renderNameSuggestions);
+$('f-name').addEventListener('input', renderNameSuggestions);
+$('f-name').addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
+$('f-name-options').addEventListener('mousedown', (e) => {
+  const opt = e.target.closest('[data-id]');
+  if(!opt) return;
+  const id = opt.dataset.id;
+  hideNameSuggestions();
+  openForNewVisit(id);
+});
 
 loadEntries().then(openFromHash);
 </script>
