@@ -359,6 +359,8 @@ function render(){
   `;
   }).join('');
 
+  hydrateLinkedItemPhotos(wrap);
+
   wrap.querySelectorAll('.visitBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -1204,12 +1206,59 @@ function breadItemsOf(e){
   return (e.breadItems && e.breadItems.length) ? e.breadItems : [];
 }
 
+// Bread/Pastry/Pie items in a visit only store a name/note/link — the
+// actual photo lives on the linked bread:/pastry:/pie: record itself, not
+// duplicated here. This runs after a render pass, finds every linked item
+// currently on screen (marked with data-linked-key in the render*ItemsHtml
+// functions below), batch-fetches just those records in one query, and
+// drops in a small clickable thumbnail for any that have a photo — same
+// visual pattern as a directly-attached dish photo elsewhere in the app.
+// Safe to call repeatedly; already-hydrated items are skipped.
+async function hydrateLinkedItemPhotos(container){
+  if(!supabaseClient) return;
+  const nodes = Array.from(container.querySelectorAll('.dish-item[data-linked-key]'))
+    .filter(el => !el.querySelector('.dish-photo-link'));
+  if(!nodes.length) return;
+  const keys = [...new Set(nodes.map(el => el.dataset.linkedKey))];
+  try{
+    const { data, error } = await supabaseClient.from('kv_store').select('key,value').in('key', keys);
+    if(error) throw error;
+    const photoByKey = {};
+    (data || []).forEach(row => {
+      try{
+        const rec = JSON.parse(row.value);
+        if(rec.photos && rec.photos.length) photoByKey[row.key] = rec.photos[0];
+      }catch(_e){ /* ignore malformed record */ }
+    });
+    nodes.forEach(el => {
+      const photo = photoByKey[el.dataset.linkedKey];
+      if(!photo) return;
+      const link = document.createElement('a');
+      link.className = 'dish-photo-link';
+      link.href = photo;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = 'Photo';
+      const img = document.createElement('img');
+      img.className = 'dish-photo-thumb';
+      img.src = photo;
+      img.alt = '';
+      link.appendChild(img);
+      el.appendChild(link);
+    });
+  }catch(err){
+    console.error('Could not load photos for linked bread/pastry/pie items', err);
+  }
+}
+
 function renderBreadItemsHtml(e){
   const items = breadItemsOf(e);
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(c => {
     const linkHref = safeUrl(c.breadUrl);
-    return `<div class="dish-item">
+    const linkedId = linkHref ? linkHref.split('#')[1] : '';
+    const photoKey = linkedId ? 'bread:' + linkedId : '';
+    return `<div class="dish-item"${photoKey ? ` data-linked-key="${escapeHtml(photoKey)}"` : ''}>
       <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${linkHref ? ` <a class="dish-cheese-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="Linked bread">🍞</a>` : ''}
     </div>`;
   }).join('')}</div>`;
@@ -1398,7 +1447,9 @@ function renderPastryItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(c => {
     const linkHref = safeUrl(c.pastryUrl);
-    return `<div class="dish-item">
+    const linkedId = linkHref ? linkHref.split('#')[1] : '';
+    const photoKey = linkedId ? 'pastry:' + linkedId : '';
+    return `<div class="dish-item"${photoKey ? ` data-linked-key="${escapeHtml(photoKey)}"` : ''}>
       <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${linkHref ? ` <a class="dish-cheese-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="Linked pastry">🥐</a>` : ''}
     </div>`;
   }).join('')}</div>`;
@@ -1587,7 +1638,9 @@ function renderPieItemsHtml(e){
   if(!items.length) return '';
   return `<div class="dish-list">${items.map(c => {
     const linkHref = safeUrl(c.pieUrl);
-    return `<div class="dish-item">
+    const linkedId = linkHref ? linkHref.split('#')[1] : '';
+    const photoKey = linkedId ? 'pie:' + linkedId : '';
+    return `<div class="dish-item"${photoKey ? ` data-linked-key="${escapeHtml(photoKey)}"` : ''}>
       <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${linkHref ? ` <a class="dish-cheese-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="Linked pie">🥧</a>` : ''}
     </div>`;
   }).join('')}</div>`;
@@ -1711,6 +1764,8 @@ function openLightbox(id){
     : '';
 
   $('lb-visits').innerHTML = visits.map(v => renderVisitBlockHtml(r.id, v)).join('');
+
+  hydrateLinkedItemPhotos($('lb-visits'));
 
   $('lightbox').querySelectorAll('.note-photo, .lightbox-photos img').forEach(img=>{
     img.addEventListener('click', ev => {
