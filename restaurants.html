@@ -331,6 +331,10 @@
     font-size:13px;line-height:1.6;color:var(--ink);
   }
   .dish-item .dish-item-note{color:var(--slate);}
+  .dish-item .dish-item-name-link{
+    color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);
+  }
+  .dish-item .dish-item-name-link:hover{color:var(--wine);text-decoration-color:var(--wine);}
   .dish-item .dish-cheese-link{
     margin-left:5px;text-decoration:none;font-size:12px;
   }
@@ -1030,6 +1034,17 @@ function safePhotoSrc(u){
   if(/^https?:\/\//i.test(s)) return s;
   if(/^data:image\//i.test(s)) return s;
   return null;
+}
+
+// Renders an item's display name as a clickable link straight to its
+// entry in the linked app (Wine/Cheese/Spirits/Charcuterie) when a URL is
+// present, falling back to plain text otherwise — shared by every
+// render*ItemsHtml() function below so Wine, Cheese, Spirits,
+// Charcuterie, and linked Dishes all behave the same way.
+function linkedNameHtml(name, href){
+  const label = escapeHtml(name || '(untitled)');
+  if(!href) return `<span class="dish-item-name">${label}</span>`;
+  return `<a class="dish-item-name dish-item-name-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${label}</a>`;
 }
 
 // Dish rows are built via DOM APIs (createElement + .value), not innerHTML
@@ -1934,7 +1949,7 @@ function renderWineItemsHtml(e){
     const wineHref = safeUrl(w.wineUrl);
     const photoHref = safePhotoSrc(w.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      ${linkedNameHtml(w.name, wineHref)}${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2093,7 +2108,7 @@ function renderCheeseItemsHtml(e){
   return `<div class="dish-list">${items.map(c => {
     const cheeseHref = safeUrl(c.cheeseUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+      ${linkedNameHtml(c.name, cheeseHref)}${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2462,7 +2477,7 @@ function renderSpiritItemsHtml(e){
     const spiritHref = safeUrl(s.spiritUrl);
     const photoHref = safePhotoSrc(s.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      ${linkedNameHtml(s.name, spiritHref)}${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2709,7 +2724,7 @@ function renderCharcuterieItemsHtml(e){
   return `<div class="dish-list">${items.map(c => {
     const charcuterieHref = safeUrl(c.charcuterieUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${charcuterieHref ? ` <a class="dish-cheese-link" href="${escapeHtml(charcuterieHref)}" target="_blank" rel="noopener" title="Linked charcuterie">\ud83e\udd53</a>` : ''}
+      ${linkedNameHtml(c.name, charcuterieHref)}${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${charcuterieHref ? ` <a class="dish-cheese-link" href="${escapeHtml(charcuterieHref)}" target="_blank" rel="noopener" title="Linked charcuterie">\ud83e\udd53</a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2752,7 +2767,7 @@ function renderDishItemsHtml(e){
     const cheeseHref = safeUrl(d.cheeseUrl);
     const photoHref = safePhotoSrc(d.photoUrl);
     return `<div class="dish-item">
-      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      ${linkedNameHtml(d.name, cheeseHref)}${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
