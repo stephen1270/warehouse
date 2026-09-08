@@ -15,6 +15,15 @@
     --paper:#f2ede1; --paper-dark:#e6ded0; --ink:#211c17;
     --accent:#7a2430; --accent2:#a6813f; --muted:#48453e; --line:#cfc4ad;
   }
+  #lb-cover{margin-bottom:16px;}
+  #lb-cover img{
+    max-width:220px;max-height:320px;width:auto;height:auto;
+    display:block;border:1px solid var(--line);
+  }
+  #lb-cover .placeholder{
+    width:160px;height:230px;display:flex;align-items:center;justify-content:center;
+    font-size:40px;background:var(--paper-dark);border:1px solid var(--line);color:var(--muted);opacity:.5;
+  }
 </style>
 </head>
 <body>
@@ -146,9 +155,25 @@
   <div id="entries" class="loading">loading…</div>
 </div>
 
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close ✕</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
+    <div id="lb-cover"></div>
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-meta" id="lb-meta"></div>
+    <div class="lightbox-notes" id="lb-details"></div>
+    <div class="lightbox-tags" id="lb-tags"></div>
+    <div class="lightbox-notes" id="lb-plot-wrap" style="display:none;">
+      <span class="lbl">Plot</span><span id="lb-plot"></span>
+    </div>
+  </div>
+</div>
+
 <script>
 let entries = [];
 let editingId = null;
+let currentLightboxId = null;
 let currentStars = 0;
 
 const $ = (id) => document.getElementById(id);
@@ -420,6 +445,9 @@ function render(){
       if(confirm('Remove this film?')) await deleteEntry(id);
     });
   });
+  wrap.querySelectorAll('.entry').forEach(el=>{
+    el.addEventListener('click', () => openLightbox(el.dataset.id));
+  });
   applyAuthGating();
 }
 
@@ -427,6 +455,95 @@ function render(){
   $(id).addEventListener('input', render);
   $(id).addEventListener('change', render);
 });
+
+// Clicking a card opens its full record here — the card itself already
+// shows most fields, so this mainly surfaces country/language/date added
+// (not shown on the card) plus a larger cover.
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  currentLightboxId = id;
+
+  $('lb-cover').innerHTML = e.cover
+    ? `<img src="${escapeHtml(e.cover)}" alt="">`
+    : `<div class="placeholder">🎬</div>`;
+
+  $('lb-name').textContent = e.title || 'Untitled';
+
+  const metaBits = [];
+  if(e.year) metaBits.push(e.year);
+  if(e.director) metaBits.push(`dir. ${e.director}`);
+  if(e.runtime) metaBits.push(`${e.runtime} min`);
+  if(e.audienceRating) metaBits.push(e.audienceRating);
+  $('lb-meta').innerHTML = metaBits.map(m => `<span>${escapeHtml(m)}</span>`).join('');
+
+  const detailLines = [];
+  if(e.studio) detailLines.push(['Studio', e.studio]);
+  if(e.country) detailLines.push(['Country', e.country]);
+  if(e.language) detailLines.push(['Language', e.language]);
+  if(e.edition) detailLines.push(['Edition', e.edition]);
+  if(e.condition) detailLines.push(['Condition', condShort(e.condition)]);
+  if(e.discs && e.discs > 1) detailLines.push(['Discs', String(e.discs)]);
+  if(e.quantity && e.quantity > 1) detailLines.push(['Quantity', String(e.quantity)]);
+  if(e.imdbRating) detailLines.push(['IMDb', e.imdbUrl ? `<a href="${escapeHtml(e.imdbUrl)}" target="_blank" rel="noopener">${escapeHtml(e.imdbRating)}</a>` : escapeHtml(e.imdbRating)]);
+  if(e.addedDate) detailLines.push(['Added', new Date(e.addedDate).toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'})]);
+  $('lb-details').innerHTML = detailLines.length
+    ? detailLines.map(([label, val]) => `<div><span class="lbl" style="display:inline;margin:0;">${escapeHtml(label)}:</span> ${label === 'IMDb' ? val : escapeHtml(val)}</div>`).join('')
+    : '';
+
+  $('lb-tags').innerHTML = (e.genres && e.genres.length)
+    ? e.genres.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join('')
+    : '';
+
+  if(e.plot){
+    $('lb-plot-wrap').style.display = 'block';
+    $('lb-plot').textContent = e.plot;
+  } else {
+    $('lb-plot-wrap').style.display = 'none';
+  }
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '✓ copied';
+  }catch(err){
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
+});
+
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+});
+
+// Deep link: opening the page with #<entryId> jumps straight to that
+// film's lightbox, same pattern as Restaurants/Bakeries.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
 
 function resetForm(){
   $('f-title').value='';
@@ -695,7 +812,7 @@ $('importFile').addEventListener('change', async (e) => {
   }
 });
 
-loadEntries();
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>
