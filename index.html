@@ -50,19 +50,6 @@
     grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
     gap:16px;
   }
-  .section{
-    margin-bottom:40px;
-  }
-  .section-label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.72rem;
-    text-transform:uppercase;
-    letter-spacing:0.1em;
-    color:var(--ink-soft);
-    border-bottom:1px solid var(--line);
-    padding-bottom:8px;
-    margin-bottom:16px;
-  }
   a.card{
     display:block;
     background:#fff;
@@ -72,6 +59,7 @@
     text-decoration:none;
     color:var(--ink);
     transition:border-color 0.15s ease;
+    position:relative;
   }
   a.card:hover{
     border-color:var(--ink);
@@ -81,6 +69,19 @@
     color:var(--ink-soft);
     pointer-events:none;
     border-style:dashed;
+  }
+  .card-count{
+    position:absolute;
+    top:12px;
+    right:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    letter-spacing:0.02em;
+    color:var(--ink-soft);
+    background:var(--paper-dim);
+    padding:2px 8px;
+    border-radius:9px;
+    line-height:1.5;
   }
   .card h2{
     font-family:Avenir, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
@@ -117,90 +118,152 @@
     <div class="tagline">A collection of collections</div>
   </header>
 
-  <div class="section">
-    <div class="section-label">Food</div>
-    <div class="grid">
-      <a class="card" href="pantry.html">
-        <h2>Pantry</h2>
-        <div class="desc">Pantry staples, and conservas — tasted, rated, and sourced.</div>
-      </a>
-      <a class="card" href="restaurants.html">
-        <h2>Restaurants</h2>
-        <div class="desc">Tables kept — restaurants, dishes, and notes from meals out.</div>
-      </a>
+  <div class="grid">
+    <a class="card" href="pantry.html" data-count="pantry-products">
+        <span class="card-count" data-count-badge></span>
+      <h2>Pantry</h2>
+      <div class="desc">Pantry staples, and conservas — tasted, rated, and sourced.</div>
+    </a>
+    <a class="card" href="restaurants.html" data-count="entry:e">
+        <span class="card-count" data-count-badge></span>
+      <h2>Restaurants</h2>
+      <div class="desc">Tables kept — restaurants, dishes, and notes from meals out.</div>
+    </a>
 
-      <a class="card" href="bakeries.html">
-        <h2>Bakeries</h2>
-        <div class="desc">Bakeries visited — bread, pastry, and pie, with notes from each stop.</div>
-      </a>
+    <a class="card" href="bakeries.html" data-count="bakery:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Bakeries</h2>
+      <div class="desc">Bakeries visited — bread, pastry, and pie, with notes from each stop.</div>
+    </a>
 
-      <a class="card" href="cheese.html">
-        <h2>Cheese</h2>
-        <div class="desc">Wheels, wedges, and rinds — producer, monger, milk, and notes.</div>
-      </a>
+    <a class="card" href="cheese.html" data-count="cheese:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Cheese</h2>
+      <div class="desc">Wheels, wedges, and rinds — producer, monger, milk, and notes.</div>
+    </a>
 
-      <a class="card" href="wine.html">
-        <h2>Wine</h2>
-        <div class="desc">Bottles opened — producer, winemaker, merchant, vintage, and pairings.</div>
-      </a>
+    <a class="card" href="wine.html" data-count="wine:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Wine</h2>
+      <div class="desc">Bottles opened — producer, winemaker, merchant, vintage, and pairings.</div>
+    </a>
 
-      <a class="card" href="beer.html">
-        <h2>Beer</h2>
-        <div class="desc">Cans and bottles opened — brewery, brewer, retailer, style, ABV, and pairings.</div>
-      </a>
+    <a class="card" href="beer.html" data-count="beer:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Beer</h2>
+      <div class="desc">Cans and bottles opened — brewery, brewer, retailer, style, ABV, and pairings.</div>
+    </a>
 
-      <a class="card" href="spirits.html">
-        <h2>Spirits</h2>
-        <div class="desc">Aperitifs, digestifs, and bottles from the bar cart — producer, distiller, type, and ABV.</div>
-      </a>
+    <a class="card" href="spirits.html" data-count="spirits:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Spirits</h2>
+      <div class="desc">Aperitifs, digestifs, and bottles from the bar cart — producer, distiller, type, and ABV.</div>
+    </a>
 
-      <a class="card" href="charcuterie.html">
-        <h2>Charcuterie</h2>
-        <div class="desc">Salumi, terrines, and the cutting board — curer, purveyor, type, and pairings.</div>
-      </a>
+    <a class="card" href="charcuterie.html" data-count="charcuterie:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Charcuterie</h2>
+      <div class="desc">Salumi, terrines, and the cutting board — curer, purveyor, type, and pairings.</div>
+    </a>
 
-      <a class="card" href="bread.html">
-        <h2>Bread</h2>
-        <div class="desc">Loaves and levains — bakery/baker, type, crust, and crumb.</div>
-      </a>
+    <a class="card" href="bread.html" data-count="bread:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Bread</h2>
+      <div class="desc">Loaves and levains — bakery/baker, type, crust, and crumb.</div>
+    </a>
 
-      <a class="card" href="pastry.html">
-        <h2>Pastry</h2>
-        <div class="desc">Croissants, danishes, and tarts — bakery/baker, type, and filling.</div>
-      </a>
+    <a class="card" href="pastry.html" data-count="pastry:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Pastry</h2>
+      <div class="desc">Croissants, danishes, and tarts — bakery/baker, type, and filling.</div>
+    </a>
 
-      <a class="card" href="pie.html">
-        <h2>Pie</h2>
-        <div class="desc">Fruit, cream, and savory pies — bakery/baker, type, crust, and filling.</div>
-      </a>
+    <a class="card" href="pie.html" data-count="pie:">
+        <span class="card-count" data-count-badge></span>
+      <h2>Pie</h2>
+      <div class="desc">Fruit, cream, and savory pies — bakery/baker, type, crust, and filling.</div>
+    </a>
+
+    <a class="card" href="music.html" data-count="entry:m-">
+        <span class="card-count" data-count-badge></span>
+      <h2>Music</h2>
+      <div class="desc">CDs and vinyl, cataloged from CLZ — artist, format, condition, rating.</div>
+    </a>
+    <a class="card" href="movies.html" data-count="entry:mv-">
+        <span class="card-count" data-count-badge></span>
+      <h2>Movies</h2>
+      <div class="desc">DVDs and Blu-rays, cataloged from CLZ — genre, director, condition.</div>
+    </a>
+    <div class="card disabled">
+      <h2>Books</h2>
+      <div class="desc">Not built yet.</div>
+      <span class="status">Coming soon</span>
     </div>
-  </div>
-
-  <div class="section">
-    <div class="section-label">Media</div>
-    <div class="grid">
-      <a class="card" href="music.html">
-        <h2>Music</h2>
-        <div class="desc">CDs and vinyl, cataloged from CLZ — artist, format, condition, rating.</div>
-      </a>
-      <a class="card" href="movies.html">
-        <h2>Movies</h2>
-        <div class="desc">DVDs and Blu-rays, cataloged from CLZ — genre, director, condition.</div>
-      </a>
-      <div class="card disabled">
-        <h2>Books</h2>
-        <div class="desc">Not built yet.</div>
-        <span class="status">Coming soon</span>
-      </div>
-      <div class="card disabled">
-        <h2>Comics</h2>
-        <div class="desc">Not built yet.</div>
-        <span class="status">Coming soon</span>
-      </div>
+    <div class="card disabled">
+      <h2>Comics</h2>
+      <div class="desc">Not built yet.</div>
+      <span class="status">Coming soon</span>
     </div>
   </div>
 
   <footer>Each collection is independently signed in — read access is open to anyone with the link, editing is owner-only.</footer>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// Entry-count badges on each card. Read-only, public data (same "Public
+// read access" policy every app already relies on) — no auth needed here.
+// Counting strategy: fetch every key once (cheap — key column only, no
+// values) and count client-side by prefix, since prefixes vary in shape
+// (most are "name:", but Restaurants/Music/Movies all share the older
+// "entry:" prefix and are distinguished by their own sub-prefix — see
+// the scoping comments in those apps' own source for why). Pantry is the
+// one exception: it stores its whole product list as a single JSON blob
+// under one key, not one row per product, so its count comes from a
+// separate targeted fetch of that one row's array length.
+(async function () {
+  const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+
+  const badges = Array.from(document.querySelectorAll('[data-count]'));
+  if (!badges.length) return;
+
+  try {
+    if (!window.supabase || !window.supabase.createClient) throw new Error('Supabase library did not load');
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const [keysRes, pantryRes] = await Promise.all([
+      client.from('kv_store').select('key'),
+      client.from('kv_store').select('value').eq('key', 'pantry-ledger-products').maybeSingle(),
+    ]);
+    if (keysRes.error) throw keysRes.error;
+
+    const keys = (keysRes.data || []).map(r => r.key);
+
+    let pantryCount = null;
+    if (!pantryRes.error && pantryRes.data) {
+      try {
+        const arr = JSON.parse(pantryRes.data.value);
+        if (Array.isArray(arr)) pantryCount = arr.length;
+      } catch (_e) { /* leave pantry badge blank on parse failure */ }
+    }
+
+    badges.forEach(card => {
+      const prefix = card.dataset.count;
+      const badge = card.querySelector('[data-count-badge]');
+      if (!badge) return;
+      const n = prefix === 'pantry-products' ? pantryCount : keys.filter(k => k.startsWith(prefix)).length;
+      if (n === null || n === undefined) { badge.remove(); return; }
+      badge.textContent = n;
+    });
+  } catch (err) {
+    // No count is better than a wrong or stuck-loading one.
+    console.error('Warehouse index: could not load entry counts', err);
+    badges.forEach(card => {
+      const badge = card.querySelector('[data-count-badge]');
+      if (badge) badge.remove();
+    });
+  }
+})();
+</script>
 </body>
 </html>
