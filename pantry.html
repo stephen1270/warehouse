@@ -817,6 +817,7 @@ async function load(){
       // clobbering a good list with an empty one on a transient failure
     }
   }
+  applyIncomingSearchQuery();
   render();
 }
 document.getElementById('retryLoadBtn').addEventListener('click', load);

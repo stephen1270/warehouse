@@ -30,6 +30,7 @@
 
   <div class="toolbar">
     <span class="count" id="count">loading&hellip;</span>
+    <input type="text" id="search" placeholder="Search by name, producer, region, or restaurant…">
     <button class="newbtn" id="toggleForm">+ New Wine</button>
   </div>
 
@@ -291,8 +292,13 @@ if(supabaseClient){
 
 function render(){
   const wrap = $('entries');
-  $('count').textContent = entries.length === 0 ? 'no wines yet' :
-    entries.length + (entries.length === 1 ? ' wine logged' : ' wines logged');
+  const { query, rawQuery, filtered } = applySearchFilter(entries, e => [e.name, e.producer, e.winemaker, e.merchant, e.type, e.region, e.country, e.restaurant, ...(e.pairedCheeses||[]).map(c=>c.name)]);
+
+  $('count').textContent = entries.length === 0
+    ? 'no wines yet'
+    : query
+      ? `${filtered.length} of ${entries.length} match "${rawQuery}"`
+      : entries.length + (entries.length === 1 ? ' wine logged' : ' wines logged');
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The cellar is empty.</span>Log the first bottle.</div>`;
@@ -300,7 +306,13 @@ function render(){
     return;
   }
 
-  const sorted = [...entries].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if(query && filtered.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">No matches.</span>Try a different search, or clear it to see everything.</div>`;
+    applyAuthGating();
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b) => (a.name||'').localeCompare(b.name||''));
 
   wrap.innerHTML = sorted.map(e => {
     const metaBits = [];
@@ -917,6 +929,7 @@ async function loadEntries(){
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
       setLoadError(supabaseInitError);
+      applyIncomingSearchQuery();
       render();
       return;
     }
@@ -926,6 +939,7 @@ async function loadEntries(){
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
       setLoadError(supabaseInitError);
+      applyIncomingSearchQuery();
       render();
       return;
     }
@@ -1007,6 +1021,7 @@ async function deleteEntry(id){
 
 // closeForm() is defined in common.js, shared with every app in this suite.
 
+$('search').addEventListener('input', render);
 $('toggleForm').addEventListener('click', () => {
   const t = $('ticket');
   if(t.classList.contains('open')){

@@ -109,6 +109,74 @@
     border-top:1px solid var(--line);
     padding-top:16px;
   }
+  .voice-search{
+    margin-bottom:36px;
+  }
+  .voice-search-row{
+    display:flex;
+    gap:8px;
+  }
+  .voice-search-row input{
+    flex:1;
+    min-width:0;
+    font-family:inherit;
+    font-size:0.95rem;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .voice-search-row input:focus{
+    outline:none;
+    border-color:var(--ink);
+  }
+  .voice-search-row input::placeholder{
+    color:var(--ink-soft);
+    opacity:0.65;
+  }
+  .mic-btn{
+    flex:none;
+    width:46px;
+    height:46px;
+    border-radius:5px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:1.15rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    padding:0;
+  }
+  .mic-btn:hover{
+    border-color:var(--ink);
+  }
+  .mic-btn.listening{
+    background:var(--rust);
+    border-color:var(--rust);
+    color:#fff;
+    animation:mic-pulse 1.1s ease-in-out infinite;
+  }
+  .mic-btn:disabled{
+    opacity:0.4;
+    cursor:default;
+  }
+  @keyframes mic-pulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:0.55; }
+  }
+  .voice-search-status{
+    margin-top:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    min-height:1.3em;
+  }
+  .voice-search-status.err{
+    color:var(--rust);
+  }
 </style>
 </head>
 <body>
@@ -117,6 +185,14 @@
     <h1>Warehouse</h1>
     <div class="tagline">A collection of collections</div>
   </header>
+
+  <div class="voice-search">
+    <div class="voice-search-row">
+      <input type="text" id="voiceQueryInput" placeholder='Try &quot;wines from France&quot; or &quot;wines had at Bar Americano&quot;&hellip;'>
+      <button type="button" id="voiceMicBtn" class="mic-btn" title="Search by voice" aria-label="Search by voice">&#127908;</button>
+    </div>
+    <div class="voice-search-status" id="voiceStatus"></div>
+  </div>
 
   <div class="grid">
     <a class="card" href="pantry.html" data-count="pantry-products">
@@ -261,6 +337,135 @@
     badges.forEach(card => {
       const badge = card.querySelector('[data-count-badge]');
       if (badge) badge.remove();
+    });
+  }
+})();
+</script>
+<script>
+// Voice/text search across every category. Say or type something like
+// "wines from France" or "wines had at Bar Americano" — this figures out
+// which app you mean from a keyword in the phrase (wine/wines -> Wine,
+// restaurant/restaurants -> Restaurants, etc.), strips filler words
+// ("list of", "all", "had at", "from"...) and the category word itself,
+// and sends whatever's left as a `?q=` param to that app's own page.
+// Each app already knows how to receive that (see applyIncomingSearchQuery
+// in common.js, or the local copy in movies.html) and pre-fills its own
+// search box with it, reusing the exact same search/filter logic a
+// person typing directly into that box would get — this is a router in
+// front of that, not a separate search implementation.
+(function () {
+  const CATEGORY_MAP = {
+    pantry: 'pantry.html',
+    restaurant: 'restaurants.html', restaurants: 'restaurants.html', dining: 'restaurants.html',
+    bakery: 'bakeries.html', bakeries: 'bakeries.html',
+    cheese: 'cheese.html', cheeses: 'cheese.html',
+    wine: 'wine.html', wines: 'wine.html',
+    beer: 'beer.html', beers: 'beer.html',
+    spirit: 'spirits.html', spirits: 'spirits.html', cocktail: 'spirits.html', cocktails: 'spirits.html',
+    charcuterie: 'charcuterie.html', salumi: 'charcuterie.html',
+    bread: 'bread.html', breads: 'bread.html', loaf: 'bread.html', loaves: 'bread.html',
+    pastry: 'pastry.html', pastries: 'pastry.html',
+    pie: 'pie.html', pies: 'pie.html',
+    music: 'music.html', album: 'music.html', albums: 'music.html', vinyl: 'music.html', record: 'music.html', records: 'music.html',
+    movie: 'movies.html', movies: 'movies.html', film: 'movies.html', films: 'movies.html',
+  };
+
+  const FILLER_WORDS = new Set([
+    'list', 'lists', 'listed', 'of', 'all', 'show', 'me', 'find', 'search',
+    'for', 'had', 'at', 'from', 'in', 'by', 'on', 'the', 'a', 'an', 'with',
+    'give', 'please', 'my', 'any',
+    ...Object.keys(CATEGORY_MAP),
+  ]);
+
+  function stripPunctuation(word) {
+    return word.replace(/^[.,!?;:'"]+|[.,!?;:'"]+$/g, '');
+  }
+
+  // Picks the category from the FIRST matching keyword (so "wines had at
+  // Bar Americano" resolves to Wine even though nothing else in the
+  // phrase matches a category), then rebuilds the remaining search term
+  // from the ORIGINAL-case words (minus filler and the category word),
+  // so "Bar Americano" and "France" keep their capitalization.
+  function parseVoiceQuery(phrase) {
+    const words = phrase.trim().split(/\s+/).filter(Boolean);
+    let category = null;
+    for (const w of words) {
+      const lw = stripPunctuation(w.toLowerCase());
+      if (CATEGORY_MAP[lw]) { category = CATEGORY_MAP[lw]; break; }
+    }
+    const term = words
+      .filter(w => {
+        const lw = stripPunctuation(w.toLowerCase());
+        return lw && !FILLER_WORDS.has(lw);
+      })
+      .join(' ')
+      .trim();
+    return { category, term };
+  }
+
+  const input = document.getElementById('voiceQueryInput');
+  const micBtn = document.getElementById('voiceMicBtn');
+  const status = document.getElementById('voiceStatus');
+
+  function setStatus(msg, isError) {
+    status.textContent = msg || '';
+    status.classList.toggle('err', !!isError);
+  }
+
+  function runVoiceSearch(phrase) {
+    if (!phrase || !phrase.trim()) return;
+    const { category, term } = parseVoiceQuery(phrase);
+    if (!category) {
+      setStatus(`Couldn't tell which collection "${phrase}" is about \u2014 try naming one, like "wines from France."`, true);
+      return;
+    }
+    location.href = term ? `${category}?q=${encodeURIComponent(term)}` : category;
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') runVoiceSearch(input.value);
+  });
+
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionCtor) {
+    micBtn.disabled = true;
+    micBtn.title = 'Voice search isn\u2019t supported in this browser \u2014 try typing instead.';
+  } else {
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.addEventListener('start', () => {
+      micBtn.classList.add('listening');
+      setStatus('Listening\u2026');
+    });
+    recognition.addEventListener('result', (e) => {
+      const heard = e.results[0][0].transcript;
+      input.value = heard;
+      setStatus(`Heard: \u201c${heard}\u201d`);
+      runVoiceSearch(heard);
+    });
+    recognition.addEventListener('error', (e) => {
+      if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+        setStatus('Microphone access was denied \u2014 allow it in your browser settings, or type your search instead.', true);
+      } else if (e.error === 'no-speech') {
+        setStatus('Didn\u2019t catch that \u2014 try again, or type your search instead.', true);
+      } else {
+        setStatus(`Voice search error: ${e.error}`, true);
+      }
+    });
+    recognition.addEventListener('end', () => {
+      micBtn.classList.remove('listening');
+    });
+
+    micBtn.addEventListener('click', () => {
+      try {
+        recognition.start();
+      } catch (_e) {
+        // start() throws if already listening; a second click means stop.
+        recognition.stop();
+      }
     });
   }
 })();

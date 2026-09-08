@@ -347,3 +347,36 @@ function resizeImage(file, maxDim, quality){
     reader.readAsDataURL(file);
   });
 }
+
+// Applies the toolbar's #search box as a case-insensitive substring
+// filter over `entries`. `haystackFn(entry)` returns the array of fields
+// to search for that app — each app knows its own relevant fields (name,
+// producer, region, a cross-linked restaurant/bakery name, etc.), so this
+// stays generic. Returns { query, rawQuery, filtered } so the caller's
+// render() can still handle its own count text, empty states, and sort —
+// those legitimately differ per app and aren't worth forcing through here.
+function applySearchFilter(entries, haystackFn){
+  const rawQuery = ($('search').value || '').trim();
+  const query = rawQuery.toLowerCase();
+  const filtered = query ? entries.filter(e => {
+    const haystack = haystackFn(e).filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(query);
+  }) : entries;
+  return { query, rawQuery, filtered };
+}
+
+// Reads a `q` query-string param — set by index.html's voice/text search,
+// which routes a phrase like "wines from France" to wine.html?q=France —
+// and pre-fills it into this app's search box (id "search" by default;
+// pass an explicit id for apps like Music/Movies whose search box is
+// named "filterSearch" instead). Call once, right before render(), in
+// loadEntries()'s success path(s); render() still does the actual
+// filtering, this just seeds the box so the page arrives already
+// filtered instead of needing a second type.
+function applyIncomingSearchQuery(inputId){
+  try{
+    const q = new URLSearchParams(location.search).get('q');
+    const el = document.getElementById(inputId || 'search');
+    if(q && el) el.value = q;
+  }catch(e){ /* ignore */ }
+}

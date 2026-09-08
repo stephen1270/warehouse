@@ -2487,6 +2487,7 @@ async function loadEntries(){
   }catch(err){
     entries = [];
   }
+  applyIncomingSearchQuery();
   render();
 }
 

@@ -455,6 +455,19 @@ function populateFilterOptions(){
   gSel.value = curG;
 }
 
+// Reads a `q` query-string param — set by index.html's voice/text search,
+// which routes a phrase like "movies directed by X" to movies.html?q=X —
+// and pre-fills it into the filterSearch box. Movies doesn't load
+// common.js (it's fully self-contained), so this is a local copy of the
+// same small helper every other app gets for free from that shared file.
+function applyIncomingSearchQuery(){
+  try{
+    const q = new URLSearchParams(location.search).get('q');
+    const el = document.getElementById('filterSearch');
+    if(q && el) el.value = q;
+  }catch(e){ /* ignore */ }
+}
+
 function getFiltered(){
   const q = $('filterSearch').value.trim().toLowerCase();
   const genre = $('filterGenre').value;
@@ -614,6 +627,7 @@ async function loadEntries(){
       entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
+      applyIncomingSearchQuery();
       render();
       return;
     }
@@ -622,6 +636,7 @@ async function loadEntries(){
     const result = await storage.list(KEY_PREFIX);
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
+      applyIncomingSearchQuery();
       render();
       return;
     }
@@ -636,6 +651,7 @@ async function loadEntries(){
   }catch(err){
     entries = [];
   }
+  applyIncomingSearchQuery();
   render();
 }
 

@@ -475,6 +475,7 @@ async function loadEntries(){
       entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
+      applyIncomingSearchQuery('filterSearch');
       render();
       return;
     }
@@ -483,6 +484,7 @@ async function loadEntries(){
     const result = await storage.list(KEY_PREFIX);
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
+      applyIncomingSearchQuery('filterSearch');
       render();
       return;
     }
@@ -497,6 +499,7 @@ async function loadEntries(){
   }catch(err){
     entries = [];
   }
+  applyIncomingSearchQuery('filterSearch');
   render();
 }
 
