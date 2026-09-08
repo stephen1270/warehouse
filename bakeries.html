@@ -174,7 +174,7 @@ let currentBreads = []; // {name, note, breadUrl} — working copy for the open 
 let currentPastrys = []; // {name, note, pastryUrl} — working copy for the open form's pastry rows
 let currentPies = []; // {name, note, pieUrl} — working copy for the open form's pie rows
 
-const $ = (id) => document.getElementById(id);
+// $ (getElementById shorthand) is defined in common.js, shared with every app in this suite.
 
 // Supabase-backed storage, shared with the rest of Warehouse, so entries
 // sync across devices instead of being trapped in one browser. Falls back
@@ -276,18 +276,9 @@ function placeLine(e){
   return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
 }
 
-function fmtDate(d){
-  if(!d) return '';
-  const dt = new Date(d + 'T00:00:00');
-  if(isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-}
+// fmtDate() is defined in common.js, shared with every app in this suite.
 
-function starsHtml(n){
-  let s = '';
-  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
-  return s;
-}
+// starsHtml() is defined in common.js, shared with every app in this suite.
 
 function render(){
   const wrap = $('entries');
@@ -396,12 +387,7 @@ function photoUrl(p){
 
 // Only allow http(s) URLs through as href values — guards against
 // javascript: or other schemes sneaking into a pasted link field.
-function safeUrl(u){
-  if(!u) return null;
-  const s = u.trim();
-  if(/^https?:\/\//i.test(s)) return s;
-  return null;
-}
+// safeUrl() is defined in common.js, shared with every app in this suite.
 
 // For photo sources specifically: accepts either a real http(s) URL
 // (pasted link) or a data: image URI (uploaded + resized locally) — kept
@@ -864,12 +850,7 @@ function setAutofillStatus(msg, cls){
 // Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
 // prepends https:// if no scheme was typed, so the field doesn't demand
 // people paste the "https://" prefix by hand.
-function normalizeAutofillUrl(u){
-  u = (u || '').trim();
-  if(!u) return u;
-  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
-  return u;
-}
+// normalizeAutofillUrl() is defined in common.js, shared with every app in this suite.
 
 async function fetchAutofillData(url){
   const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/bakery-autofill', {
@@ -1739,10 +1720,7 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
-function closeLightbox(){
-  $('lightbox').classList.remove('open');
-  currentLightboxId = null;
-}
+// closeLightbox() is defined in common.js, shared with every app in this suite.
 
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
@@ -1763,23 +1741,11 @@ $('lightboxCopyLink').addEventListener('click', async e => {
 // Deep link: if the page was opened with #<entryId> (e.g. pasted from
 // another Warehouse app's "link to this restaurant visit" field), open
 // that entry's lightbox automatically once entries have loaded.
-function openFromHash(){
-  const id = location.hash.replace(/^#/, '');
-  if(id && entries.some(e => e.id === id)){
-    openLightbox(id);
-    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
-  }
-}
+// openFromHash() is defined in common.js, shared with every app in this suite.
 
-function openPhotoZoom(src){
-  $('photoZoomImg').src = src;
-  $('photoZoom').classList.add('open');
-}
+// openPhotoZoom() is defined in common.js, shared with every app in this suite.
 
-function closePhotoZoom(){
-  $('photoZoom').classList.remove('open');
-  $('photoZoomImg').src = '';
-}
+// closePhotoZoom() is defined in common.js, shared with every app in this suite.
 
 $('lightboxClose').addEventListener('click', e => {
   e.stopPropagation();
@@ -1796,11 +1762,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+// escapeHtml() is defined in common.js, shared with every app in this suite.
 
 function resetForm(){
   $('f-autofillUrl').value='';
@@ -1906,12 +1868,7 @@ function openForEditVisit(restaurantId, visitId){
   openTicket();
 }
 
-function setStars(n){
-  currentStars = n;
-  document.querySelectorAll('#f-stars span').forEach(s=>{
-    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
-  });
-}
+// setStars() is defined in common.js, shared with every app in this suite.
 
 // One-time shape migration: entries used to be one row per visit (date,
 // dishItems, wineItems, ... all top-level alongside name/website/etc).
@@ -2114,10 +2071,7 @@ async function deleteVisit(restaurantId, visitId){
   }
 }
 
-function closeForm(){
-  $('ticket').classList.remove('open');
-  resetForm();
-}
+// closeForm() is defined in common.js, shared with every app in this suite.
 
 $('toggleForm').addEventListener('click', () => {
   const t = $('ticket');

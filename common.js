@@ -1,15 +1,40 @@
-// Shared across all 7 warehouse apps (Pantry, Restaurants, Cheese, Wine,
-// Spirits, Charcuterie, Music). This file holds only pure logic with no
-// DOM coupling -- the storage adapter and image resizer -- so it's safe
-// to share verbatim. Each app still owns its own auth-gate rendering and
-// page-specific state, since that DOES touch each page's own DOM.
+// Shared JS across the Warehouse suite. Loaded by every app except
+// Movies (fully self-contained by design — see its own header comment)
+// and, for the DOM-coupled UI helpers below, Pantry (its own filter/
+// autocomplete UI differs enough to keep separate).
 //
-// Extracted 2026-08-30 after these blocks were found byte-identical (or
-// near enough -- one stray comment difference) across cheese.html,
-// wine.html, spirits.html, charcuterie.html, music.html, restaurants.html,
-// and pantry.html. Before this, a fix applied to one app (like the photo
-// resize dimensions, or the missing-viewport-tag bug) had no way to reach
-// the other six except by hand -- this file is that reach.
+// This is the single most important file for avoiding the "fix it in one
+// app, forget the other eleven" trap: if a function's body is identical
+// across 3+ apps, it belongs here, not copy-pasted. When you fix a bug in
+// one of these functions, that fix reaches every app on the next deploy
+// with zero extra work — that's the whole point of this file existing.
+// Conversely, if you're about to paste a new helper into more than one
+// app, stop and put it here first.
+//
+// Extracted 2026-08-30 (storage adapter, resizeImage) and expanded
+// 2026-09 after a full duplication audit turned up ~20 more functions
+// that were byte-identical across anywhere from 3 to 12 files: escapeHtml,
+// fmtDate, safeUrl, normalizeAutofillUrl, linkOrText, resizeDataUrl,
+// entryPhotos, closeForm/closeLightbox/closePhotoZoom/openPhotoZoom,
+// openFromHash, setLoadError, allProducers, buildLinkedSelect,
+// refreshProducerOptions, setupAutocomplete, starsHtml, setStars, the $
+// shorthand, and checkMfaStatus. Several of these had already drifted
+// into inconsistent (sometimes buggy) per-file copies before being
+// unified here — see individual comments below for specifics.
+//
+// Deliberately NOT extracted: each app's own auth-gate DOM rendering
+// (applyAuthGating/renderAuthControl) — two of twelve apps (Music,
+// Pantry) gate extra page-specific UI elements the other ten don't have,
+// so those two keep their own local versions; the other ten are
+// identical to each other but are page-render code, not pure logic, and
+// were judged lower-value to force through this file. Pantry also keeps
+// its own autocomplete UI (setupAutocomplete here is the 8-app
+// collection-page version only) and its own escaping helper (esc(),
+// same idea as escapeHtml but a different implementation predating this
+// file — not worth the churn to rename every call site for no behavior
+// change). Movies is entirely separate: its own inline stylesheet, its
+// own copies of everything below. If Movies ever gets migrated onto this
+// shared architecture, all of this becomes directly reusable as-is.
 
 const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
@@ -112,6 +137,188 @@ async function checkMfaStatus(){
   if(!currentUser || !supabaseClient){ mfaSatisfied = true; return; }
   const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
   mfaSatisfied = error ? true : (data.currentLevel === data.nextLevel);
+}
+
+const $ = (id) => document.getElementById(id);
+
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
+
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
+function linkOrText(text, url){
+  const t = escapeHtml(text || '');
+  if(!t) return '';
+  const href = safeUrl(url);
+  return href
+    ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${t}</a>`
+    : t;
+}
+
+function resizeDataUrl(dataUrl, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+      else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+function entryPhotos(e){
+  if(e.photos && e.photos.length) return e.photos;
+  if(e.photo) return [e.photo];
+  return [];
+}
+
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+function closePhotoZoom(){
+  $('photoZoom').classList.remove('open');
+  $('photoZoomImg').src = '';
+}
+
+function openPhotoZoom(src){
+  $('photoZoomImg').src = src;
+  $('photoZoom').classList.add('open');
+}
+
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+
+function setLoadError(message){
+  const el = document.getElementById('loadErrorState');
+  if(!el) return;
+  if(message){
+    el.style.display = 'block';
+    el.querySelector('.msg').textContent = message;
+  }else{
+    el.style.display = 'none';
+  }
+}
+
+function allProducers(){
+  return [...new Set(entries.map(e=>e.producer).filter(Boolean))].sort();
+}
+
+function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel){
+  selectEl.innerHTML = '';
+  const blankOpt = document.createElement('option');
+  blankOpt.value = '';
+  blankOpt.textContent = '\u2014';
+  selectEl.appendChild(blankOpt);
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = newLabel;
+  selectEl.appendChild(newOpt);
+  let matched = false;
+  options.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.name;
+    if(o.id && o.id === currentId){ opt.selected = true; matched = true; }
+    selectEl.appendChild(opt);
+  });
+  if(currentId && !matched){
+    const opt = document.createElement('option');
+    opt.value = currentId;
+    opt.textContent = '(' + (currentLabel || 'linked entry') + ' not in list)';
+    opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+function refreshProducerOptions(){
+  const el = $('f-producer-options');
+  if(el) el.dataset.options = JSON.stringify(allProducers());
+}
+
+function setupAutocomplete(inputId, listId){
+  const input = $(inputId);
+  const list = $(listId);
+
+  function optionsFor(){
+    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
+  }
+  function renderList(opts){
+    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
+    list.innerHTML = opts.map(o=>`<div data-val="${escapeHtml(o)}">${escapeHtml(o)}</div>`).join('');
+    list.classList.add('open');
+  }
+  function showAll(){
+    renderList(optionsFor());
+    input.select();
+  }
+  function showFiltered(){
+    const q = input.value.trim().toLowerCase();
+    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
+  }
+  function hide(){ list.classList.remove('open'); }
+
+  input.addEventListener('focus', showAll);
+  input.addEventListener('input', showFiltered);
+  input.addEventListener('blur', ()=> setTimeout(hide, 150));
+  list.addEventListener('mousedown', (e)=>{
+    const opt = e.target.closest('[data-val]');
+    if(!opt) return;
+    input.value = opt.dataset.val;
+    hide();
+  });
+}
+
+function starsHtml(n){
+  let s = '';
+  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
+  return s;
+}
+
+function setStars(n){
+  currentStars = n;
+  document.querySelectorAll('#f-stars span').forEach(s=>{
+    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
 }
 
 // Resizes/compresses an uploaded photo before storing it as base64 (or,

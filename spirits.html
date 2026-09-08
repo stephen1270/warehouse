@@ -184,15 +184,11 @@ let editingId = null;
 let currentPhotos = []; // data URLs of the photos attached to the entry currently being edited
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 
-const $ = (id) => document.getElementById(id);
+// $ (getElementById shorthand) is defined in common.js, shared with every app in this suite.
 
 // Reads an entry's photos array, falling back to the old singular `photo`
 // field so entries saved before multi-photo support still display fine.
-function entryPhotos(e){
-  if(e.photos && e.photos.length) return e.photos;
-  if(e.photo) return [e.photo];
-  return [];
-}
+// entryPhotos() is defined in common.js, shared with every app in this suite.
 
 // Supabase-backed storage, shared with the rest of Warehouse, so entries
 // sync across devices instead of being trapped in one browser. Falls back
@@ -287,47 +283,17 @@ if(supabaseClient){
   renderAuthControl();
 }
 
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : str;
-  return div.innerHTML;
-}
+// escapeHtml() is defined in common.js, shared with every app in this suite.
 
 // Only allow http(s) URLs through as href values — guards against
 // javascript: or other schemes sneaking into a link field.
-function safeUrl(u){
-  if(!u) return null;
-  const s = u.trim();
-  if(/^https?:\/\//i.test(s)) return s;
-  return null;
-}
+// safeUrl() is defined in common.js, shared with every app in this suite.
 
-function linkOrText(text, url){
-  const t = escapeHtml(text || '');
-  if(!t) return '';
-  const href = safeUrl(url);
-  return href
-    ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${t}</a>`
-    : t;
-}
+// linkOrText() is defined in common.js, shared with every app in this suite.
 
-function setLoadError(message){
-  const el = document.getElementById('loadErrorState');
-  if(!el) return;
-  if(message){
-    el.style.display = 'block';
-    el.querySelector('.msg').textContent = message;
-  }else{
-    el.style.display = 'none';
-  }
-}
+// setLoadError() is defined in common.js, shared with every app in this suite.
 
-function fmtDate(d){
-  if(!d) return '';
-  const dt = new Date(d + 'T00:00:00');
-  if(isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-}
+// fmtDate() is defined in common.js, shared with every app in this suite.
 
 function render(){
   const wrap = $('entries');
@@ -458,10 +424,7 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
-function closeLightbox(){
-  $('lightbox').classList.remove('open');
-  currentLightboxId = null;
-}
+// closeLightbox() is defined in common.js, shared with every app in this suite.
 
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
@@ -482,22 +445,10 @@ $('lightboxCopyLink').addEventListener('click', async e => {
 // Deep link: if the page was opened with #<entryId> (e.g. pasted from a
 // restaurant entry's "link to this dish's cheese" field), open that
 // entry's lightbox automatically once entries have loaded.
-function openFromHash(){
-  const id = location.hash.replace(/^#/, '');
-  if(id && entries.some(e => e.id === id)){
-    openLightbox(id);
-    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
-  }
-}
+// openFromHash() is defined in common.js, shared with every app in this suite.
 
-function openPhotoZoom(src){
-  $('photoZoomImg').src = src;
-  $('photoZoom').classList.add('open');
-}
-function closePhotoZoom(){
-  $('photoZoom').classList.remove('open');
-  $('photoZoomImg').src = '';
-}
+// openPhotoZoom() is defined in common.js, shared with every app in this suite.
+// closePhotoZoom() is defined in common.js, shared with every app in this suite.
 
 $('lightboxClose').addEventListener('click', e => {
   e.stopPropagation();
@@ -519,13 +470,8 @@ document.addEventListener('keydown', e => {
 // native <datalist>, which iOS Safari handles unreliably). Shows every
 // known value on focus, filters as you type, still accepts any free-text
 // value so a new producer/merchant isn't blocked.
-function allProducers(){
-  return [...new Set(entries.map(e=>e.producer).filter(Boolean))].sort();
-}
-function refreshProducerOptions(){
-  const el = $('f-producer-options');
-  if(el) el.dataset.options = JSON.stringify(allProducers());
-}
+// allProducers() is defined in common.js, shared with every app in this suite.
+// refreshProducerOptions() is defined in common.js, shared with every app in this suite.
 function allMerchants(){
   return [...new Set(entries.map(e=>e.merchant).filter(Boolean))].sort();
 }
@@ -533,38 +479,7 @@ function refreshMerchantOptions(){
   const el = $('f-merchant-options');
   if(el) el.dataset.options = JSON.stringify(allMerchants());
 }
-function setupAutocomplete(inputId, listId){
-  const input = $(inputId);
-  const list = $(listId);
-
-  function optionsFor(){
-    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
-  }
-  function renderList(opts){
-    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
-    list.innerHTML = opts.map(o=>`<div data-val="${escapeHtml(o)}">${escapeHtml(o)}</div>`).join('');
-    list.classList.add('open');
-  }
-  function showAll(){
-    renderList(optionsFor());
-    input.select();
-  }
-  function showFiltered(){
-    const q = input.value.trim().toLowerCase();
-    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
-  }
-  function hide(){ list.classList.remove('open'); }
-
-  input.addEventListener('focus', showAll);
-  input.addEventListener('input', showFiltered);
-  input.addEventListener('blur', ()=> setTimeout(hide, 150));
-  list.addEventListener('mousedown', (e)=>{
-    const opt = e.target.closest('[data-val]');
-    if(!opt) return;
-    input.value = opt.dataset.val;
-    hide();
-  });
-}
+// setupAutocomplete() is defined in common.js, shared with every app in this suite.
 setupAutocomplete('f-producer', 'f-producer-options');
 setupAutocomplete('f-merchant', 'f-merchant-options');
 
@@ -600,32 +515,7 @@ async function refreshCrossLinkOptions(){
   }
 }
 
-function buildLinkedSelect(selectEl, options, currentId, currentLabel, newLabel){
-  selectEl.innerHTML = '';
-  const blankOpt = document.createElement('option');
-  blankOpt.value = '';
-  blankOpt.textContent = '\u2014';
-  selectEl.appendChild(blankOpt);
-  const newOpt = document.createElement('option');
-  newOpt.value = '__new__';
-  newOpt.textContent = newLabel;
-  selectEl.appendChild(newOpt);
-  let matched = false;
-  options.forEach(o => {
-    const opt = document.createElement('option');
-    opt.value = o.id;
-    opt.textContent = o.name;
-    if(o.id && o.id === currentId){ opt.selected = true; matched = true; }
-    selectEl.appendChild(opt);
-  });
-  if(currentId && !matched){
-    const opt = document.createElement('option');
-    opt.value = currentId;
-    opt.textContent = '(' + (currentLabel || 'linked entry') + ' not in list)';
-    opt.selected = true;
-    selectEl.appendChild(opt);
-  }
-}
+// buildLinkedSelect() is defined in common.js, shared with every app in this suite.
 
 // currentRestaurantId tracks the entry-being-edited's linked restaurant id
 // across re-renders of the select (e.g. after creating a new restaurant
@@ -845,32 +735,12 @@ function setAutofillStatus(msg, cls){
 // Resizes a data: URL image the same way resizeImage() handles a File —
 // used to compress the photo an autofill fetch hands back, so it goes
 // through the same size/quality pipeline as a manually uploaded photo.
-function resizeDataUrl(dataUrl, maxDim, quality){
-  return new Promise((resolve, reject)=>{
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
-      else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
+// resizeDataUrl() is defined in common.js, shared with every app in this suite.
 
 // Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
 // prepends https:// if no scheme was typed, so the field doesn't demand
 // people paste the "https://" prefix by hand.
-function normalizeAutofillUrl(u){
-  u = (u || '').trim();
-  if(!u) return u;
-  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
-  return u;
-}
+// normalizeAutofillUrl() is defined in common.js, shared with every app in this suite.
 
 async function runAutofill(){
   const url = normalizeAutofillUrl($('f-autofillUrl').value);
@@ -1141,10 +1011,7 @@ async function deleteEntry(id){
   }
 }
 
-function closeForm(){
-  $('ticket').classList.remove('open');
-  resetForm();
-}
+// closeForm() is defined in common.js, shared with every app in this suite.
 
 $('toggleForm').addEventListener('click', () => {
   const t = $('ticket');

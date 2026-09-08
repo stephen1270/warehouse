@@ -790,16 +790,7 @@ function renderGallery(){
     : 'Add one or more photos of this product.';
 }
 
-function setLoadError(message){
-  const el = document.getElementById('loadErrorState');
-  if(!el) return;
-  if(message){
-    el.style.display = 'block';
-    el.querySelector('.msg').textContent = message;
-  }else{
-    el.style.display = 'none';
-  }
-}
+// setLoadError() is defined in common.js, shared with every app in this suite.
 
 async function load(){
   try{
@@ -1075,12 +1066,7 @@ function esc(s){
 
 // Only allow http(s) URLs through as href values — guards against
 // javascript: or other schemes sneaking into a pasted link field.
-function safeUrl(u){
-  if(!u) return null;
-  const s = u.trim();
-  if(/^https?:\/\//i.test(s)) return s;
-  return null;
-}
+// safeUrl() is defined in common.js, shared with every app in this suite.
 
 function render(){
   refreshFilterOptions();
@@ -1164,12 +1150,7 @@ function setAutofillStatus(msg, cls){
   el.className = 'autofill-hint' + (cls ? ' ' + cls : '');
 }
 
-function normalizeAutofillUrl(u){
-  u = (u || '').trim();
-  if(!u) return u;
-  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
-  return u;
-}
+// normalizeAutofillUrl() is defined in common.js, shared with every app in this suite.
 
 async function runAutofill(){
   const url = normalizeAutofillUrl(document.getElementById('f_autofillUrl').value);

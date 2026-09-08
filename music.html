@@ -137,7 +137,7 @@ let editingId = null;
 let currentLightboxId = null;
 let currentStars = 0;
 
-const $ = (id) => document.getElementById(id);
+// $ (getElementById shorthand) is defined in common.js, shared with every app in this suite.
 
 // Every music entry's kv_store key starts with this. Scoped to 'entry:m-'
 // (not the bare 'entry:' prefix) for the same reason noted in
@@ -242,17 +242,9 @@ if(supabaseClient){
   renderAuthControl();
 }
 
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
+// escapeHtml() is defined in common.js, shared with every app in this suite.
 
-function starsHtml(n){
-  let s = '';
-  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
-  return s;
-}
+// starsHtml() is defined in common.js, shared with every app in this suite.
 
 function slug(s){
   return (s || 'x').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'x';
@@ -403,10 +395,7 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
-function closeLightbox(){
-  $('lightbox').classList.remove('open');
-  currentLightboxId = null;
-}
+// closeLightbox() is defined in common.js, shared with every app in this suite.
 
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
@@ -435,13 +424,7 @@ document.addEventListener('keydown', e => {
 
 // Deep link: opening the page with #<entryId> jumps straight to that
 // record's lightbox, same pattern as Restaurants/Bakeries/Movies.
-function openFromHash(){
-  const id = location.hash.replace(/^#/, '');
-  if(id && entries.some(e => e.id === id)){
-    openLightbox(id);
-    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
-  }
-}
+// openFromHash() is defined in common.js, shared with every app in this suite.
 
 function resetForm(){
   $('f-barcode').value='';
@@ -460,12 +443,7 @@ function resetForm(){
   editingId = null;
 }
 
-function setStars(n){
-  currentStars = n;
-  document.querySelectorAll('#f-stars span').forEach(s=>{
-    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
-  });
-}
+// setStars() is defined in common.js, shared with every app in this suite.
 
 function openForEdit(id){
   const e = entries.find(x=>x.id===id);
@@ -580,10 +558,7 @@ async function deleteEntry(id){
   }
 }
 
-function closeForm(){
-  $('ticket').classList.remove('open');
-  resetForm();
-}
+// closeForm() is defined in common.js, shared with every app in this suite.
 
 function openNew(prefill){
   resetForm();
