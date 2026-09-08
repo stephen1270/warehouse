@@ -108,6 +108,8 @@
       <div class="add-row-choices">
         <button type="button" id="addBreadBtn" class="ghost-inline">+ Add bread</button>
         <button type="button" id="addBreadByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addBreadByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="breadByPhotoInput" accept="image/*" style="display:none;">
       </div>
     </div>
     <div class="field">
@@ -116,6 +118,8 @@
       <div class="add-row-choices">
         <button type="button" id="addPastryBtn" class="ghost-inline">+ Add pastry</button>
         <button type="button" id="addPastryByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addPastryByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="pastryByPhotoInput" accept="image/*" style="display:none;">
       </div>
     </div>
     <div class="field">
@@ -124,6 +128,8 @@
       <div class="add-row-choices">
         <button type="button" id="addPieBtn" class="ghost-inline">+ Add pie</button>
         <button type="button" id="addPieByUrlBtn" class="ghost-inline">+ Add by URL</button>
+        <button type="button" id="addPieByPhotoBtn" class="ghost-inline">+ Add by photo</button>
+        <input type="file" id="pieByPhotoInput" accept="image/*" style="display:none;">
       </div>
     </div>
     <div class="field">
@@ -508,6 +514,30 @@ async function createNewBread(name){
   return { id, name };
 }
 
+
+async function createBreadFromPhoto(name, photo){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'br' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: photo ? [photo] : [],
+    producer: '', producerUrl: '',
+    itemType: '', detail: '',
+    bakery: '', bakeryUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.bakery = $('f-name').value.trim();
+    entry.bakeryUrl = location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bakeries.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'bread:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
 let pastryOptions = []; // {id, name}
 
 async function refreshPastryOptions(){
@@ -592,6 +622,30 @@ async function createNewPastry(name){
   return { id, name };
 }
 
+
+async function createPastryFromPhoto(name, photo){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'pa' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: photo ? [photo] : [],
+    producer: '', producerUrl: '',
+    itemType: '', detail: '',
+    bakery: '', bakeryUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
+  if(editingId){
+    entry.bakery = $('f-name').value.trim();
+    entry.bakeryUrl = location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bakeries.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'pastry:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
 let pieOptions = []; // {id, name}
 
 async function refreshPieOptions(){
@@ -665,6 +719,29 @@ async function createNewPie(name){
   // the new pie's Bakery back-link automatically — it completes the
   // reciprocal connection for free. A brand-new, not-yet-saved entry has no
   // stable URL to give it yet, so this is skipped in that case.
+  if(editingId){
+    entry.bakery = $('f-name').value.trim();
+    entry.bakeryUrl = location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bakeries.html#' + editingId;
+  }
+  const { error } = await supabaseClient
+    .from('kv_store')
+    .upsert({ key: 'pie:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
+  if(error) throw error;
+  return { id, name };
+}
+
+async function createPieFromPhoto(name, photo){
+  if(!supabaseClient) throw new Error('Not connected to Supabase');
+  const id = 'pi' + Date.now() + Math.random().toString(36).slice(2,7);
+  const entry = {
+    id, name,
+    photos: photo ? [photo] : [],
+    producer: '', producerUrl: '',
+    itemType: '', detail: '',
+    bakery: '', bakeryUrl: '',
+    date: new Date().toISOString().slice(0,10),
+    comment: ''
+  };
   if(editingId){
     entry.bakery = $('f-name').value.trim();
     entry.bakeryUrl = location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bakeries.html#' + editingId;
@@ -1087,6 +1164,42 @@ $('addBreadByUrlBtn').addEventListener('click', async () => {
   }
 });
 
+
+// Attaches a photo you pick — no AI identification, just a quick
+// snapshot. Prompts for a name (same as "+ New bread…"), creates
+// the entry with that photo attached, and adds it to this visit's list.
+$('addBreadByPhotoBtn').addEventListener('click', () => $('breadByPhotoInput').click());
+$('breadByPhotoInput').addEventListener('change', async () => {
+  const file = $('breadByPhotoInput').files && $('breadByPhotoInput').files[0];
+  $('breadByPhotoInput').value = '';
+  if(!file) return;
+  const name = prompt('Name for this bread:');
+  if(!name || !name.trim()) return;
+  const btn = $('addBreadByPhotoBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Adding…';
+  btn.disabled = true;
+  try{
+    const photo = await resizeImage(file, 1000, 0.72);
+    const created = await createBreadFromPhoto(name.trim(), photo);
+    breadOptions.push({ id: created.id, name: created.name });
+    breadOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readBreadsFromDom();
+    currentBreads.push({
+      name: created.name,
+      note: '',
+      breadUrl: location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'bread.html#' + created.id
+    });
+    renderBreadsList();
+  }catch(err){
+    console.error('Could not add bread from photo', err);
+    alert(err.message || 'Could not add that photo — make sure you\u2019re signed in.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
 function breadItemsOf(e){
   return (e.breadItems && e.breadItems.length) ? e.breadItems : [];
 }
@@ -1240,6 +1353,42 @@ $('addPastryByUrlBtn').addEventListener('click', async () => {
   }
 });
 
+
+// Attaches a photo you pick — no AI identification, just a quick
+// snapshot. Prompts for a name (same as "+ New pastry…"), creates
+// the entry with that photo attached, and adds it to this visit's list.
+$('addPastryByPhotoBtn').addEventListener('click', () => $('pastryByPhotoInput').click());
+$('pastryByPhotoInput').addEventListener('change', async () => {
+  const file = $('pastryByPhotoInput').files && $('pastryByPhotoInput').files[0];
+  $('pastryByPhotoInput').value = '';
+  if(!file) return;
+  const name = prompt('Name for this pastry:');
+  if(!name || !name.trim()) return;
+  const btn = $('addPastryByPhotoBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Adding…';
+  btn.disabled = true;
+  try{
+    const photo = await resizeImage(file, 1000, 0.72);
+    const created = await createPastryFromPhoto(name.trim(), photo);
+    pastryOptions.push({ id: created.id, name: created.name });
+    pastryOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readPastrysFromDom();
+    currentPastrys.push({
+      name: created.name,
+      note: '',
+      pastryUrl: location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'pastry.html#' + created.id
+    });
+    renderPastrysList();
+  }catch(err){
+    console.error('Could not add pastry from photo', err);
+    alert(err.message || 'Could not add that photo — make sure you\u2019re signed in.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
 function pastryItemsOf(e){
   return (e.pastryItems && e.pastryItems.length) ? e.pastryItems : [];
 }
@@ -1387,6 +1536,42 @@ $('addPieByUrlBtn').addEventListener('click', async () => {
   }catch(err){
     console.error('Could not add pie from URL', err);
     alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+
+// Attaches a photo you pick — no AI identification, just a quick
+// snapshot. Prompts for a name (same as "+ New pie…"), creates
+// the entry with that photo attached, and adds it to this visit's list.
+$('addPieByPhotoBtn').addEventListener('click', () => $('pieByPhotoInput').click());
+$('pieByPhotoInput').addEventListener('change', async () => {
+  const file = $('pieByPhotoInput').files && $('pieByPhotoInput').files[0];
+  $('pieByPhotoInput').value = '';
+  if(!file) return;
+  const name = prompt('Name for this pie:');
+  if(!name || !name.trim()) return;
+  const btn = $('addPieByPhotoBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Adding…';
+  btn.disabled = true;
+  try{
+    const photo = await resizeImage(file, 1000, 0.72);
+    const created = await createPieFromPhoto(name.trim(), photo);
+    pieOptions.push({ id: created.id, name: created.name });
+    pieOptions.sort((a,b) => a.name.localeCompare(b.name));
+    readPiesFromDom();
+    currentPies.push({
+      name: created.name,
+      note: '',
+      pieUrl: location.origin + location.pathname.replace(/bakeries\.html$/, '') + 'pie.html#' + created.id
+    });
+    renderPiesList();
+  }catch(err){
+    console.error('Could not add pie from photo', err);
+    alert(err.message || 'Could not add that photo — make sure you\u2019re signed in.');
   }finally{
     btn.textContent = originalText;
     btn.disabled = false;
