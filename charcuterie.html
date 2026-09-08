@@ -213,11 +213,7 @@ function entryPhotos(e){
 let currentUser = null;
 let mfaSatisfied = true; // becomes false when a factor is enrolled but this session hasn't cleared the challenge yet
 
-async function checkMfaStatus(){
-  if(!currentUser || !supabaseClient){ mfaSatisfied = true; return; }
-  const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
-  mfaSatisfied = error ? true : (data.currentLevel === data.nextLevel);
-}
+// checkMfaStatus() is defined in common.js, shared with every app in this suite.
 
 function renderAuthControl(){
   const el = document.getElementById('authControl');

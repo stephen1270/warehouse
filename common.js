@@ -72,6 +72,25 @@ function makeSupabaseAdapter(){
       const { data, error } = await query;
       if(error) throw error;
       return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything — this is what was making load slow. Every app's
+    // loadEntries() already guards with `if(storage.listWithValues)` and
+    // falls back to the slow path otherwise, so this was silently never
+    // being used by any app on this shared adapter until it was added
+    // here — they'd all been running the one-request-per-entry path.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
     }
   };
 }
@@ -80,6 +99,20 @@ function makeSupabaseAdapter(){
 const storage = (typeof window !== 'undefined' && window.storage)
   ? window.storage
   : (makeSupabaseAdapter() || localStorageAdapter);
+
+// Checks whether the current session has satisfied any enrolled MFA
+// factor. Shared verbatim across every app — references currentUser and
+// mfaSatisfied, which each app declares itself as page-level `let`s;
+// this works because classic <script> tags on one page share a single
+// global lexical environment, so this function (defined here, before
+// each page's own script runs) still resolves those identifiers
+// correctly once it's actually called, which only happens after the
+// page's own script has already declared them.
+async function checkMfaStatus(){
+  if(!currentUser || !supabaseClient){ mfaSatisfied = true; return; }
+  const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  mfaSatisfied = error ? true : (data.currentLevel === data.nextLevel);
+}
 
 // Resizes/compresses an uploaded photo before storing it as base64 (or,
 // as of the Pantry Storage migration, before uploading the bytes to

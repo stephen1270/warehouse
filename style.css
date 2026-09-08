@@ -1,29 +1,33 @@
 /* Warehouse shared stylesheet
- * Structural CSS common to the Warehouse apps (Restaurants, Bakeries, Cheese,
- * Wine, Spirits, Charcuterie, Beer, Bread, Pastry, Pie, Music, Movies).
+ * Structural CSS common to most Warehouse apps: Restaurants, Bakeries,
+ * Cheese, Wine, Spirits, Charcuterie, Beer, Bread, Pastry, Pie, and Music.
  * Each app keeps its own tiny inline <style> block with just its :root
  * color palette (--paper, --paper-dark, --ink, --accent, --accent2, --muted,
- * --line) so this file stays generic across every app's theme. Pantry and
- * index.html are not on this shared stylesheet yet (see memory notes).
+ * --line) so this file stays generic across every app's theme. Pantry,
+ * Movies, and index.html are fully self-contained instead (their own
+ * complete inline stylesheets) and don't link this file at all.
  *
  * Cleaned up 2026-09: this file had accumulated 4+ duplicate copies of
  * several rules (.entry, .wrap, .toolbar, .field, and others) from
- * different apps' CSS being pasted in over sessions instead of merged.
- * Two of those duplicates were genuine bugs, not just clutter:
+ * different apps' CSS being pasted in over sessions instead of merged —
+ * including a full copy of Movies' card layout (.entry-cover, .entry-imdb,
+ * .entry-plot), even though movies.html has never actually linked this
+ * file; that copy has been removed as dead weight along with the others.
+ * Two of the remaining duplicates were genuine bugs, not just clutter:
  *   - .field was missing position:relative in its later (winning) copy,
  *     which the .autocomplete-list dropdown depends on to anchor itself.
- *   - .entry had three incompatible layouts fighting over one class name:
- *     a plain block (Restaurants/Bakeries/Music), a flex row with a small
- *     square thumb (Wine/Cheese/Spirits/Charcuterie/Beer/Bread/Pastry/Pie),
- *     and a flex row with a poster-shaped cover (Movies). Whichever was
- *     last in the file won for every app, which is what broke Restaurants'
- *     layout on mobile. Fixed by keeping .entry as a plain block (the
- *     shared base every card wants: background/border/padding/margin/
- *     position/cursor) and adding a separate .entry-row modifier class
- *     (display:flex, applied alongside .entry in the HTML) for the two
- *     families that need a flex row for their thumb or cover image.
+ *   - .entry had incompatible layouts fighting over one class name: a
+ *     plain block (Restaurants/Bakeries/Music) and a flex row with a
+ *     small square thumb (Wine/Cheese/Spirits/Charcuterie/Beer/Bread/
+ *     Pastry/Pie). Whichever was last in the file won for every app,
+ *     which is what broke Restaurants' layout on mobile. Fixed by keeping
+ *     .entry as a plain block (the shared base every card wants:
+ *     background/border/padding/margin/position/cursor) and adding a
+ *     separate .entry-row modifier class (display:flex, applied alongside
+ *     .entry in the HTML) for the thumb family that needs a flex row.
  * Also dropped .entry-studio (dead — the Studio field was removed from
- * Movies before this stylesheet was written) and picked single values
+ * Movies before this stylesheet was written; Movies has since moved to
+ * its own self-contained stylesheet anyway) and picked single values
  * for the handful of purely-cosmetic differences between duplicate copies
  * (hover colors, opacities, spacing) that had drifted with no functional
  * reason to differ.
@@ -517,12 +521,13 @@ header .rule{
 .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 
 /* entries — shared base.
-   .entry is the plain card container used by every app. It has no
-   `display` of its own (defaults to block), which is exactly what
+   .entry is the plain card container used by every app on this file. It
+   has no `display` of its own (defaults to block), which is exactly what
    Restaurants/Bakeries/Music want. Wine/Cheese/Spirits/Charcuterie/Beer/
-   Bread/Pastry/Pie (leading square thumb) and Movies (leading poster
-   cover) additionally add the .entry-row class in their HTML to lay the
-   thumb/cover and body out side by side. */
+   Bread/Pastry/Pie (leading square thumb) additionally add the
+   .entry-row class in their HTML to lay the thumb and body out side by
+   side. Movies has its own equivalent flex-row card, but entirely in its
+   own self-contained stylesheet — it doesn't link this file. */
   .entry{
     background:var(--paper);
     border:1px solid var(--line);
@@ -546,10 +551,6 @@ header .rule{
     font-family:var(--display-font);font-style:italic;font-weight:300;
     color:var(--muted);opacity:.5;font-size:22px;
   }
-
-.entry-cover{width:52px;height:78px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;background:var(--paper-dark);}
-
-.entry-cover.placeholder{display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);opacity:.4;}
 
 .entry-body{flex:1;min-width:0;text-align:left;}
 
@@ -576,10 +577,6 @@ header .rule{
 .entry-title{font-family:var(--display-font);font-weight:300;font-style:italic;font-size:19px;line-height:1.3;}
 
 .entry-artist{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:2px;}
-
-.entry-imdb{font-size:10px;color:var(--muted);opacity:.8;white-space:nowrap;}
-
-.entry-plot{font-size:11px;color:var(--muted);opacity:.85;margin-top:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 
 .entry-cond{font-size:10px;color:var(--muted);opacity:.75;margin-top:4px;}
 

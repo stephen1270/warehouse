@@ -500,7 +500,7 @@ function render(){
   }
 
   wrap.innerHTML = filtered.map(e => `
-    <div class="entry entry-row" data-id="${e.id}">
+    <div class="entry" data-id="${e.id}">
       ${e.cover ? `<img class="entry-cover" src="${escapeHtml(e.cover)}" loading="lazy" alt="">` : `<div class="entry-cover placeholder">🎬</div>`}
       <div class="entry-body">
         <div class="entry-actions">
