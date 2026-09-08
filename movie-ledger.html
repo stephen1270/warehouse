@@ -31,7 +31,7 @@
   <header>
     <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; A Collection Of Collections</div>
     <h1>Movies</h1>
-    <div class="sub">DVDs and Blu-rays, cataloged from CLZ &mdash; genre, studio, director, condition</div>
+    <div class="sub">DVDs and Blu-rays &mdash; genre, studio, director, condition</div>
     <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
     <div class="rule"></div>
   </header>
@@ -39,15 +39,8 @@
   <div class="toolbar">
     <span class="count" id="count">loading…</span>
     <div class="toolbar-btns">
-      <button class="importbtn" id="toggleImport">Import from CLZ</button>
       <button class="newbtn" id="toggleForm">+ New Entry</button>
     </div>
-  </div>
-
-  <div class="import-panel" id="importPanel">
-    <p>Upload a CLZ Movies export (.xml). Each film becomes an entry, keyed by its CLZ hash, so re-importing the same export updates existing records instead of duplicating them.</p>
-    <input type="file" id="importFile" accept=".xml">
-    <div class="import-status" id="importStatus"></div>
   </div>
 
   <div class="ticket" id="ticket">
@@ -298,9 +291,7 @@ function renderAuthControl(){
 function applyAuthGating(){
   const loggedIn = !supabaseClient || !!currentUser;
   const newBtn = document.getElementById('toggleForm');
-  const importBtn = document.getElementById('toggleImport');
   if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
-  if(importBtn) importBtn.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.entry-actions').forEach(el=>{
     el.style.display = loggedIn ? '' : 'none';
   });
@@ -389,7 +380,7 @@ function render(){
     `${filtered.length} of ${entries.length} record${entries.length===1?'':'s'}`;
 
   if(entries.length === 0){
-    wrap.innerHTML = `<div class="empty"><span class="big">The reel is empty.</span>Add a film, or import a CLZ export.</div>`;
+    wrap.innerHTML = `<div class="empty"><span class="big">The reel is empty.</span>Add a film to get started.</div>`;
     applyAuthGating();
     return;
   }
@@ -596,7 +587,6 @@ function openForEdit(id){
   $('f-imdbrating').value = e.imdbRating || '';
   $('f-imdburl').value = e.imdbUrl || '';
   setStars(e.rating || 0);
-  $('importPanel').classList.remove('open');
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -704,7 +694,6 @@ function closeForm(){
 
 function openNew(){
   resetForm();
-  $('importPanel').classList.remove('open');
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
   $('f-title').focus();
@@ -722,94 +711,6 @@ $('cancelBtn').addEventListener('click', closeForm);
 $('saveBtn').addEventListener('click', saveEntry);
 document.querySelectorAll('#f-stars span').forEach(s=>{
   s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
-});
-
-// --- CLZ XML import ---
-$('toggleImport').addEventListener('click', () => {
-  const p = $('importPanel');
-  if(p.classList.contains('open')){
-    p.classList.remove('open');
-  } else {
-    $('ticket').classList.remove('open');
-    p.classList.add('open');
-    p.scrollIntoView({behavior:'smooth', block:'start'});
-  }
-});
-
-function txt(node, selector){
-  if(!node) return '';
-  const el = node.querySelector(selector);
-  return el && el.textContent ? el.textContent.trim() : '';
-}
-
-function parseClzXml(xmlText){
-  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
-  const items = Array.from(doc.querySelectorAll('movielist > movie'));
-  return items.map(m => {
-    const title = txt(m, 'title') || 'Untitled';
-    const hash = txt(m, 'hash');
-    const year = txt(m, 'releasedate > year > displayname');
-    const genres = Array.from(m.querySelectorAll('genres > genre')).map(g => txt(g,'displayname')).filter(Boolean);
-    const studioNames = Array.from(m.querySelectorAll('studios > studio')).map(s => txt(s,'displayname')).filter(Boolean);
-    const studio = studioNames.join(' / ');
-    const country = txt(m, 'country > displayname');
-    const language = txt(m, 'language > displayname');
-    const plotEl = m.querySelector('plot');
-    const plot = plotEl ? (plotEl.textContent || '').trim() : '';
-    const imdbRating = txt(m, 'imdbrating');
-    const imdbUrl = txt(m, 'imdburl');
-    const runtime = txt(m, 'runtime');
-    const discs = parseInt(txt(m, 'nrdiscs')) || 0;
-    const quantity = parseInt(txt(m, 'quantity')) || 1;
-    const edition = txt(m, 'edition > displayname');
-    const audienceRating = txt(m, 'audiencerating > displayname');
-    const cover = txt(m, 'coverfrontdefault');
-    const rating = parseInt(txt(m, 'myrating')) || 0;
-    const addedTs = txt(m, 'addeddate > timestamp');
-    const addedDate = addedTs ? new Date(parseInt(addedTs) * 1000).toISOString().slice(0,10) : '';
-    const id = hash ? hash.slice(0,8) : (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
-    return {
-      id, title, year, genres, studio, country, language, plot,
-      imdbRating, imdbUrl, runtime, discs, quantity, edition,
-      audienceRating, cover, rating, addedDate, director: '', condition: ''
-    };
-  });
-}
-
-$('importFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if(!file) return;
-  const statusEl = $('importStatus');
-  statusEl.textContent = 'Reading file…';
-  try{
-    const text = await file.text();
-    const records = parseClzXml(text);
-    if(records.length === 0){
-      statusEl.textContent = 'No <movie> records found in that file.';
-      return;
-    }
-    if(!confirm(`Import ${records.length} record${records.length===1?'':'s'} from this CLZ export? Existing records with the same film will be updated.`)){
-      statusEl.textContent = '';
-      e.target.value = '';
-      return;
-    }
-    statusEl.textContent = `Importing 0 / ${records.length}…`;
-    let done = 0;
-    for(const rec of records){
-      const key = KEY_PREFIX + slug(rec.title) + '-' + slug(rec.year) + '-' + rec.id;
-      await storage.set(key, JSON.stringify(rec));
-      done++;
-      if(done % 10 === 0 || done === records.length){
-        statusEl.textContent = `Importing ${done} / ${records.length}…`;
-      }
-    }
-    statusEl.textContent = `Done — imported ${records.length} record${records.length===1?'':'s'}.`;
-    e.target.value = '';
-    await loadEntries();
-  }catch(err){
-    console.error(err);
-    statusEl.textContent = 'Import failed — check the file is a valid CLZ Movies XML export.';
-  }
 });
 
 loadEntries().then(openFromHash);

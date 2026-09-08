@@ -120,9 +120,21 @@
   <div id="entries" class="loading">loading…</div>
 </div>
 
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close ✕</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-meta" id="lb-meta"></div>
+    <div class="lightbox-notes" id="lb-details"></div>
+    <div class="lightbox-tags" id="lb-tags"></div>
+  </div>
+</div>
+
 <script>
 let entries = [];
 let editingId = null;
+let currentLightboxId = null;
 let currentStars = 0;
 
 const $ = (id) => document.getElementById(id);
@@ -343,6 +355,9 @@ function render(){
       if(confirm('Remove this record?')) await deleteEntry(id);
     });
   });
+  wrap.querySelectorAll('.entry').forEach(el=>{
+    el.addEventListener('click', () => openLightbox(el.dataset.id));
+  });
   applyAuthGating();
 }
 
@@ -350,6 +365,79 @@ function render(){
   $(id).addEventListener('input', render);
   $(id).addEventListener('change', render);
 });
+
+// Clicking a card opens its full record here — the card already shows
+// most fields, so this mainly surfaces the full label list, catalog
+// number, and barcode (none shown on the card).
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  currentLightboxId = id;
+
+  $('lb-name').textContent = `${e.artist || 'Unknown Artist'} — ${e.title || 'Untitled'}`;
+
+  const metaBits = [];
+  if(e.format) metaBits.push(e.format);
+  if(e.year) metaBits.push(e.year);
+  if(e.quantity && e.quantity > 1) metaBits.push(`×${e.quantity}`);
+  $('lb-meta').innerHTML = metaBits.map(m => `<span>${escapeHtml(m)}</span>`).join('');
+
+  const detailLines = [];
+  if(e.label) detailLines.push(['Label', e.label]);
+  if(e.labelNumber) detailLines.push(['Catalog #', e.labelNumber]);
+  if(e.barcode) detailLines.push(['Barcode', e.barcode]);
+  if(e.sleeveCondition) detailLines.push(['Sleeve', condShort(e.sleeveCondition)]);
+  if(e.mediaCondition) detailLines.push(['Media', condShort(e.mediaCondition)]);
+  $('lb-details').innerHTML = detailLines.length
+    ? detailLines.map(([label, val]) => `<div><span class="lbl" style="display:inline;margin:0;">${escapeHtml(label)}:</span> ${escapeHtml(val)}</div>`).join('')
+    : '';
+
+  $('lb-tags').innerHTML = (e.genres && e.genres.length)
+    ? e.genres.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join('')
+    : '';
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '✓ copied';
+  }catch(err){
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
+});
+
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+});
+
+// Deep link: opening the page with #<entryId> jumps straight to that
+// record's lightbox, same pattern as Restaurants/Bakeries/Movies.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
 
 function resetForm(){
   $('f-barcode').value='';
@@ -654,7 +742,7 @@ $('importFile').addEventListener('change', async (e) => {
   }
 });
 
-loadEntries();
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>
