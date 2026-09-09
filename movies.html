@@ -259,7 +259,7 @@
       <input type="text" id="barcodeInput" placeholder="Or type the barcode…" inputmode="numeric">
       <button type="button" id="lookupBarcodeBtn">Look Up</button>
     </div>
-    <video id="scanVideo" playsinline muted></video>
+    <video id="scanVideo" playsinline autoplay muted></video>
     <div class="scan-status" id="scanStatus"></div>
   </div>
 
@@ -949,6 +949,7 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
 // genre, plot, IMDb link) is still the person's to fill in, since a UPC
 // database is a general product catalog, not a film database.
 let codeReader = null;
+let scanStream = null;
 
 function setScanStatus(msg, isError){
   const el = $('scanStatus');
@@ -960,6 +961,14 @@ function stopScan(){
   if(codeReader){
     try{ codeReader.reset(); }catch(e){ /* already stopped */ }
     codeReader = null;
+  }
+  if(scanStream){
+    // Stopping the tracks ourselves (rather than relying on the reader
+    // to do it) is what actually releases the camera and turns off the
+    // device's recording indicator — decodeFromStream() uses whatever
+    // stream we hand it, it doesn't take ownership of shutting it down.
+    scanStream.getTracks().forEach(track => track.stop());
+    scanStream = null;
   }
   $('scanVideo').style.display = 'none';
 }
@@ -973,13 +982,20 @@ async function startCameraScan(){
   video.style.display = 'block';
   setScanStatus('Requesting camera access…');
   try{
+    // Ask for the camera directly, with a preference for the rear
+    // (environment-facing) one — this is what actually triggers the
+    // browser's permission prompt. The previous approach called
+    // ZXing's device-listing helper first to pick a camera, but that
+    // enumerates devices before permission has been granted, which
+    // several browsers (iOS Safari among them) simply refuse to do —
+    // it fails silently before the person ever sees a permission
+    // prompt at all.
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    });
     codeReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    // On phones, the rear (environment-facing) camera is usually last in
-    // this list — prefer it for scanning a physical barcode.
-    const deviceId = devices.length ? devices[devices.length - 1].deviceId : undefined;
     setScanStatus('Point your camera at the barcode…');
-    codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+    codeReader.decodeFromStream(scanStream, video, (result, err) => {
       if(result){
         const text = result.getText();
         stopScan();
@@ -991,8 +1007,13 @@ async function startCameraScan(){
     });
   }catch(err){
     console.error(err);
-    setScanStatus('Could not access the camera — check your browser\u2019s camera permission for this site, or enter the barcode by hand instead.', true);
+    let msg = 'Could not access the camera — check your browser\u2019s camera permission for this site, or enter the barcode by hand instead.';
+    if(err && err.name === 'NotAllowedError') msg = 'Camera access was denied — allow it for this site in your browser settings, or enter the barcode by hand instead.';
+    else if(err && err.name === 'NotFoundError') msg = 'No camera found on this device — enter the barcode by hand instead.';
+    else if(err && err.name === 'NotReadableError') msg = 'The camera is already in use by another app — close it and try again, or enter the barcode by hand instead.';
+    setScanStatus(msg, true);
     video.style.display = 'none';
+
   }
 }
 
