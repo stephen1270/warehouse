@@ -45,13 +45,12 @@
   .toolbar{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 14px;font-size:12px;gap:10px;flex-wrap:wrap;}
   .toolbar .count{color:var(--slate);opacity:.75;}
   .toolbar-btns{display:flex;gap:8px;}
-  .newbtn, .importbtn{
+  .newbtn{
     font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
   }
   .newbtn{background:var(--marquee);color:var(--paper);border-color:var(--marquee);}
   .newbtn:hover{background:#5e1c26;}
-  .importbtn:hover{border-color:var(--marquee);color:var(--marquee);}
 
   .auth-control{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--slate);}
   .auth-control form{display:flex;gap:6px;align-items:center;}
@@ -113,15 +112,6 @@
   }
   .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 
-  /* import panel */
-  .import-panel{
-    background:var(--paper);border:1px dashed var(--line);padding:18px 20px;margin-bottom:22px;display:none;
-  }
-  .import-panel.open{display:block;}
-  .import-panel p{font-size:12px;line-height:1.6;color:var(--slate);margin:0 0 12px;}
-  .import-panel input[type=file]{font-family:inherit;font-size:12px;}
-  .import-status{font-size:12px;margin-top:10px;color:var(--marquee);white-space:pre-wrap;}
-
   /* entries */
   .entry{background:var(--paper);border:1px solid var(--line);padding:16px 18px;margin-bottom:10px;position:relative;cursor:pointer;display:flex;gap:14px;}
   .entry-cover{width:52px;height:78px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;background:var(--paper-dark);}
@@ -129,6 +119,71 @@
   .entry-body{flex:1;min-width:0;}
   .entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .entry-title{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:19px;line-height:1.3;text-align:left;}
+
+  .lightbox{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(20,18,14,.88);
+    z-index:100;
+    align-items:flex-start;justify-content:center;
+    overflow-y:auto;
+    padding:40px 16px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    padding:24px;
+    position:relative;
+    border:1px solid var(--line);
+    display:flex;
+    gap:20px;
+  }
+  .lightbox-close{
+    position:absolute;top:12px;right:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:13px;
+    color:var(--slate);cursor:pointer;
+  }
+  .lightbox-close:hover{color:var(--marquee);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--slate);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--marquee);}
+  .lightbox-cover{
+    width:110px;height:165px;object-fit:cover;flex:none;
+    border:1px solid var(--line);margin-top:22px;
+    background:var(--paper-dark);
+  }
+  .lightbox-cover.placeholder{
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;color:var(--slate);opacity:.4;
+  }
+  .lightbox-body{flex:1;min-width:0;margin-top:22px;}
+  .lightbox-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-weight:400;font-style:italic;font-size:24px;margin-bottom:2px;line-height:1.25;
+  }
+  .lightbox-meta{
+    font-size:11px;color:var(--slate);opacity:.85;
+    display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 14px;
+  }
+  .lightbox-meta a{color:inherit;text-decoration:none;}
+  .lightbox-details{margin-bottom:12px;}
+  .lightbox-details .row{
+    display:flex;gap:8px;font-size:12px;padding:5px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .lightbox-details .lbl{
+    color:var(--marquee);letter-spacing:.08em;text-transform:uppercase;
+    font-size:10px;flex:none;width:90px;padding-top:2px;
+  }
+  .lightbox-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .lightbox-plot{font-size:13px;line-height:1.55;color:var(--ink);}
   .entry-meta{font-size:11px;color:var(--slate);opacity:.85;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
   .entry-rating{color:var(--marquee);font-size:13px;white-space:nowrap;}
   .entry-imdb{font-size:10px;color:var(--slate);opacity:.8;white-space:nowrap;}
@@ -159,15 +214,8 @@
   <div class="toolbar">
     <span class="count" id="count">loading…</span>
     <div class="toolbar-btns">
-      <button class="importbtn" id="toggleImport">Import from CLZ</button>
       <button class="newbtn" id="toggleForm">+ New Entry</button>
     </div>
-  </div>
-
-  <div class="import-panel" id="importPanel">
-    <p>Upload a CLZ Movies export (.xml). Each film becomes an entry, keyed by its CLZ hash, so re-importing the same export updates existing records instead of duplicating them.</p>
-    <input type="file" id="importFile" accept=".xml">
-    <div class="import-status" id="importStatus"></div>
   </div>
 
   <div class="ticket" id="ticket">
@@ -271,8 +319,24 @@
   <div id="entries" class="loading">loading…</div>
 </div>
 
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close &times;</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">&#128279; copy link</button>
+    <div id="lb-cover-wrap"></div>
+    <div class="lightbox-body">
+      <div class="lightbox-name" id="lb-name"></div>
+      <div class="lightbox-meta" id="lb-meta"></div>
+      <div class="lightbox-details" id="lb-details"></div>
+      <div class="lightbox-tags" id="lb-tags"></div>
+      <div class="lightbox-plot" id="lb-plot"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 let entries = [];
+let currentLightboxId = null;
 let editingId = null;
 let currentStars = 0;
 
@@ -398,9 +462,7 @@ function renderAuthControl(){
 function applyAuthGating(){
   const loggedIn = !supabaseClient || !!currentUser;
   const newBtn = document.getElementById('toggleForm');
-  const importBtn = document.getElementById('toggleImport');
   if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
-  if(importBtn) importBtn.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.entry-actions').forEach(el=>{
     el.style.display = loggedIn ? '' : 'none';
   });
@@ -557,8 +619,95 @@ function render(){
       if(confirm('Remove this film?')) await deleteEntry(id);
     });
   });
+  wrap.querySelectorAll('.entry').forEach(el=>{
+    el.addEventListener('click', () => openLightbox(el.dataset.id));
+  });
   applyAuthGating();
 }
+
+// Clicking a card opens its full record here — the card already shows
+// most fields, so this mainly surfaces country/language, the untruncated
+// plot (the card clips it to two lines), and a larger cover.
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  currentLightboxId = id;
+
+  $('lb-cover-wrap').innerHTML = e.cover
+    ? `<img class="lightbox-cover" src="${escapeHtml(e.cover)}" alt="">`
+    : `<div class="lightbox-cover placeholder">\u{1F3AC}</div>`;
+
+  $('lb-name').textContent = e.title || 'Untitled';
+
+  const metaBits = [];
+  if(e.year) metaBits.push(e.year);
+  if(e.runtime) metaBits.push(`${e.runtime} min`);
+  if(e.audienceRating) metaBits.push(e.audienceRating);
+  if(e.quantity && e.quantity > 1) metaBits.push(`\u00d7${e.quantity}`);
+  if(e.rating) metaBits.push(starsHtml(e.rating));
+  if(e.imdbRating) metaBits.push(e.imdbUrl ? `<a href="${escapeHtml(e.imdbUrl)}" target="_blank" rel="noopener">IMDb ${escapeHtml(e.imdbRating)}</a>` : `IMDb ${escapeHtml(e.imdbRating)}`);
+  $('lb-meta').innerHTML = metaBits.join(' &middot; ');
+
+  const detailLines = [];
+  if(e.director) detailLines.push(['Director', e.director]);
+  if(e.country) detailLines.push(['Country', e.country]);
+  if(e.language) detailLines.push(['Language', e.language]);
+  if(e.discs && e.discs > 1) detailLines.push(['Discs', String(e.discs)]);
+  if(e.edition) detailLines.push(['Edition', e.edition]);
+  if(e.condition) detailLines.push(['Condition', condShort(e.condition)]);
+  $('lb-details').innerHTML = detailLines.length
+    ? detailLines.map(([label, val]) => `<div class="row"><span class="lbl">${escapeHtml(label)}</span>${escapeHtml(val)}</div>`).join('')
+    : '';
+
+  $('lb-tags').innerHTML = (e.genres && e.genres.length)
+    ? e.genres.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join('')
+    : '';
+
+  $('lb-plot').textContent = e.plot || '';
+
+  $('lightbox').classList.add('open');
+}
+
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
+
+$('lightboxCopyLink').addEventListener('click', async e => {
+  e.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent = '\u2713 copied';
+  }catch(err){
+    prompt('Copy this link:', url);
+  }
+  setTimeout(()=>{ btn.textContent = '\u{1F517} copy link'; }, 1500);
+});
+
+$('lightboxClose').addEventListener('click', e => {
+  e.stopPropagation();
+  closeLightbox();
+});
+$('lightbox').addEventListener('click', e => {
+  if(e.target.id === 'lightbox') closeLightbox();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+});
+
+// Deep link: opening the page with #<entryId> jumps straight to that
+// film's lightbox — used by the "copy link" button above.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+window.addEventListener('hashchange', openFromHash);
 
 ['filterSearch','filterGenre','filterSort'].forEach(id=>{
   $(id).addEventListener('input', render);
@@ -614,7 +763,6 @@ function openForEdit(id){
   $('f-imdbrating').value = e.imdbRating || '';
   $('f-imdburl').value = e.imdbUrl || '';
   setStars(e.rating || 0);
-  $('importPanel').classList.remove('open');
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -629,6 +777,7 @@ async function loadEntries(){
         .filter(Boolean);
       applyIncomingSearchQuery();
       render();
+      openFromHash();
       return;
     }
     // Fallback for storage backends without a batch method (Claude artifact
@@ -638,6 +787,7 @@ async function loadEntries(){
       entries = [];
       applyIncomingSearchQuery();
       render();
+      openFromHash();
       return;
     }
     const loaded = [];
@@ -653,6 +803,7 @@ async function loadEntries(){
   }
   applyIncomingSearchQuery();
   render();
+  openFromHash();
 }
 
 async function saveEntry(){
@@ -724,7 +875,6 @@ function closeForm(){
 
 function openNew(){
   resetForm();
-  $('importPanel').classList.remove('open');
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
   $('f-title').focus();
@@ -742,92 +892,6 @@ $('cancelBtn').addEventListener('click', closeForm);
 $('saveBtn').addEventListener('click', saveEntry);
 document.querySelectorAll('#f-stars span').forEach(s=>{
   s.addEventListener('click', () => setStars(parseInt(s.dataset.v)));
-});
-
-// --- CLZ XML import ---
-$('toggleImport').addEventListener('click', () => {
-  const p = $('importPanel');
-  if(p.classList.contains('open')){
-    p.classList.remove('open');
-  } else {
-    $('ticket').classList.remove('open');
-    p.classList.add('open');
-    p.scrollIntoView({behavior:'smooth', block:'start'});
-  }
-});
-
-function txt(node, selector){
-  if(!node) return '';
-  const el = node.querySelector(selector);
-  return el && el.textContent ? el.textContent.trim() : '';
-}
-
-function parseClzXml(xmlText){
-  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
-  const items = Array.from(doc.querySelectorAll('movielist > movie'));
-  return items.map(m => {
-    const title = txt(m, 'title') || 'Untitled';
-    const hash = txt(m, 'hash');
-    const year = txt(m, 'releasedate > year > displayname');
-    const genres = Array.from(m.querySelectorAll('genres > genre')).map(g => txt(g,'displayname')).filter(Boolean);
-    const country = txt(m, 'country > displayname');
-    const language = txt(m, 'language > displayname');
-    const plotEl = m.querySelector('plot');
-    const plot = plotEl ? (plotEl.textContent || '').trim() : '';
-    const imdbRating = txt(m, 'imdbrating');
-    const imdbUrl = txt(m, 'imdburl');
-    const runtime = txt(m, 'runtime');
-    const discs = parseInt(txt(m, 'nrdiscs')) || 0;
-    const quantity = parseInt(txt(m, 'quantity')) || 1;
-    const edition = txt(m, 'edition > displayname');
-    const audienceRating = txt(m, 'audiencerating > displayname');
-    const cover = txt(m, 'coverfrontdefault');
-    const rating = parseInt(txt(m, 'myrating')) || 0;
-    const addedTs = txt(m, 'addeddate > timestamp');
-    const addedDate = addedTs ? new Date(parseInt(addedTs) * 1000).toISOString().slice(0,10) : '';
-    const id = hash ? hash.slice(0,8) : (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
-    return {
-      id, title, year, genres, country, language, plot,
-      imdbRating, imdbUrl, runtime, discs, quantity, edition,
-      audienceRating, cover, rating, addedDate, director: '', condition: ''
-    };
-  });
-}
-
-$('importFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if(!file) return;
-  const statusEl = $('importStatus');
-  statusEl.textContent = 'Reading file…';
-  try{
-    const text = await file.text();
-    const records = parseClzXml(text);
-    if(records.length === 0){
-      statusEl.textContent = 'No <movie> records found in that file.';
-      return;
-    }
-    if(!confirm(`Import ${records.length} record${records.length===1?'':'s'} from this CLZ export? Existing records with the same film will be updated.`)){
-      statusEl.textContent = '';
-      e.target.value = '';
-      return;
-    }
-    statusEl.textContent = `Importing 0 / ${records.length}…`;
-    let done = 0;
-    for(const rec of records){
-      const key = KEY_PREFIX + slug(rec.title) + '-' + slug(rec.year) + '-' + rec.id;
-      await storage.set(key, JSON.stringify(rec));
-      done++;
-      if(done % 10 === 0 || done === records.length){
-        statusEl.textContent = `Importing ${done} / ${records.length}…`;
-      }
-    }
-    statusEl.textContent = `Done — imported ${records.length} record${records.length===1?'':'s'}.`;
-    e.target.value = '';
-    await loadEntries();
-  }catch(err){
-    console.error(err);
-    statusEl.textContent = 'Import failed — check the file is a valid CLZ Movies XML export.';
-  }
 });
 
 loadEntries();

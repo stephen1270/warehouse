@@ -570,9 +570,9 @@ header .rule{
     text-align:left;
   }
 
-.entry-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+.entry-name a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;}
 
-.entry-name a:hover{border-color:var(--accent);color:var(--accent);}
+.entry-name a:hover{text-decoration-color:var(--accent);color:var(--accent);}
 
 .entry-title{font-family:var(--display-font);font-weight:300;font-style:italic;font-size:19px;line-height:1.3;}
 
@@ -720,9 +720,9 @@ header .rule{
     font-weight:300;font-style:italic;font-size:26px;margin-bottom:2px;
   }
 
-.lightbox-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+.lightbox-name a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;}
 
-.lightbox-name a:hover{border-color:var(--accent);color:var(--accent);}
+.lightbox-name a:hover{text-decoration-color:var(--accent);color:var(--accent);}
 
 .lightbox-meta{
     font-size:11px;color:var(--muted);opacity:.85;
