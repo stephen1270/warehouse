@@ -5,136 +5,42 @@
 <title>Movies</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="common.js"></script>
+<link rel="stylesheet" href="style.css">
 <style>
   :root{
-    --paper:#f2ede1;
-    --paper-dark:#e6ded0;
-    --ink:#211c17;
-    --marquee:#7a2430;
-    --brass:#a6813f;
-    --slate:#48453e;
-    --line:#cfc4ad;
+    --paper:#f2ede1; --paper-dark:#e6ded0; --ink:#211c17;
+    --accent:#7a2430; --accent2:#a6813f; --muted:#48453e; --line:#cfc4ad;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--paper-dark);
-    color:var(--ink);
-    font-family:'Courier New', ui-monospace, monospace;
-    min-height:100vh;
-  }
-  .wrap{max-width:860px;margin:0 auto;padding:32px 20px 80px;}
-
-  header{text-align:center;margin-bottom:26px;position:relative;}
-  header .kicker{letter-spacing:.28em;font-size:11px;color:var(--marquee);text-transform:uppercase;}
-  header .kicker a{color:inherit;text-decoration:none;}
-  header .kicker a:hover{text-decoration:underline;}
-  header h1{
-    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
-    font-weight:400;font-style:italic;font-size:44px;
-    margin:6px 0 4px;letter-spacing:.01em;
-  }
-  header .sub{font-size:12px;color:var(--slate);opacity:.75;}
-  header .rule{
-    margin:18px auto 0;width:100%;height:1px;
-    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
-    opacity:.35;
-  }
-
-  .toolbar{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 14px;font-size:12px;gap:10px;flex-wrap:wrap;}
-  .toolbar .count{color:var(--slate);opacity:.75;}
   .toolbar-btns{display:flex;gap:8px;}
-  .newbtn{
-    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
-    padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
-  }
-  .newbtn{background:var(--marquee);color:var(--paper);border-color:var(--marquee);}
-  .newbtn:hover{background:#5e1c26;}
-
-  .auth-control{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--slate);}
-  .auth-control form{display:flex;gap:6px;align-items:center;}
-  .auth-control input[type=email], .auth-control input[type=password]{
-    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
-    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
-  }
-  .auth-control button{
-    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
-    padding:6px 10px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
-  }
-  .auth-error{color:var(--marquee);font-size:10px;}
-
-  /* filter bar */
-  .filters{
-    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;
-    background:var(--paper);border:1px solid var(--line);padding:12px 14px;border-radius:2px;
-  }
-  .filters input, .filters select{
-    font-family:inherit;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--line);
-    padding:6px 2px;color:var(--ink);
-  }
-  .filters input:focus, .filters select:focus{outline:none;border-bottom:1px solid var(--marquee);}
-  .filters .f-search{flex:2;min-width:160px;}
-  .filters .f-sel{flex:1;min-width:110px;}
-
-  /* form ticket */
-  .ticket{
-    background:var(--paper);border:1px solid var(--line);padding:22px;margin-bottom:22px;
-    position:relative;box-shadow:0 1px 2px rgba(0,0,0,.06);display:none;
-  }
-  .ticket.open{display:block;}
-  .ticket::before, .ticket::after{
-    content:"";position:absolute;left:0;right:0;height:10px;
-    background:radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
-  }
-  .ticket::before{top:-6px;transform:rotate(180deg);}
-  .ticket::after{bottom:-6px;}
-
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--marquee);margin-bottom:5px;}
-  .field input, .field textarea, .field select{
-    width:100%;font-family:inherit;font-size:14px;background:transparent;border:none;
-    border-bottom:1px solid var(--line);padding:6px 2px;color:var(--ink);
-  }
-  .field textarea{resize:vertical;min-height:56px;}
-  .field input:focus, .field textarea:focus, .field select:focus{outline:none;border-bottom:1px solid var(--marquee);}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-
-  .stars{display:flex;gap:4px;font-size:18px;cursor:pointer;user-select:none;}
-  .stars span{opacity:.25;transition:opacity .1s;}
-  .stars span.on{opacity:1;color:var(--marquee);}
-
-  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
-  .form-actions button{
-    font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-    padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
-  }
-  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 
   .scanbtn{
     font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     padding:9px 14px;cursor:pointer;border-radius:2px;border:1px solid var(--ink);background:transparent;color:var(--ink);
   }
-  .scanbtn:hover{border-color:var(--marquee);color:var(--marquee);}
-
+  .scanbtn:hover{border-color:var(--accent);color:var(--accent);}
   .scan-panel{
     background:var(--paper);border:1px dashed var(--line);padding:18px 20px;margin-bottom:22px;display:none;
   }
   .scan-panel.open{display:block;}
-  .scan-panel p{font-size:12px;line-height:1.6;color:var(--slate);margin:0 0 12px;}
+  .scan-panel p{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 12px;}
   .scan-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .scan-row input{
     flex:1;min-width:140px;font-family:inherit;font-size:13px;
     background:transparent;border:none;border-bottom:1px solid var(--line);
     padding:6px 2px;color:var(--ink);
   }
-  .scan-row input:focus{outline:none;border-bottom:1px solid var(--marquee);}
+  .scan-row input:focus{outline:none;border-bottom:1px solid var(--accent);}
   .scan-row button{
     font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
-    border:1px solid var(--marquee);background:var(--marquee);color:var(--paper);
+    border:1px solid var(--accent);background:var(--accent);color:var(--paper);
   }
   .scan-row button:hover{background:#5e1c26;}
   .scan-row button:disabled{opacity:.5;cursor:default;}
@@ -142,51 +48,19 @@
     display:none;width:100%;max-width:400px;margin-top:12px;
     border:1px solid var(--line);border-radius:2px;
   }
-  .scan-status{font-size:12px;margin-top:10px;color:var(--marquee);white-space:pre-wrap;}
+  .scan-status{font-size:12px;margin-top:10px;color:var(--accent);white-space:pre-wrap;}
 
-  /* entries */
-  .entry{background:var(--paper);border:1px solid var(--line);padding:16px 18px;margin-bottom:10px;position:relative;cursor:pointer;display:flex;gap:14px;}
+  /* Movies' card and lightbox layouts differ from the shared .entry model
+     (a poster-aspect cover beside the text, not a square thumb / photo
+     grid), so it keeps these on top of style.css's shared base rules. */
+  .entry{display:flex;gap:14px;padding:16px 18px;margin-bottom:10px;}
   .entry-cover{width:52px;height:78px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;background:var(--paper-dark);}
-  .entry-cover.placeholder{display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--slate);opacity:.4;}
-  .entry-body{flex:1;min-width:0;}
-  .entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .entry-cover.placeholder{display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);opacity:.4;}
   .entry-side{text-align:right;margin-top:22px;}
-  .entry-title{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:19px;line-height:1.3;text-align:left;}
+  .entry-imdb{font-size:10px;color:var(--muted);opacity:.8;white-space:nowrap;}
+  .entry-plot{font-size:11px;color:var(--muted);opacity:.85;margin-top:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 
-  .lightbox{
-    display:none;
-    position:fixed;inset:0;
-    background:rgba(20,18,14,.88);
-    z-index:100;
-    align-items:flex-start;justify-content:center;
-    overflow-y:auto;
-    padding:40px 16px;
-  }
-  .lightbox.open{display:flex;}
-  .lightbox-card{
-    background:var(--paper);
-    max-width:640px;width:100%;
-    padding:24px;
-    position:relative;
-    border:1px solid var(--line);
-    display:flex;
-    gap:20px;
-  }
-  .lightbox-close{
-    position:absolute;top:12px;right:14px;
-    background:none;border:none;
-    font-family:inherit;font-size:13px;
-    color:var(--slate);cursor:pointer;
-  }
-  .lightbox-close:hover{color:var(--marquee);}
-  .lightbox-copy-link{
-    position:absolute;top:12px;left:14px;
-    background:none;border:none;
-    font-family:inherit;font-size:11px;
-    color:var(--slate);cursor:pointer;
-    letter-spacing:.04em;
-  }
-  .lightbox-copy-link:hover{color:var(--marquee);}
+  .lightbox-card{display:flex;gap:20px;}
   .lightbox-cover{
     width:110px;height:165px;object-fit:cover;flex:none;
     border:1px solid var(--line);margin-top:22px;
@@ -194,44 +68,13 @@
   }
   .lightbox-cover.placeholder{
     display:flex;align-items:center;justify-content:center;
-    font-size:28px;color:var(--slate);opacity:.4;
+    font-size:28px;color:var(--muted);opacity:.4;
   }
   .lightbox-body{flex:1;min-width:0;margin-top:22px;}
-  .lightbox-name{
-    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
-    font-weight:400;font-style:italic;font-size:24px;margin-bottom:2px;line-height:1.25;
-  }
-  .lightbox-meta{
-    font-size:11px;color:var(--slate);opacity:.85;
-    display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 14px;
-  }
+  .lightbox-meta{margin:6px 0 14px;}
   .lightbox-meta a{color:inherit;text-decoration:none;}
-  .lightbox-details{margin-bottom:12px;}
-  .lightbox-details .row{
-    display:flex;gap:8px;font-size:12px;padding:5px 0;
-    border-bottom:1px solid var(--line);
-  }
-  .lightbox-details .lbl{
-    color:var(--marquee);letter-spacing:.08em;text-transform:uppercase;
-    font-size:10px;flex:none;width:90px;padding-top:2px;
-  }
-  .lightbox-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .lightbox-tags{margin-bottom:12px;}
   .lightbox-plot{font-size:13px;line-height:1.55;color:var(--ink);}
-  .entry-meta{font-size:11px;color:var(--slate);opacity:.85;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;}
-  .entry-rating{color:var(--marquee);font-size:13px;white-space:nowrap;}
-  .entry-imdb{font-size:10px;color:var(--slate);opacity:.8;white-space:nowrap;}
-  .entry-tags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
-  .tag{font-size:10px;border:1px solid var(--line);padding:3px 8px;border-radius:10px;color:var(--slate);letter-spacing:.04em;}
-  .entry-plot{font-size:11px;color:var(--slate);opacity:.85;margin-top:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-  .entry-cond{font-size:10px;color:var(--slate);opacity:.75;margin-top:4px;}
-  .entry-actions{position:absolute;top:14px;right:16px;display:flex;gap:8px;}
-  .entry-actions button{background:none;border:none;font-family:inherit;font-size:11px;color:var(--slate);opacity:.5;cursor:pointer;}
-  .entry-actions button:hover{opacity:1;color:var(--marquee);}
-
-  .empty{text-align:center;padding:50px 20px;color:var(--slate);opacity:.7;font-size:13px;line-height:1.7;}
-  .empty .big{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
-  .loading{text-align:center;padding:40px;font-size:12px;color:var(--slate);}
-  ::placeholder{color:var(--slate);opacity:.4;}
 </style>
 </head>
 <body>
@@ -372,7 +215,7 @@
     <div class="lightbox-body">
       <div class="lightbox-name" id="lb-name"></div>
       <div class="lightbox-meta" id="lb-meta"></div>
-      <div class="lightbox-details" id="lb-details"></div>
+      <div class="lightbox-fields" id="lb-details"></div>
       <div class="lightbox-tags" id="lb-tags"></div>
       <div class="lightbox-plot" id="lb-plot"></div>
     </div>
@@ -385,92 +228,7 @@ let currentLightboxId = null;
 let editingId = null;
 let currentStars = 0;
 
-const $ = (id) => document.getElementById(id);
-
-// Supabase-backed storage, shared with the rest of Warehouse, so entries
-// sync across devices instead of being trapped in one browser. Falls back
-// to localStorage if Supabase can't be reached, and to Claude's
-// window.storage when running inside a Claude artifact.
-const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
 const KEY_PREFIX = 'entry:mv-';
-
-const localStorageAdapter = {
-  async get(key){
-    const v = localStorage.getItem(key);
-    if(v === null) throw new Error('not found');
-    return {key, value: v};
-  },
-  async set(key, value){
-    localStorage.setItem(key, value);
-    return {key, value};
-  },
-  async delete(key){
-    localStorage.removeItem(key);
-    return {key, deleted: true};
-  },
-  async list(prefix){
-    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
-    return {keys};
-  }
-};
-
-let supabaseClient = null;
-
-function makeSupabaseAdapter(){
-  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    return null;
-  }
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const client = supabaseClient;
-  return {
-    async get(key){
-      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
-      if(error) throw error;
-      if(!data) throw new Error('not found');
-      try{ localStorage.setItem(key, data.value); }catch(e){}
-      return {key, value: data.value};
-    },
-    async set(key, value){
-      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
-      if(error) throw error;
-      try{ localStorage.setItem(key, value); }catch(e){}
-      return {key, value};
-    },
-    async delete(key){
-      const { error } = await client.from('kv_store').delete().eq('key', key);
-      if(error) throw error;
-      try{ localStorage.removeItem(key); }catch(e){}
-      return {key, deleted: true};
-    },
-    async list(prefix){
-      let query = client.from('kv_store').select('key');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      return { keys: (data||[]).map(r => r.key) };
-    },
-    // Fetches every key+value under a prefix in ONE request, instead of
-    // list() + a get() per key. With hundreds of entries, one-request-per-
-    // entry means hundreds of sequential round trips before the page can
-    // render anything.
-    async listWithValues(prefix){
-      let query = client.from('kv_store').select('key,value');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      const items = data || [];
-      try{
-        for(const row of items) localStorage.setItem(row.key, row.value);
-      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
-      return { items: items.map(r => ({ key: r.key, value: r.value })) };
-    }
-  };
-}
-
-const storage = (typeof window !== 'undefined' && window.storage)
-  ? window.storage
-  : (makeSupabaseAdapter() || localStorageAdapter);
 
 // --- Auth: read is public, only a signed-in session can add/edit/delete ---
 let currentUser = null;
@@ -530,18 +288,6 @@ if(supabaseClient){
   renderAuthControl();
 }
 
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : str;
-  return div.innerHTML;
-}
-
-function starsHtml(n){
-  let s = '';
-  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
-  return s;
-}
-
 function slug(s){
   return (s || 'x').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'x';
 }
@@ -562,19 +308,6 @@ function populateFilterOptions(){
   const curG = gSel.value;
   gSel.innerHTML = '<option value="">All genres</option>' + [...genres].sort().map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
   gSel.value = curG;
-}
-
-// Reads a `q` query-string param — set by index.html's voice/text search,
-// which routes a phrase like "movies directed by X" to movies.html?q=X —
-// and pre-fills it into the filterSearch box. Movies doesn't load
-// common.js (it's fully self-contained), so this is a local copy of the
-// same small helper every other app gets for free from that shared file.
-function applyIncomingSearchQuery(){
-  try{
-    const q = new URLSearchParams(location.search).get('q');
-    const el = document.getElementById('filterSearch');
-    if(q && el) el.value = q;
-  }catch(e){ /* ignore */ }
 }
 
 function getFiltered(){
@@ -715,11 +448,6 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
-function closeLightbox(){
-  $('lightbox').classList.remove('open');
-  currentLightboxId = null;
-}
-
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
   if(!currentLightboxId) return;
@@ -745,15 +473,6 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape') closeLightbox();
 });
 
-// Deep link: opening the page with #<entryId> jumps straight to that
-// film's lightbox — used by the "copy link" button above.
-function openFromHash(){
-  const id = location.hash.replace(/^#/, '');
-  if(id && entries.some(e => e.id === id)){
-    openLightbox(id);
-    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
-  }
-}
 window.addEventListener('hashchange', openFromHash);
 
 ['filterSearch','filterGenre','filterSort'].forEach(id=>{
@@ -780,13 +499,6 @@ function resetForm(){
   $('f-imdburl').value='';
   setStars(0);
   editingId = null;
-}
-
-function setStars(n){
-  currentStars = n;
-  document.querySelectorAll('#f-stars span').forEach(s=>{
-    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
-  });
 }
 
 function openForEdit(id){
@@ -822,7 +534,7 @@ async function loadEntries(){
       entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
-      applyIncomingSearchQuery();
+      applyIncomingSearchQuery('filterSearch');
       render();
       openFromHash();
       return;
@@ -832,7 +544,7 @@ async function loadEntries(){
     const result = await storage.list(KEY_PREFIX);
     if(!result || !result.keys || result.keys.length === 0){
       entries = [];
-      applyIncomingSearchQuery();
+      applyIncomingSearchQuery('filterSearch');
       render();
       openFromHash();
       return;
@@ -848,7 +560,7 @@ async function loadEntries(){
   }catch(err){
     entries = [];
   }
-  applyIncomingSearchQuery();
+  applyIncomingSearchQuery('filterSearch');
   render();
   openFromHash();
 }
@@ -915,11 +627,6 @@ async function deleteEntry(id){
   }
 }
 
-function closeForm(){
-  $('ticket').classList.remove('open');
-  resetForm();
-}
-
 function openNew(){
   resetForm();
   $('ticket').classList.add('open');
@@ -954,7 +661,7 @@ let scanStream = null;
 function setScanStatus(msg, isError){
   const el = $('scanStatus');
   el.textContent = msg || '';
-  el.style.color = isError ? 'var(--marquee)' : 'var(--slate)';
+  el.style.color = isError ? 'var(--accent)' : 'var(--muted)';
 }
 
 function stopScan(){
