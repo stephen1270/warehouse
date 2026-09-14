@@ -531,7 +531,15 @@
 </div>
 
 <script>
-const STORE_KEY = 'pantry-ledger-products';
+// Migrated 2026-09-14 from a single blob (STORE_KEY = 'pantry-ledger-products',
+// one JSON array holding every product) to one kv_store row per product,
+// same as every other Warehouse app -- the old model meant every single
+// add/edit/delete/mark-out round-tripped the ENTIRE product list, which is
+// exactly what was behind the 14MB-blob incident below and would only get
+// worse as the list grows. The old blob is kept, renamed to
+// 'pantry-ledger-products.backup-20260914', as a rollback copy -- nothing
+// in this file reads or writes that key anymore.
+const KEY_PREFIX = 'pantry:';
 let products = [];
 let currentImages = []; // full-size base64 images for the entry currently being edited
 
@@ -793,47 +801,72 @@ function renderGallery(){
 // setLoadError() is defined in common.js, shared with every app in this suite.
 
 async function load(){
+  const previousProducts = products;
   try{
-    const res = await storage.get(STORE_KEY);
-    products = res ? JSON.parse(res.value) : [];
+    if(storage.listWithValues){
+      // Fast path: every product in one request instead of one round trip
+      // per product (see common.js's listWithValues comment).
+      const result = await storage.listWithValues(KEY_PREFIX);
+      products = (result.items || [])
+        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .filter(Boolean);
+    }else{
+      // Fallback for storage backends without a batch method.
+      const result = await storage.list(KEY_PREFIX);
+      const loaded = [];
+      for(const key of (result && result.keys) || []){
+        try{
+          const r = await storage.get(key);
+          if(r && r.value) loaded.push(JSON.parse(r.value));
+        }catch(err){ /* skip a row that vanished mid-load */ }
+      }
+      products = loaded;
+    }
     // even on a "successful" read, if we're silently running on the local
     // fallback because the Supabase library never loaded, keep the warning
     // visible — a clean local read here does NOT mean your real data is safe
     setLoadError(supabaseInitError);
   }catch(e){
-    if(e && e.message === 'not found' && !supabaseInitError){
-      // no saved data yet for this key, and Supabase loaded fine —
-      // genuinely empty, not a failure
-      products = [];
-      setLoadError(null);
-    }else{
-      // real failure: either Supabase never initialized (supabaseInitError
-      // set above) or the request itself failed (network, auth, etc.) —
-      // log it and tell the user, instead of silently wiping the list
-      console.error('Pantry Ledger: failed to load entries', e);
-      setLoadError(supabaseInitError ||
-        `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
-      // leave `products` as whatever was already in memory rather than
-      // clobbering a good list with an empty one on a transient failure
-    }
+    // real failure: either Supabase never initialized (supabaseInitError
+    // set above) or the request itself failed (network, auth, etc.) —
+    // log it and tell the user, instead of silently wiping the list
+    console.error('Pantry Ledger: failed to load entries', e);
+    setLoadError(supabaseInitError ||
+      `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
+    // leave `products` as whatever was already in memory rather than
+    // clobbering a good list with an empty one on a transient failure
+    products = previousProducts;
   }
   applyIncomingSearchQuery();
   render();
 }
 document.getElementById('retryLoadBtn').addEventListener('click', load);
 
-async function persist(){
+// persist() used to save the WHOLE product list as one blob on every single
+// change. Migrated 2026-09-14 to one row per product (KEY_PREFIX above), so
+// persistProduct()/deleteProductRow() below touch only the row that
+// actually changed instead of round-tripping every product every time.
+async function persistProduct(product){
   try{
-    await storage.set(STORE_KEY, JSON.stringify(products));
+    await storage.set(KEY_PREFIX + product.id, JSON.stringify(product));
   }catch(e){
     console.error('Storage error', e);
     alert('Could not save — please try again.');
     // Re-throw so callers (saveEntry, etc.) know the write never reached the
     // database, instead of quietly continuing as if it had. A transient
     // network blip or a Supabase timeout used to leave the in-memory
-    // `products` array looking saved (panel closed, new card visible) while
+    // `products` array looking saved (panel closes, new card visible) while
     // the actual row never changed -- the entry would then vanish again on
     // the next page load. See saveEntry()'s rollback for the fix.
+    throw e;
+  }
+}
+async function deleteProductRow(id){
+  try{
+    await storage.delete(KEY_PREFIX + id);
+  }catch(e){
+    console.error('Storage error', e);
+    alert('Could not delete — please try again.');
     throw e;
   }
 }
@@ -968,15 +1001,20 @@ async function renameListValue(type, key, oldVal){
   if(newVal === null) return;
   const trimmed = type === 'array' ? newVal.trim().toLowerCase() : newVal.trim();
   if(!trimmed || trimmed === oldVal) return;
+  const touched = [];
   if(type === 'array'){
     products.forEach(p=>{
       if(!p.tags || !p.tags.includes(oldVal)) return;
       p.tags = [...new Set(p.tags.map(t => t===oldVal ? trimmed : t))]; // dedupe in case renamed tag already exists
+      touched.push(p);
     });
   } else {
-    products.forEach(p=>{ if((p[key]||'') === oldVal) p[key] = trimmed; });
+    products.forEach(p=>{ if((p[key]||'') === oldVal){ p[key] = trimmed; touched.push(p); } });
   }
-  await persist();
+  // Under the old blob model, one rename touching N products was still a
+  // single persist() call. Now it's one row per product, so persist just
+  // the products that actually changed, not the whole list.
+  await Promise.all(touched.map(p => persistProduct(p)));
   render();
   renderManageLists();
 }
@@ -985,12 +1023,13 @@ async function deleteListValue(type, key, val){
   const field = MANAGEABLE_FIELDS.find(f=>f.key===key);
   const count = countUsing(field, val);
   if(!confirm(`Remove "${val}" from ${count} item${count===1?'':'s'}? This clears it from those entries — it does not delete the entries themselves.`)) return;
+  const touched = [];
   if(type === 'array'){
-    products.forEach(p=>{ if(p.tags) p.tags = p.tags.filter(t=>t!==val); });
+    products.forEach(p=>{ if(p.tags && p.tags.includes(val)){ p.tags = p.tags.filter(t=>t!==val); touched.push(p); } });
   } else {
-    products.forEach(p=>{ if((p[key]||'') === val) p[key] = ''; });
+    products.forEach(p=>{ if((p[key]||'') === val){ p[key] = ''; touched.push(p); } });
   }
-  await persist();
+  await Promise.all(touched.map(p => persistProduct(p)));
   render();
   renderManageLists();
 }
@@ -1023,6 +1062,12 @@ function refreshFilterOptions(){
 // Custom autocomplete dropdown (replaces native <datalist>, which Safari
 // handles unreliably). Shows suggestions on focus, filters as you type,
 // still allows any free-text value.
+//
+// Kept as a local copy instead of using common.js's shared setupAutocomplete()
+// on purpose: this version fires an extra 'input' event on click-select (see
+// the dispatchEvent call below) so togglePackedInField() reacts when a
+// category is picked from the dropdown, not just when it's typed. The shared
+// version doesn't need that anywhere else, so it wasn't added there.
 function setupAutocomplete(inputId, listId){
   const input = document.getElementById(inputId);
   const list = document.getElementById(listId);
@@ -1068,6 +1113,11 @@ function togglePackedInField(){
 }
 document.getElementById('f_category').addEventListener('input', togglePackedInField);
 
+// Kept as a local helper instead of common.js's shared escapeHtml() on
+// purpose: escapeHtml() doesn't escape quote characters (fine for text
+// nodes, unsafe inside a value="..." or data-val="..." attribute), and this
+// file uses esc() inside attribute contexts throughout (autocomplete
+// data-val, detail-view href/value strings, etc.) where that matters.
 function esc(s){
   return (s||'').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -1403,7 +1453,7 @@ async function toggleOnHand(id){
   const p = products.find(x=>x.id===id);
   if(!p) return;
   p.onHand = p.onHand === false ? true : false; // undefined counts as currently on-hand, so first toggle marks it out
-  await persist();
+  await persistProduct(p);
   render();
 }
 
@@ -1451,14 +1501,17 @@ async function saveEntry(){
   const isNew = !id;
   let previousEntry = null;
   let idx = -1;
+  let savedProduct;
   if(isNew){
     id = uid();
-    products.push({id, dateAdded: new Date().toISOString().slice(0,10), ...data});
+    savedProduct = {id, dateAdded: new Date().toISOString().slice(0,10), ...data};
+    products.push(savedProduct);
   }else{
     idx = products.findIndex(p=>p.id===id);
     if(idx>-1){
       previousEntry = products[idx];
-      products[idx] = {...products[idx], ...data};
+      savedProduct = {...products[idx], ...data};
+      products[idx] = savedProduct;
     }
   }
 
@@ -1477,9 +1530,9 @@ async function saveEntry(){
   }
 
   try{
-    await persist();
+    await persistProduct(savedProduct);
   }catch(e){
-    // persist() already alerted the user. Undo the optimistic push/edit so
+    // persistProduct() already alerted the user. Undo the optimistic push/edit so
     // the in-memory list matches what's actually in the database, and leave
     // the form open with the button re-enabled so they can just hit Save
     // again instead of losing what they typed.
@@ -1505,7 +1558,7 @@ async function deleteEntry(){
   if(!confirm('Delete this entry?')) return;
   products = products.filter(p=>p.id!==id);
   try{ await storage.delete(imagesKey(id)); }catch(e){ /* fine if none existed */ }
-  await persist();
+  await deleteProductRow(id);
   closePanel();
   render();
 }
