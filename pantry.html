@@ -828,6 +828,13 @@ async function persist(){
   }catch(e){
     console.error('Storage error', e);
     alert('Could not save — please try again.');
+    // Re-throw so callers (saveEntry, etc.) know the write never reached the
+    // database, instead of quietly continuing as if it had. A transient
+    // network blip or a Supabase timeout used to leave the in-memory
+    // `products` array looking saved (panel closed, new card visible) while
+    // the actual row never changed -- the entry would then vanish again on
+    // the next page load. See saveEntry()'s rollback for the fix.
+    throw e;
   }
 }
 
@@ -1240,7 +1247,13 @@ function openNew(prefill){
   document.getElementById('editId').value = '';
   ['f_name','f_brand','f_category','f_source','f_productUrl','f_countryOfOrigin','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f_autofillUrl').value = '';
-  setCountryAutofillStatus('Pulls Country of Origin from the page — defaults to United States if it can\'t find one.');
+  // Was calling setCountryAutofillStatus(), a function that was never
+  // defined anywhere in this file -- that threw a ReferenceError right
+  // here, before the overlay.classList.add('open') line below ever ran.
+  // That's the actual reason "+ Add entry" appeared to do nothing at all:
+  // the form never opened, silently, with no visible error. setAutofillStatus()
+  // is the real function that updates this same hint element.
+  setAutofillStatus('Pulls Country of Origin from the page — defaults to United States if it can\'t find one.');
   document.getElementById('f_netWeightUnit').value = 'g';
   document.getElementById('f_dryWeightUnit').value = 'g';
   document.getElementById('deleteBtn').style.display='none';
@@ -1430,12 +1443,23 @@ async function saveEntry(){
     ? document.getElementById('f_packedIn').value.trim()
     : '';
 
-  if(id){
-    const idx = products.findIndex(p=>p.id===id);
-    if(idx>-1) products[idx] = {...products[idx], ...data};
-  }else{
+  // Keep enough to roll back the in-memory `products` array if the actual
+  // database write below fails -- otherwise a failed save still LOOKS like
+  // it worked (panel closes, the new/edited card is visible) until the next
+  // page load quietly reverts it, because render() was drawing from local
+  // memory the whole time, not from what's actually in Supabase.
+  const isNew = !id;
+  let previousEntry = null;
+  let idx = -1;
+  if(isNew){
     id = uid();
     products.push({id, dateAdded: new Date().toISOString().slice(0,10), ...data});
+  }else{
+    idx = products.findIndex(p=>p.id===id);
+    if(idx>-1){
+      previousEntry = products[idx];
+      products[idx] = {...products[idx], ...data};
+    }
   }
 
   try{
@@ -1447,9 +1471,28 @@ async function saveEntry(){
     }
   }catch(e){
     console.error('Image storage error', e);
+    // not fatal on its own -- the product record persisted below is the
+    // source of truth; a missing/stale image key just means photos don't
+    // show yet, not that the whole entry failed
   }
 
-  await persist();
+  try{
+    await persist();
+  }catch(e){
+    // persist() already alerted the user. Undo the optimistic push/edit so
+    // the in-memory list matches what's actually in the database, and leave
+    // the form open with the button re-enabled so they can just hit Save
+    // again instead of losing what they typed.
+    if(isNew){
+      products = products.filter(p=>p.id!==id);
+    }else if(idx>-1 && previousEntry){
+      products[idx] = previousEntry;
+    }
+    saveBtn.textContent = 'Save entry';
+    saveBtn.disabled = false;
+    return;
+  }
+
   saveBtn.textContent = 'Save entry';
   saveBtn.disabled = false;
   closePanel();
