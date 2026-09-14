@@ -1,0 +1,55 @@
+name: Nightly Warehouse backup
+
+on:
+  schedule:
+    # 08:17 UTC = ~4:17am Eastern (EDT) / ~3:17am Eastern (EST).
+    # Off the hour on purpose -- GitHub throttles jobs scheduled exactly
+    # on the hour during their busiest minutes.
+    - cron: '17 8 * * *'
+  workflow_dispatch: {}   # lets you trigger a backup manually from the Actions tab
+
+permissions:
+  contents: write   # needed so the job can commit the backup file back to the repo
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history
+
+      - name: Switch to (or create) the backups branch
+        run: |
+          git fetch origin backups || true
+          if git ls-remote --exit-code --heads origin backups >/dev/null 2>&1; then
+            git checkout backups
+            # Bring in the backup script itself in case it changed on main,
+            # without touching anything else on this branch.
+            git checkout main -- backups/backup_warehouse_ci.py
+          else
+            git checkout --orphan backups
+            git rm -rf . >/dev/null 2>&1 || true
+            git checkout main -- backups/backup_warehouse_ci.py
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run backup
+        run: python3 backups/backup_warehouse_ci.py
+
+      - name: Commit and push backup
+        run: |
+          git config user.name "warehouse-backup-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backups/
+          if git diff --cached --quiet; then
+            echo "No changes to commit (backup identical to last run, or already ran today)."
+          else
+            git commit -m "Nightly backup: $(date -u +%Y-%m-%d)"
+            git push origin backups
+          fi
