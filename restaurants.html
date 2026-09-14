@@ -2,20 +2,487 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Restaurants</title>
 <link rel="stylesheet" href="https://use.typekit.net/vvc0ewr.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="common.js"></script>
-<link rel="stylesheet" href="style.css">
 <style>
   :root{
-    --paper:#f4f1e8; --paper-dark:#e9e4d5; --ink:#2a2b26;
-    --accent:#7c2e2e; --accent2:#a6813f; --muted:#3f4a44; --line:#c9c2ab;
+    --paper:#f4f1e8;
+    --paper-dark:#e9e4d5;
+    --ink:#2a2b26;
+    --wine:#7c2e2e;
+    --brass:#a6813f;
+    --slate:#3f4a44;
+    --line:#c9c2ab;
   }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-dark);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{
+    text-align:center;
+    margin-bottom:28px;
+    position:relative;
+  }
+  header .kicker{
+    letter-spacing:.28em;
+    font-size:11px;
+    color:var(--wine);
+    text-transform:uppercase;
+  }
+  header .kicker a{color:inherit;text-decoration:none;}
+  header .kicker a:hover{text-decoration:underline;}
+  header h1{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-weight:400;
+    font-style:italic;
+    font-size:44px;
+    margin:6px 0 4px;
+    letter-spacing:.01em;
+  }
+  header .sub{
+    font-size:12px;
+    color:var(--slate);
+    opacity:.75;
+  }
+  header .rule{
+    margin:18px auto 0;
+    width:100%;
+    height:1px;
+    background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px);
+    opacity:.35;
+  }
+
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin:22px 0 14px;
+    font-size:12px;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .toolbar .count{color:var(--slate);opacity:.75;flex:none;}
+  .toolbar #search{
+    flex:1;min-width:160px;
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;
+    border-bottom:1px solid var(--line);
+    padding:4px 2px;color:var(--ink);
+  }
+  .toolbar #search:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .toolbar #search::placeholder{color:var(--slate);opacity:.5;}
+  .newbtn{
+    background:var(--wine);
+    color:var(--paper);
+    border:none;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:10px 16px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .newbtn:hover{background:#682626;}
+
+  .auth-control{
+    display:flex;align-items:center;gap:8px;
+    font-size:11px;color:var(--slate);
+  }
+  .auth-control form{display:flex;gap:6px;align-items:center;}
+  .auth-control input[type=email], .auth-control input[type=password]{
+    padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:2px;
+    background:var(--paper);color:var(--ink);width:120px;font-family:'Courier New', monospace;
+  }
+  .auth-control button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 10px;cursor:pointer;border-radius:2px;
+    border:1px solid var(--ink);background:transparent;color:var(--ink);
+  }
+  .auth-error{color:var(--wine);font-size:10px;}
+
+  /* form ticket */
+  .ticket{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:22px;
+    margin-bottom:22px;
+    position:relative;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+    display:none;
+  }
+  .ticket.open{display:block;}
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:10px;
+    background:
+      radial-gradient(circle 5px at 0 0, transparent 5px, var(--paper-dark) 5.5px) 0 0/16px 100% repeat-x;
+  }
+  .ticket::before{top:-6px;transform:rotate(180deg);}
+  .ticket::after{bottom:-6px;}
+
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:10px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--wine);
+    margin-bottom:5px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    font-family:inherit;
+    font-size:14px;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:6px 2px;
+    color:var(--ink);
+  }
+  .field select{
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    border-radius:0;
+    background-image:linear-gradient(45deg, transparent 50%, var(--slate) 50%), linear-gradient(135deg, var(--slate) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    padding-right:24px;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none;
+    border-bottom:1px solid var(--wine);
+  }
+  .field textarea{resize:vertical;min-height:54px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .autofill-field{
+    background:var(--paper-dark);
+    border:1px dashed var(--line);
+    padding:14px 16px;
+    border-radius:3px;
+    margin-bottom:20px;
+  }
+  .autofill-row{display:flex;gap:8px;}
+  .autofill-row input{flex:1;}
+  .autofill-row button{
+    font-family:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;
+    border:1px solid var(--wine);background:var(--wine);color:var(--paper);
+  }
+  .autofill-row button:hover{background:#7a1420;}
+  .autofill-row button:disabled{opacity:.5;cursor:default;}
+  .field-hint{font-size:10px;color:var(--slate);opacity:.8;margin-top:4px;}
+  #autofillStatus.err{color:var(--wine);}
+  #autofillStatus.ok{color:var(--slate);}
+
+  .location-picker{
+    margin-top:10px;
+    border-top:1px solid var(--line);
+    padding-top:10px;
+  }
+  .location-picker .lp-label{
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--wine);margin-bottom:6px;display:block;
+  }
+  .location-picker button{
+    display:block;width:100%;text-align:left;
+    font-family:inherit;font-size:13px;
+    background:var(--paper);border:1px solid var(--line);
+    padding:8px 10px;margin-bottom:6px;cursor:pointer;color:var(--ink);
+    border-radius:2px;
+  }
+  .location-picker button:hover{border-color:var(--wine);color:var(--wine);}
+  .location-picker button.lp-skip{
+    color:var(--slate);font-style:italic;border-style:dashed;
+  }
+
+  .dish-row{
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+    margin-bottom:10px;
+  }
+  .dish-row-main{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .dish-row-links{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+  }
+  .dish-row-links-2{grid-template-columns:1fr auto;}
+  .dish-row-links-1{display:flex;justify-content:flex-end;}
+
+  .dish-photo-wrap{
+    display:flex;align-items:center;gap:6px;
+    min-width:0;
+  }
+  .dish-photo-wrap input.dish-photo{flex:1;min-width:0;}
+  .dish-photo-upload{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;flex:none;
+  }
+  .dish-photo-upload:hover{color:var(--wine);}
+  .dish-photo-thumb-preview{
+    width:96px;height:96px;object-fit:cover;border-radius:2px;
+    border:1px solid var(--line);flex:none;
+  }
+  .dish-photo-clear{
+    background:none;border:none;color:var(--slate);
+    font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex:none;
+  }
+  .dish-photo-clear:hover{color:var(--wine);}
+  .dish-row input, .dish-row select{
+    font-family:inherit;font-size:13px;
+    background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:5px 2px;color:var(--ink);
+    width:100%;
+  }
+  .dish-row select{
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    border-radius:0;
+    background-image:linear-gradient(45deg, transparent 50%, var(--slate) 50%), linear-gradient(135deg, var(--slate) 50%, transparent 50%);
+    background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat:no-repeat;
+    padding-right:24px;
+  }
+  .dish-row input:focus, .dish-row select:focus{outline:none;border-bottom:1px solid var(--wine);}
+  .dish-row input.dish-name{font-weight:600;}
+  .dish-row select.dish-cheese{color:var(--slate);}
+  .dish-rm{
+    background:none;border:none;color:var(--slate);
+    font-size:15px;cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .dish-rm:hover{color:var(--wine);}
+  .ghost-inline{
+    font-family:inherit;font-size:11px;letter-spacing:.04em;
+    color:var(--slate);background:none;border:none;cursor:pointer;
+    text-decoration:underline;padding:2px 0;
+  }
+  .ghost-inline:hover{color:var(--wine);}
+  .add-row-choices{display:flex;gap:14px;flex-wrap:wrap;}
+
+  .dish-list{margin-top:6px;}
+  .dish-item{
+    font-size:13px;line-height:1.6;color:var(--ink);
+  }
+  .dish-item .dish-item-note{color:var(--slate);}
+  .dish-item .dish-cheese-link{
+    margin-left:5px;text-decoration:none;font-size:12px;
+  }
+  .dish-item .dish-photo-link{
+    display:inline-block;vertical-align:middle;margin-left:5px;
+  }
+  .dish-item .dish-photo-thumb{
+    width:22px;height:22px;object-fit:cover;border-radius:2px;
+    vertical-align:middle;border:1px solid var(--line);cursor:zoom-in;
+  }
+
+  .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;user-select:none;}
+  .stars span{opacity:.25;transition:opacity .1s;}
+  .stars span.on{opacity:1;color:var(--wine);}
+
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .form-actions button{
+    font-family:inherit;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:9px 14px;
+    cursor:pointer;
+    border-radius:2px;
+    border:1px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+  }
+  .form-actions button.save{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* entries */
+  .entry{
+    background:var(--paper);
+    border:1px solid var(--line);
+    padding:18px 20px;
+    margin-bottom:14px;
+    position:relative;
+    text-align:left;
+  }
+  .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    text-align:left;
+  }
+  .entry-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;
+    font-size:22px;
+    text-align:left;
+  }
+  .entry-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .entry-name a:hover{border-color:var(--wine);color:var(--wine);}
+  .entry-meta{
+    font-size:11px;
+    color:var(--slate);
+    opacity:.8;
+    margin-top:2px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .entry-rating{color:var(--wine);font-size:14px;white-space:nowrap;}
+  .entry-notes{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.55;
+    color:var(--ink);
+    white-space:pre-wrap;
+  }
+  .entry-tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{
+    font-size:10px;
+    border:1px solid var(--line);
+    padding:3px 8px;
+    border-radius:10px;
+    color:var(--slate);
+    letter-spacing:.04em;
+  }
+  .entry-actions{
+    position:absolute;
+    top:14px;right:16px;
+    display:flex;gap:8px;
+  }
+  .entry-actions button{
+    background:none;border:none;
+    font-family:inherit;
+    font-size:11px;
+    color:var(--slate);
+    opacity:.5;
+    cursor:pointer;
+  }
+  .entry-actions button:hover{opacity:1;color:var(--wine);}
+
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--slate);
+    opacity:.7;
+    font-size:13px;
+    line-height:1.7;
+  }
+  .empty .big{font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;font-style:italic;font-size:20px;display:block;margin-bottom:8px;opacity:1;color:var(--ink);}
+
+  .loading{text-align:center;padding:40px;font-size:12px;color:var(--slate);}
+
+  ::placeholder{color:var(--slate);opacity:.4;}
+
+  /* entry photos + lightbox */
+  .entry{cursor:pointer;}
+  .entry-thumbs{
+    display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;
+  }
+  .entry-thumbs img{
+    width:56px;height:56px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+  }
+
+  .lightbox{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(20,18,14,.88);
+    z-index:100;
+    align-items:flex-start;justify-content:center;
+    overflow-y:auto;
+    padding:40px 16px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    padding:24px;
+    position:relative;
+    border:1px solid var(--line);
+  }
+  .lightbox-close{
+    position:absolute;top:12px;right:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:13px;
+    color:var(--slate);cursor:pointer;
+  }
+  .lightbox-close:hover{color:var(--wine);}
+  .lightbox-copy-link{
+    position:absolute;top:12px;left:14px;
+    background:none;border:none;
+    font-family:inherit;font-size:11px;
+    color:var(--slate);cursor:pointer;
+    letter-spacing:.04em;
+  }
+  .lightbox-copy-link:hover{color:var(--wine);}
+  .lightbox-name{
+    font-family:'adobe-caslon-pro', Georgia, 'Times New Roman', serif;
+    font-style:italic;font-size:26px;margin-bottom:2px;
+  }
+  .lightbox-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .lightbox-name a:hover{border-color:var(--wine);color:var(--wine);}
+  .lightbox-meta{
+    font-size:11px;color:var(--slate);opacity:.8;
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+  }
+  .lightbox-photos{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,96px);
+    gap:8px;margin-bottom:18px;
+  }
+  .lightbox-photos img{
+    width:96px;height:96px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    cursor:zoom-in;
+  }
+  .lightbox-notes .lbl{
+    color:var(--wine);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;display:block;margin-bottom:4px;
+  }
+  .lightbox-notes{font-size:13px;line-height:1.55;margin-bottom:14px;}
+  .note-block{margin-bottom:16px;}
+  .note-block:last-child{margin-bottom:0;}
+  .note-block p{margin:0;white-space:pre-wrap;}
+  .note-photo{
+    display:block;
+    width:96px;height:96px;object-fit:cover;
+    border:1px solid var(--line);border-radius:2px;
+    margin-bottom:8px;cursor:zoom-in;
+  }
+  .lightbox-tags{display:flex;gap:6px;flex-wrap:wrap;}
+
+  .photo-zoom{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.92);
+    z-index:200;
+    align-items:center;justify-content:center;
+    padding:20px;
+    cursor:zoom-out;
+  }
+  .photo-zoom.open{display:flex;}
+  .photo-zoom img{max-width:100%;max-height:100%;object-fit:contain;}
 </style>
 </head>
 <body>
@@ -47,8 +514,7 @@
 
     <div class="field">
       <label>Restaurant</label>
-      <input id="f-name" type="text" placeholder="Bar Americano" autocomplete="off">
-      <div class="autocomplete-list" id="f-name-options"></div>
+      <input id="f-name" type="text" placeholder="Bar Americano">
     </div>
     <div class="field">
       <label>Restaurant link (optional)</label>
@@ -97,13 +563,6 @@
       </div>
     </div>
     <div class="field">
-      <label>Attachments (photos, receipts, menus)</label>
-      <div id="attachmentsList"></div>
-      <button type="button" id="addAttachmentBtn" class="ghost-inline">+ Add attachment</button>
-      <input type="file" id="attachmentInput" accept="image/jpeg,application/pdf" multiple style="display:none;">
-      <div class="field-hint">JPEG or PDF, up to 4MB each.</div>
-    </div>
-    <div class="field">
       <label>Dishes had</label>
       <div id="dishesList"></div>
       <button type="button" id="addDishBtn" class="ghost-inline">+ Add dish</button>
@@ -137,14 +596,6 @@
       </div>
     </div>
     <div class="field">
-      <label>Charcuterie had</label>
-      <div id="charcuterieList"></div>
-      <div class="add-row-choices">
-        <button type="button" id="addCharcuterieBtn" class="ghost-inline">+ Add charcuterie</button>
-        <button type="button" id="addCharcuterieByUrlBtn" class="ghost-inline">+ Add by URL</button>
-      </div>
-    </div>
-    <div class="field">
       <label>Notes</label>
       <textarea id="f-notes" placeholder="How it was, who with, what to order next time…"></textarea>
     </div>
@@ -167,8 +618,23 @@
     <button class="lightbox-copy-link" id="lightboxCopyLink">🔗 copy link</button>
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
+    <div class="lightbox-photos" id="lb-photos"></div>
+    <div class="lightbox-notes" id="lb-dishes-wrap" style="display:none;">
+      <span class="lbl">Dishes</span><div id="lb-dishes"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-wines-wrap" style="display:none;">
+      <span class="lbl">Wines</span><div id="lb-wines"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-cheeses-wrap" style="display:none;">
+      <span class="lbl">Cheeses</span><div id="lb-cheeses"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-spirits-wrap" style="display:none;">
+      <span class="lbl">Spirits</span><div id="lb-spirits"></div>
+    </div>
+    <div class="lightbox-notes" id="lb-notes-wrap" style="display:none;">
+      <span class="lbl">Notes</span><span id="lb-notes"></span>
+    </div>
     <div class="lightbox-tags" id="lb-tags"></div>
-    <div id="lb-visits"></div>
   </div>
 </div>
 
@@ -177,60 +643,109 @@
 </div>
 
 <script>
-let entries = []; // each entry is a restaurant record: {id, name, website, neighborhood, place, state, country, tags, visits:[...]}
-let editingId = null; // restaurant id being edited/added-to (null = brand new restaurant)
-let editingVisitId = null; // null = appending a new visit to editingId's restaurant; set = editing that specific past visit in place
+let entries = [];
+let editingId = null;
 let currentStars = 0;
 let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
 let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
 let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
 let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
 let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows
-let currentCharcuterie = []; // {name, note, charcuterieUrl} — working copy for the open form's charcuterie rows
 
-// $ (getElementById shorthand) is defined in common.js, shared with every app in this suite.
+const $ = (id) => document.getElementById(id);
 
 // Supabase-backed storage, shared with the rest of Warehouse, so entries
 // sync across devices instead of being trapped in one browser. Falls back
 // to localStorage if Supabase can't be reached, and to Claude's
-// window.storage when running inside a Claude artifact. Defined in
-// common.js, shared with every other app in this suite.
+// window.storage when running inside a Claude artifact.
+const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
 
-// --- Auth: read is public, only a signed-in session can add/edit/delete.
-// 2FA (TOTP) enrollment lives in Pantry (one-time setup), but the
-// sign-in-time challenge check below applies here too, since it's the
-// same underlying Supabase Auth account. ---
+const localStorageAdapter = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted: true};
+  },
+  async list(prefix){
+    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+    return {keys};
+  }
+};
+
+let supabaseClient = null;
+
+function makeSupabaseAdapter(){
+  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const client = supabaseClient;
+  return {
+    async get(key){
+      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('not found');
+      try{ localStorage.setItem(key, data.value); }catch(e){}
+      return {key, value: data.value};
+    },
+    async set(key, value){
+      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      try{ localStorage.setItem(key, value); }catch(e){}
+      return {key, value};
+    },
+    async delete(key){
+      const { error } = await client.from('kv_store').delete().eq('key', key);
+      if(error) throw error;
+      try{ localStorage.removeItem(key); }catch(e){}
+      return {key, deleted: true};
+    },
+    async list(prefix){
+      let query = client.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      return { keys: (data||[]).map(r => r.key) };
+    },
+    // Fetches every key+value under a prefix in ONE request, instead of
+    // list() + a get() per key. With hundreds of entries, one-request-per-
+    // entry means hundreds of sequential round trips before the page can
+    // render anything — this is what was making load slow.
+    async listWithValues(prefix){
+      let query = client.from('kv_store').select('key,value');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw error;
+      const items = data || [];
+      try{
+        for(const row of items) localStorage.setItem(row.key, row.value);
+      }catch(e){ /* localStorage full/unavailable — safe to skip */ }
+      return { items: items.map(r => ({ key: r.key, value: r.value })) };
+    }
+  };
+}
+
+// Priority: Claude artifact storage > Supabase > localStorage
+const storage = (typeof window !== 'undefined' && window.storage)
+  ? window.storage
+  : (makeSupabaseAdapter() || localStorageAdapter);
+
+// --- Auth: read is public, only a signed-in session can add/edit/delete ---
 let currentUser = null;
-let mfaSatisfied = true; // becomes false when a factor is enrolled but this session hasn't cleared the challenge yet
-
-// checkMfaStatus() is defined in common.js, shared with every app in this suite.
 
 function renderAuthControl(){
   const el = document.getElementById('authControl');
   if(!supabaseClient){
     el.innerHTML = '';
-    return;
-  }
-  if(currentUser && !mfaSatisfied){
-    el.innerHTML = `
-      <form id="mfaChallengeForm">
-        <input type="text" id="mfaChallengeCode" placeholder="6-digit code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code">
-        <button type="submit">Verify</button>
-      </form>
-      <span class="auth-error" id="mfaChallengeError"></span>`;
-    document.getElementById('mfaChallengeForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const code = document.getElementById('mfaChallengeCode').value.trim();
-      const errEl = document.getElementById('mfaChallengeError');
-      const { data: factors, error: listErr } = await supabaseClient.auth.mfa.listFactors();
-      const factor = listErr ? null : (factors.totp || []).find(f => f.status === 'verified');
-      if(!factor){ errEl.textContent = 'No 2FA factor found on this account.'; return; }
-      const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
-      if(error){ errEl.textContent = 'Incorrect code — try again.'; return; }
-      await checkMfaStatus();
-      renderAuthControl();
-      applyAuthGating();
-    });
     return;
   }
   if(currentUser){
@@ -259,7 +774,7 @@ function renderAuthControl(){
 }
 
 function applyAuthGating(){
-  const loggedIn = !supabaseClient || (!!currentUser && mfaSatisfied); // if no Supabase, don't block (local/artifact mode)
+  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local/artifact mode)
   const newBtn = document.getElementById('toggleForm');
   if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.entry-actions').forEach(el=>{
@@ -268,15 +783,13 @@ function applyAuthGating(){
 }
 
 if(supabaseClient){
-  supabaseClient.auth.getSession().then(async ({data})=>{
+  supabaseClient.auth.getSession().then(({data})=>{
     currentUser = data.session ? data.session.user : null;
-    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
   });
-  supabaseClient.auth.onAuthStateChange(async (_event, session)=>{
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
     currentUser = session ? session.user : null;
-    await checkMfaStatus();
     renderAuthControl();
     applyAuthGating();
   });
@@ -291,9 +804,18 @@ function placeLine(e){
   return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
 }
 
-// fmtDate() is defined in common.js, shared with every app in this suite.
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
 
-// starsHtml() is defined in common.js, shared with every app in this suite.
+function starsHtml(n){
+  let s = '';
+  for(let i=1;i<=5;i++) s += i<=n ? '★' : '☆';
+  return s;
+}
 
 function render(){
   const wrap = $('entries');
@@ -326,66 +848,46 @@ function render(){
     return;
   }
 
-  // Sort restaurants by their most recent visit, most recent first.
-  const sorted = [...filtered].sort((a,b) => (latestVisit(b).date||'').localeCompare(latestVisit(a).date||''));
+  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
-  wrap.innerHTML = sorted.map(r => {
-    const v = latestVisit(r);
-    const visitCount = (r.visits || []).length;
-    return `
-    <div class="entry" data-id="${r.id}">
+  wrap.innerHTML = sorted.map(e => `
+    <div class="entry" data-id="${e.id}">
       <div class="entry-actions">
-        <button class="visitBtn">+ visit</button>
         <button class="editBtn">edit</button>
         <button class="delBtn">delete</button>
       </div>
       <div class="entry-top">
         <div>
-          <div class="entry-name">${safeUrl(r.website) ? `<a href="${escapeHtml(safeUrl(r.website))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(r.name || 'Untitled')}</a>` : escapeHtml(r.name || 'Untitled')}</div>
+          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
           <div class="entry-meta">
-            ${v.date ? `<span>${fmtDate(v.date)}</span>` : ''}
-            ${placeLine(r) ? `<span>${escapeHtml(placeLine(r))}</span>` : ''}
-            ${visitCount > 1 ? `<span>${visitCount} visits</span>` : ''}
+            ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
+            ${placeLine(e) ? `<span>${escapeHtml(placeLine(e))}</span>` : ''}
           </div>
         </div>
-        ${v.rating ? `<div class="entry-rating">${starsHtml(v.rating)}</div>` : ''}
+        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
-      ${renderDishItemsHtml(v)}
-      ${renderWineItemsHtml(v)}
-      ${renderCheeseItemsHtml(v)}
-      ${renderSpiritItemsHtml(v)}
-      ${renderCharcuterieItemsHtml(v)}
-      ${renderAttachmentsHtml(v)}
-      ${v.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(v.notes))}</div>` : ''}
-      ${(v.photos && v.photos.length) ? `<div class="entry-thumbs">${v.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
-      ${(r.tags && r.tags.length) ? `<div class="entry-tags">${r.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${renderDishItemsHtml(e)}
+      ${renderWineItemsHtml(e)}
+      ${renderCheeseItemsHtml(e)}
+      ${renderSpiritItemsHtml(e)}
+      ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
+      ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
+      ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     </div>
-  `;
-  }).join('');
+  `).join('');
 
-  wrap.querySelectorAll('.visitBtn').forEach(btn=>{
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = e.target.closest('.entry').dataset.id;
-      openForNewVisit(id);
-    });
-  });
   wrap.querySelectorAll('.editBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      const r = entries.find(x=>x.id===id);
-      if(r) openForEditVisit(id, latestVisit(r).id);
+      openForEdit(id);
     });
   });
   wrap.querySelectorAll('.delBtn').forEach(btn=>{
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      const r = entries.find(x=>x.id===id);
-      const visitCount = r ? (r.visits||[]).length : 0;
-      const msg = visitCount > 1 ? `Remove this restaurant and all ${visitCount} visits?` : 'Remove this entry?';
-      if(confirm(msg)){
+      if(confirm('Remove this entry?')){
         await deleteEntry(id);
       }
     });
@@ -404,7 +906,12 @@ function photoUrl(p){
 
 // Only allow http(s) URLs through as href values — guards against
 // javascript: or other schemes sneaking into a pasted link field.
-// safeUrl() is defined in common.js, shared with every app in this suite.
+function safeUrl(u){
+  if(!u) return null;
+  const s = u.trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  return null;
+}
 
 // For photo sources specifically: accepts either a real http(s) URL
 // (pasted link) or a data: image URI (uploaded + resized locally) — kept
@@ -417,17 +924,6 @@ function safePhotoSrc(u){
   if(/^https?:\/\//i.test(s)) return s;
   if(/^data:image\//i.test(s)) return s;
   return null;
-}
-
-// Renders an item's display name as a clickable link straight to its
-// entry in the linked app (Wine/Cheese/Spirits/Charcuterie) when a URL is
-// present, falling back to plain text otherwise — shared by every
-// render*ItemsHtml() function below so Wine, Cheese, Spirits,
-// Charcuterie, and linked Dishes all behave the same way.
-function linkedNameHtml(name, href){
-  const label = escapeHtml(name || '(untitled)');
-  if(!href) return `<span class="dish-item-name">${label}</span>`;
-  return `<a class="dish-item-name dish-item-name-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">${label}</a>`;
 }
 
 // Dish rows are built via DOM APIs (createElement + .value), not innerHTML
@@ -536,108 +1032,27 @@ async function createNewCheese(name){
 // mirrors cheese.html/wine.html's gallery upload pipeline. Restaurants
 // never had a photo-upload mechanism before this (only paste-a-URL), so
 // this is new here.
-// Reads a file as a plain base64 data URL, no processing — used for PDFs,
-// which can't go through the canvas-based resizeImage() pipeline above
-// (a <canvas> can only draw actual raster images, not render PDF pages).
-function readFileAsDataUrl(file){
+function resizeImage(file, maxDim, quality){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
+        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
-
-// --- Attachments: a general-purpose upload for the entry itself (not
-// tied to a specific dish/wine/etc.) — receipts, menus, or photos of the
-// visit. Accepts JPEG (resized/compressed like every other photo in this
-// app) and PDF (stored as-is, since it can't be resized — capped at 4MB
-// raw to keep entries from ballooning; PDFs are usually larger than
-// photos, so this is a looser cap than the 1.5MB used for og:image
-// fetches elsewhere in the suite). ---
-let currentAttachments = []; // {name, type: 'image'|'pdf', dataUrl}
-const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
-
-function renderAttachmentsList(){
-  const wrap = $('attachmentsList');
-  wrap.innerHTML = '';
-  currentAttachments.forEach((a, i) => {
-    const row = document.createElement('div');
-    row.className = 'attachment-item';
-
-    if(a.type === 'image'){
-      const thumb = document.createElement('img');
-      thumb.className = 'attachment-thumb';
-      thumb.src = a.dataUrl;
-      row.appendChild(thumb);
-    } else {
-      const icon = document.createElement('div');
-      icon.className = 'attachment-pdf-icon';
-      icon.textContent = 'PDF';
-      row.appendChild(icon);
-    }
-
-    const link = document.createElement('a');
-    link.className = 'attachment-open';
-    link.href = a.dataUrl;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.title = 'Open';
-    link.textContent = '\ud83d\udd17';
-    row.appendChild(link);
-
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'attachment-name-input';
-    nameInput.placeholder = a.type === 'pdf' ? 'document.pdf' : 'photo.jpg';
-    nameInput.value = a.name || '';
-    nameInput.addEventListener('input', () => {
-      currentAttachments[i].name = nameInput.value;
-    });
-    row.appendChild(nameInput);
-
-    const rmBtn = document.createElement('button');
-    rmBtn.type = 'button';
-    rmBtn.className = 'attachment-remove';
-    rmBtn.title = 'Remove attachment';
-    rmBtn.textContent = '\u00d7';
-    rmBtn.addEventListener('click', () => {
-      currentAttachments.splice(i, 1);
-      renderAttachmentsList();
-    });
-    row.appendChild(rmBtn);
-
-    wrap.appendChild(row);
-  });
-}
-
-$('addAttachmentBtn').addEventListener('click', () => $('attachmentInput').click());
-$('attachmentInput').addEventListener('change', async () => {
-  const files = Array.from($('attachmentInput').files);
-  $('attachmentInput').value = '';
-  for(const file of files){
-    if(file.size > MAX_ATTACHMENT_BYTES){
-      alert(`"${file.name}" is too large (over 4MB) — please use a smaller file.`);
-      continue;
-    }
-    try{
-      if(file.type === 'application/pdf'){
-        const dataUrl = await readFileAsDataUrl(file);
-        currentAttachments.push({ name: file.name, type: 'pdf', dataUrl });
-      } else if(file.type === 'image/jpeg'){
-        const dataUrl = await resizeImage(file, 1400, 0.8);
-        currentAttachments.push({ name: file.name, type: 'image', dataUrl });
-      } else {
-        alert(`"${file.name}" isn't a JPEG or PDF — skipped.`);
-        continue;
-      }
-    }catch(err){
-      console.error('Could not process attachment', file.name, err);
-      alert(`Could not read "${file.name}" — please try again.`);
-    }
-  }
-  renderAttachmentsList();
-});
 
 // --- Autofill: asks the restaurant-autofill Edge Function to fetch a
 // restaurant's own site or a listing page server-side and pull out
@@ -654,7 +1069,12 @@ function setAutofillStatus(msg, cls){
 // Accepts a bare domain ("bluehillfarm.com") as well as a full URL —
 // prepends https:// if no scheme was typed, so the field doesn't demand
 // people paste the "https://" prefix by hand.
-// normalizeAutofillUrl() is defined in common.js, shared with every app in this suite.
+function normalizeAutofillUrl(u){
+  u = (u || '').trim();
+  if(!u) return u;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
 
 async function fetchAutofillData(url){
   const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/restaurant-autofill', {
@@ -1305,7 +1725,7 @@ function renderWineItemsHtml(e){
     const wineHref = safeUrl(w.wineUrl);
     const photoHref = safePhotoSrc(w.photoUrl);
     return `<div class="dish-item">
-      ${linkedNameHtml(w.name, wineHref)}${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      <span class="dish-item-name">${escapeHtml(w.name)}</span>${w.note ? ` <span class="dish-item-note">— ${escapeHtml(w.note)}</span>` : ''}${wineHref ? ` <a class="dish-cheese-link" href="${escapeHtml(wineHref)}" target="_blank" rel="noopener" title="Linked wine">\ud83c\udf77</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this wine"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -1464,7 +1884,7 @@ function renderCheeseItemsHtml(e){
   return `<div class="dish-list">${items.map(c => {
     const cheeseHref = safeUrl(c.cheeseUrl);
     return `<div class="dish-item">
-      ${linkedNameHtml(c.name, cheeseHref)}${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
+      <span class="dish-item-name">${escapeHtml(c.name)}</span>${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -1833,275 +2253,7 @@ function renderSpiritItemsHtml(e){
     const spiritHref = safeUrl(s.spiritUrl);
     const photoHref = safePhotoSrc(s.photoUrl);
     return `<div class="dish-item">
-      ${linkedNameHtml(s.name, spiritHref)}${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
-    </div>`;
-  }).join('')}</div>`;
-}
-
-// --- Charcuterie had: same repeatable-row pattern as Cheeses had above
-// (dropdown + note, no photo — matches Charcuterie's own food-item
-// pattern rather than Wine/Spirits' drink pattern). ---
-let charcuterieOptions = []; // {id, name}
-
-async function refreshCharcuterieOptions(){
-  charcuterieOptions = [];
-  if(!supabaseClient) return;
-  try{
-    const { data, error } = await supabaseClient.rpc('list_kv_names', { prefix: 'charcuterie:' });
-    if(error) throw error;
-    charcuterieOptions = (data || [])
-      .map(r => ({ id: r.key.replace(/^charcuterie:/, ''), name: r.name || 'Untitled' }))
-      .sort((a,b) => a.name.localeCompare(b.name));
-  }catch(err){
-    console.error('Could not load charcuterie list for the dropdown', err);
-  }
-}
-
-async function createNewCharcuterie(name){
-  if(!supabaseClient) throw new Error('Not connected to Supabase');
-  const id = 'ch' + Date.now() + Math.random().toString(36).slice(2,7);
-  const entry = {
-    id, name,
-    photos: [],
-    producer: '', producerUrl: '',
-    curer: '',
-    purveyor: '', purveyorUrl: '',
-    type: '', age: '',
-    region: '', country: '',
-    pairedCheeses: [],
-    pairedWine: '', pairedWineUrl: '',
-    restaurant: '', restaurantUrl: '',
-    date: new Date().toISOString().slice(0,10),
-    comment: ''
-  };
-  if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
-  }
-  const { error } = await supabaseClient
-    .from('kv_store')
-    .upsert({ key: 'charcuterie:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
-  if(error) throw error;
-  return { id, name };
-}
-
-function renderCharcuterieList(){
-  const wrap = $('charcuterieList');
-  wrap.innerHTML = '';
-  currentCharcuterie.forEach((c, i) => {
-    const row = document.createElement('div');
-    row.className = 'dish-row';
-
-    const main = document.createElement('div');
-    main.className = 'dish-row-main';
-
-    const select = document.createElement('select');
-    select.className = 'dish-cheese';
-    const blankOpt = document.createElement('option');
-    blankOpt.value = '';
-    blankOpt.textContent = '\ud83e\udd53 Charcuterie — none';
-    select.appendChild(blankOpt);
-    const newOpt = document.createElement('option');
-    newOpt.value = '__new__';
-    newOpt.textContent = '+ New charcuterie\u2026';
-    select.appendChild(newOpt);
-    const currentId = (c.charcuterieUrl || '').split('#')[1] || '';
-    let matched = false;
-    charcuterieOptions.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.id;
-      o.textContent = '\ud83e\udd53 ' + opt.name;
-      if(opt.id && opt.id === currentId){ o.selected = true; matched = true; }
-      select.appendChild(o);
-    });
-    if(currentId && !matched){
-      const o = document.createElement('option');
-      o.value = currentId;
-      o.textContent = '\ud83e\udd53 (linked item not in list)';
-      o.selected = true;
-      select.appendChild(o);
-    }
-    select.addEventListener('change', async () => {
-      if(select.value !== '__new__') return;
-      const name = prompt('Name for the new charcuterie item:');
-      if(!name || !name.trim()){
-        select.value = currentId || '';
-        return;
-      }
-      select.disabled = true;
-      try{
-        const created = await createNewCharcuterie(name.trim());
-        charcuterieOptions.push(created);
-        charcuterieOptions.sort((a,b) => a.name.localeCompare(b.name));
-        readCharcuterieFromDom();
-        currentCharcuterie[i].charcuterieUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'charcuterie.html#' + created.id;
-        currentCharcuterie[i].name = created.name;
-        renderCharcuterieList();
-      }catch(err){
-        console.error('Could not create new charcuterie item', err);
-        alert('Could not create the item — make sure you\u2019re signed in.');
-        select.disabled = false;
-        select.value = currentId || '';
-      }
-    });
-
-    const noteInput = document.createElement('input');
-    noteInput.type = 'text';
-    noteInput.className = 'dish-note';
-    noteInput.placeholder = 'Note (optional)';
-    noteInput.value = c.note || '';
-
-    main.append(select, noteInput);
-
-    const links = document.createElement('div');
-    links.className = 'dish-row-links dish-row-links-1';
-
-    const rmBtn = document.createElement('button');
-    rmBtn.type = 'button';
-    rmBtn.className = 'dish-rm';
-    rmBtn.title = 'Remove item';
-    rmBtn.textContent = '\u00d7';
-    rmBtn.addEventListener('click', () => {
-      readCharcuterieFromDom();
-      currentCharcuterie.splice(i, 1);
-      renderCharcuterieList();
-    });
-
-    links.append(rmBtn);
-    row.append(main, links);
-    wrap.appendChild(row);
-  });
-}
-
-function readCharcuterieFromDom(){
-  const rows = $('charcuterieList').querySelectorAll('.dish-row');
-  currentCharcuterie = Array.from(rows).map((row, i) => {
-    const select = row.querySelector('.dish-cheese');
-    const charcuterieId = select.value;
-    const opt = charcuterieOptions.find(o => o.id === charcuterieId);
-    return {
-      name: opt ? opt.name : (currentCharcuterie[i] ? currentCharcuterie[i].name : ''),
-      charcuterieUrl: charcuterieId && charcuterieId !== '__new__' ? (location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'charcuterie.html#' + charcuterieId) : '',
-      note: row.querySelector('.dish-note').value.trim()
-    };
-  });
-}
-
-$('addCharcuterieBtn').addEventListener('click', () => {
-  readCharcuterieFromDom();
-  currentCharcuterie.push({name:'', note:'', charcuterieUrl:''});
-  renderCharcuterieList();
-});
-
-// Runs straight through charcuterie-autofill and creates a real, fully
-// populated Charcuterie entry from whatever was found — mirrors "+ Add
-// cheese by URL" exactly, just pointed at charcuterie-autofill instead.
-$('addCharcuterieByUrlBtn').addEventListener('click', async () => {
-  const raw = prompt('Paste a link to the item (producer or shop page):');
-  if(!raw || !raw.trim()) return;
-  const url = normalizeAutofillUrl(raw);
-  const btn = $('addCharcuterieByUrlBtn');
-  const originalText = btn.textContent;
-  btn.textContent = 'Fetching…';
-  btn.disabled = true;
-  try{
-    const created = await createCharcuterieFromUrl(url);
-    charcuterieOptions.push({ id: created.id, name: created.name });
-    charcuterieOptions.sort((a,b) => a.name.localeCompare(b.name));
-    readCharcuterieFromDom();
-    currentCharcuterie.push({
-      name: created.name,
-      note: '',
-      charcuterieUrl: location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'charcuterie.html#' + created.id
-    });
-    renderCharcuterieList();
-  }catch(err){
-    console.error('Could not add charcuterie from URL', err);
-    alert(err.message || 'Could not fetch that page — make sure you\u2019re signed in and the link is correct.');
-  }finally{
-    btn.textContent = originalText;
-    btn.disabled = false;
-  }
-});
-
-// Fetches charcuterie-autofill for a URL and writes a real, populated
-// Charcuterie entry directly into the shared kv_store — mirrors
-// createCheeseFromUrl.
-async function createCharcuterieFromUrl(url){
-  if(!supabaseClient) throw new Error('Not connected to Supabase');
-  const res = await fetch('https://psbdjeyianlhfkgwwsvt.supabase.co/functions/v1/charcuterie-autofill', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_',
-      'apikey': 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_'
-    },
-    body: JSON.stringify({ url })
-  });
-  const data = await res.json();
-  if(!res.ok || !data.ok) throw new Error(data.error || `Could not fetch that page (HTTP ${res.status}).`);
-  if(!data.name) throw new Error('Could not find an item name on that page.');
-
-  const id = 'ch' + Date.now() + Math.random().toString(36).slice(2,7);
-  const comment = [data.comment, data.quote ? `\u201c${data.quote}\u201d \u2014 ${data.quoteAttribution || ''}`.trim() : '']
-    .filter(Boolean).join('\n\n');
-  const entry = {
-    id, name: data.name,
-    photos: data.photo ? [data.photo] : [],
-    producer: data.producer || '', producerUrl: data.producerUrl || '',
-    curer: data.curer || '',
-    purveyor: data.purveyor || '', purveyorUrl: data.purveyorUrl || '',
-    type: data.type || '', age: data.age || '',
-    region: data.region || '', country: data.country || '',
-    pairedCheeses: [],
-    pairedWine: '', pairedWineUrl: '',
-    restaurant: '', restaurantUrl: '',
-    date: new Date().toISOString().slice(0,10),
-    comment
-  };
-  if(editingId){
-    entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
-  }
-  const { error } = await supabaseClient
-    .from('kv_store')
-    .upsert({ key: 'charcuterie:' + id, value: JSON.stringify(entry), updated_at: new Date().toISOString() });
-  if(error) throw error;
-  return { id, name: data.name };
-}
-
-function charcuterieItemsOf(e){
-  return (e.charcuterieItems && e.charcuterieItems.length) ? e.charcuterieItems : [];
-}
-
-function renderCharcuterieItemsHtml(e){
-  const items = charcuterieItemsOf(e);
-  if(!items.length) return '';
-  return `<div class="dish-list">${items.map(c => {
-    const charcuterieHref = safeUrl(c.charcuterieUrl);
-    return `<div class="dish-item">
-      ${linkedNameHtml(c.name, charcuterieHref)}${c.note ? ` <span class="dish-item-note">— ${escapeHtml(c.note)}</span>` : ''}${charcuterieHref ? ` <a class="dish-cheese-link" href="${escapeHtml(charcuterieHref)}" target="_blank" rel="noopener" title="Linked charcuterie">\ud83e\udd53</a>` : ''}
-    </div>`;
-  }).join('')}</div>`;
-}
-
-// Read-only display of an entry's attachments — used on the card and in
-// the lightbox. Images and PDFs are both stored as data: URLs, so
-// safePhotoSrc() (which accepts data:image/... in addition to http(s))
-// covers the image case; PDFs get a plain safeUrl-style data: check
-// inline since safePhotoSrc is image-specific.
-function renderAttachmentsHtml(e){
-  const items = (e.attachments && e.attachments.length) ? e.attachments : [];
-  if(!items.length) return '';
-  return `<div class="dish-list">${items.map(a => {
-    const isPdf = a.type === 'pdf';
-    const href = (a.dataUrl || '').startsWith('data:') ? a.dataUrl : safeUrl(a.dataUrl);
-    if(!href) return '';
-    const thumb = isPdf
-      ? `<span style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;font-size:9px;font-weight:bold;background:var(--paper-dark);border:1px solid var(--line);border-radius:2px;vertical-align:middle;">PDF</span>`
-      : `<img class="dish-photo-thumb" src="${escapeHtml(href)}" alt="">`;
-    return `<div class="dish-item">
-      <a href="${escapeHtml(href)}" target="_blank" rel="noopener" title="${escapeHtml(a.name || '')}" style="text-decoration:none;">${thumb} <span class="dish-item-name">${escapeHtml(a.name || (isPdf ? 'document.pdf' : 'photo.jpg'))}</span></a>
+      <span class="dish-item-name">${escapeHtml(s.name)}</span>${s.note ? ` <span class="dish-item-note">— ${escapeHtml(s.note)}</span>` : ''}${spiritHref ? ` <a class="dish-cheese-link" href="${escapeHtml(spiritHref)}" target="_blank" rel="noopener" title="Linked spirit">\ud83c\udf78</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this spirit"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2123,7 +2275,7 @@ function renderDishItemsHtml(e){
     const cheeseHref = safeUrl(d.cheeseUrl);
     const photoHref = safePhotoSrc(d.photoUrl);
     return `<div class="dish-item">
-      ${linkedNameHtml(d.name, cheeseHref)}${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
+      <span class="dish-item-name">${escapeHtml(d.name)}</span>${d.note ? ` <span class="dish-item-note">— ${escapeHtml(d.note)}</span>` : ''}${cheeseHref ? ` <a class="dish-cheese-link" href="${escapeHtml(cheeseHref)}" target="_blank" rel="noopener" title="Linked cheese">\ud83e\uddc0</a>` : ''}${photoHref ? ` <a class="dish-photo-link" href="${escapeHtml(photoHref)}" target="_blank" rel="noopener" title="Photo of this dish"><img class="dish-photo-thumb" src="${escapeHtml(photoHref)}" alt=""></a>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2169,100 +2321,92 @@ function renderNotesWithPhotos(e){
   return { html, leftoverPhotos };
 }
 
-// Builds the markup for a single visit within the lightbox: its own
-// date/price/rating header (with edit/delete just for that visit), then
-// the same dish/wine/cheese/spirit/charcuterie/attachment/notes sections
-// the single-visit view always had — those renderers just read whatever
-// object they're handed, so passing a visit instead of a whole entry
-// works unchanged.
-function renderVisitBlockHtml(restaurantId, visit){
-  const metaBits = [];
-  if(visit.date) metaBits.push(fmtDate(visit.date));
-  if(visit.price) metaBits.push(visit.price);
-  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(visit);
-  const dishesHtml = renderDishItemsHtml(visit);
-  const winesHtml = renderWineItemsHtml(visit);
-  const cheesesHtml = renderCheeseItemsHtml(visit);
-  const spiritsHtml = renderSpiritItemsHtml(visit);
-  const charcuterieHtml = renderCharcuterieItemsHtml(visit);
-  const attachmentsHtml = renderAttachmentsHtml(visit);
-  return `
-    <div class="lightbox-notes visit-block" data-visit-id="${escapeHtml(visit.id)}">
-      <div class="entry-top" style="margin-bottom:6px;">
-        <span class="lbl" style="margin:0;">${metaBits.map(escapeHtml).join(' · ') || 'Visit'}</span>
-        ${visit.rating ? `<div class="entry-rating">${starsHtml(visit.rating)}</div>` : ''}
-      </div>
-      ${dishesHtml ? `<div><span class="lbl">Dishes</span>${dishesHtml}</div>` : ''}
-      ${winesHtml ? `<div><span class="lbl">Wines</span>${winesHtml}</div>` : ''}
-      ${cheesesHtml ? `<div><span class="lbl">Cheeses</span>${cheesesHtml}</div>` : ''}
-      ${spiritsHtml ? `<div><span class="lbl">Spirits</span>${spiritsHtml}</div>` : ''}
-      ${charcuterieHtml ? `<div><span class="lbl">Charcuterie</span>${charcuterieHtml}</div>` : ''}
-      ${attachmentsHtml ? `<div><span class="lbl">Attachments</span>${attachmentsHtml}</div>` : ''}
-      ${notesHtml ? `<div><span class="lbl">Notes</span>${notesHtml}</div>` : ''}
-      ${(leftoverPhotos && leftoverPhotos.length) ? `<div class="lightbox-photos" style="display:grid;">${leftoverPhotos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
-      <div class="entry-actions" style="position:static;display:flex;gap:8px;margin-top:6px;">
-        <button type="button" class="visitEditBtn">edit visit</button>
-        <button type="button" class="visitDelBtn">delete visit</button>
-      </div>
-    </div>`;
-}
-
 function openLightbox(id){
-  const r = entries.find(x => x.id === id);
-  if(!r) return;
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
   currentLightboxId = id;
 
-  const websiteHref = safeUrl(r.website);
+  const websiteHref = safeUrl(e.website);
   if(websiteHref){
-    $('lb-name').innerHTML = `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(r.name || 'Untitled')}</a>`;
+    $('lb-name').innerHTML = `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(e.name || 'Untitled')}</a>`;
   } else {
-    $('lb-name').textContent = r.name || 'Untitled';
+    $('lb-name').textContent = e.name || 'Untitled';
   }
 
-  const visits = [...(r.visits || [])].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   const metaBits = [];
-  if(placeLine(r)) metaBits.push(placeLine(r));
-  metaBits.push(visits.length + (visits.length === 1 ? ' visit' : ' visits'));
-  $('lb-meta').innerHTML = metaBits.map(m => `<span>${escapeHtml(m)}</span>`).join('');
+  if(e.date) metaBits.push(fmtDate(e.date));
+  if(placeLine(e)) metaBits.push(placeLine(e));
+  if(e.rating) metaBits.push(starsHtml(e.rating));
+  $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
 
-  $('lb-tags').innerHTML = (r.tags && r.tags.length)
-    ? r.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
-    : '';
+  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(e);
 
-  $('lb-visits').innerHTML = visits.map(v => renderVisitBlockHtml(r.id, v)).join('');
+  const dishItems = dishItemsOf(e);
+  if(dishItems.length){
+    $('lb-dishes-wrap').style.display = 'block';
+    $('lb-dishes').innerHTML = renderDishItemsHtml(e);
+  } else {
+    $('lb-dishes-wrap').style.display = 'none';
+  }
 
-  $('lightbox').querySelectorAll('.note-photo, .lightbox-photos img').forEach(img=>{
+  const wineItems = wineItemsOf(e);
+  if(wineItems.length){
+    $('lb-wines-wrap').style.display = 'block';
+    $('lb-wines').innerHTML = renderWineItemsHtml(e);
+  } else {
+    $('lb-wines-wrap').style.display = 'none';
+  }
+
+  const cheeseItems = cheeseItemsOf(e);
+  if(cheeseItems.length){
+    $('lb-cheeses-wrap').style.display = 'block';
+    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
+  } else {
+    $('lb-cheeses-wrap').style.display = 'none';
+  }
+
+  const spiritItems = spiritItemsOf(e);
+  if(spiritItems.length){
+    $('lb-spirits-wrap').style.display = 'block';
+    $('lb-spirits').innerHTML = renderSpiritItemsHtml(e);
+  } else {
+    $('lb-spirits-wrap').style.display = 'none';
+  }
+
+  if(e.notes){
+    $('lb-notes-wrap').style.display = 'block';
+    $('lb-notes').innerHTML = notesHtml;
+  } else {
+    $('lb-notes-wrap').style.display = 'none';
+  }
+
+  const photosWrap = $('lb-photos');
+  if(leftoverPhotos && leftoverPhotos.length){
+    photosWrap.style.display = 'grid';
+    photosWrap.innerHTML = leftoverPhotos.map(p => `<img src="${photoUrl(p)}" alt="">`).join('');
+  } else {
+    photosWrap.style.display = 'none';
+    photosWrap.innerHTML = '';
+  }
+
+  $('lightbox').querySelectorAll('.note-photo, #lb-photos img').forEach(img=>{
     img.addEventListener('click', ev => {
       ev.stopPropagation();
       openPhotoZoom(img.src);
     });
   });
 
-  $('lb-visits').querySelectorAll('.visitEditBtn').forEach(btn=>{
-    btn.addEventListener('click', ev => {
-      ev.stopPropagation();
-      const visitId = btn.closest('.visit-block').dataset.visitId;
-      closeLightbox();
-      openForEditVisit(r.id, visitId);
-    });
-  });
-  $('lb-visits').querySelectorAll('.visitDelBtn').forEach(btn=>{
-    btn.addEventListener('click', async ev => {
-      ev.stopPropagation();
-      const visitId = btn.closest('.visit-block').dataset.visitId;
-      const restaurant = entries.find(x=>x.id===r.id);
-      const only = restaurant && (restaurant.visits||[]).length <= 1;
-      const msg = only ? 'This is the only visit — deleting it removes the whole restaurant entry. Continue?' : 'Remove this visit?';
-      if(confirm(msg)){
-        await deleteVisit(r.id, visitId);
-      }
-    });
-  });
+  $('lb-tags').innerHTML = (e.tags && e.tags.length)
+    ? e.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
+    : '';
 
   $('lightbox').classList.add('open');
 }
 
-// closeLightbox() is defined in common.js, shared with every app in this suite.
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxId = null;
+}
 
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
@@ -2283,11 +2427,23 @@ $('lightboxCopyLink').addEventListener('click', async e => {
 // Deep link: if the page was opened with #<entryId> (e.g. pasted from
 // another Warehouse app's "link to this restaurant visit" field), open
 // that entry's lightbox automatically once entries have loaded.
-// openFromHash() is defined in common.js, shared with every app in this suite.
+function openFromHash(){
+  const id = location.hash.replace(/^#/, '');
+  if(id && entries.some(e => e.id === id)){
+    openLightbox(id);
+    document.querySelector(`.entry[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
 
-// openPhotoZoom() is defined in common.js, shared with every app in this suite.
+function openPhotoZoom(src){
+  $('photoZoomImg').src = src;
+  $('photoZoom').classList.add('open');
+}
 
-// closePhotoZoom() is defined in common.js, shared with every app in this suite.
+function closePhotoZoom(){
+  $('photoZoom').classList.remove('open');
+  $('photoZoomImg').src = '';
+}
 
 $('lightboxClose').addEventListener('click', e => {
   e.stopPropagation();
@@ -2304,7 +2460,11 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// escapeHtml() is defined in common.js, shared with every app in this suite.
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
 function resetForm(){
   $('f-autofillUrl').value='';
@@ -2326,123 +2486,65 @@ function resetForm(){
   renderCheesesList();
   currentSpirits = [];
   renderSpiritsList();
-  currentCharcuterie = [];
-  renderCharcuterieList();
-  currentAttachments = [];
-  renderAttachmentsList();
-  // Cheese/wine/spirit/charcuterie options are fetched async so opening
-  // the form never waits on a network round trip; re-render in place once
-  // they land. Reads whatever was typed in the meantime first, so a fast
+  // Cheese/wine/spirit options are fetched async so opening the form
+  // never waits on a network round trip; re-render in place once they
+  // land. Reads whatever was typed in the meantime first, so a fast
   // typer doesn't lose input.
   refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
   refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
-  refreshCharcuterieOptions().then(() => { readCharcuterieFromDom(); renderCharcuterieList(); });
   $('f-notes').value='';
   $('f-tags').value='';
   setStars(0);
   editingId = null;
-  editingVisitId = null;
-  $('saveBtn').textContent = 'Save Entry';
 }
 
-// Fills just the restaurant-level fields (name/website/location/tags) from
-// an existing restaurant record — shared by both "add a visit" and
-// "edit a past visit", since both keep those fields editable alongside
-// whichever visit is being worked on.
-function fillRestaurantFields(r){
-  $('f-name').value = r.name || '';
-  $('f-website').value = r.website || '';
-  $('f-neighborhood').value = r.neighborhood || '';
-  $('f-place').value = r.place || '';
-  $('f-state').value = r.state || '';
-  $('f-country').value = r.country || '';
-  $('f-tags').value = (r.tags||[]).join(', ');
+function setStars(n){
+  currentStars = n;
+  document.querySelectorAll('#f-stars span').forEach(s=>{
+    s.classList.toggle('on', parseInt(s.dataset.v) <= n);
+  });
 }
 
-// Fills the visit-level fields (date/price/rating/dishes/wines/.../notes)
-// from a given visit object — everything that's unique to one meal there,
-// as opposed to the restaurant itself.
-function fillVisitFields(v){
-  $('f-date').value = v.date || '';
-  $('f-price').value = v.price || '';
-  currentDishes = (v.dishItems && v.dishItems.length)
-    ? v.dishItems.map(d => ({...d}))
-    : (v.dishes ? v.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
+function openForEdit(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  $('f-name').value = e.name || '';
+  $('f-website').value = e.website || '';
+  $('f-neighborhood').value = e.neighborhood || '';
+  $('f-place').value = e.place || '';
+  $('f-state').value = e.state || '';
+  $('f-country').value = e.country || '';
+  $('f-date').value = e.date || '';
+  $('f-price').value = e.price || '';
+  // Structured dishItems if present; otherwise convert the legacy flat
+  // `dishes` string into rows as an editable starting point — nothing is
+  // silently discarded or auto-migrated in the database, this only
+  // affects what you see when you open the form.
+  currentDishes = (e.dishItems && e.dishItems.length)
+    ? e.dishItems.map(d => ({...d}))
+    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
   renderDishesList();
-  currentWines = (v.wineItems && v.wineItems.length) ? v.wineItems.map(w => ({...w})) : [];
+  currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
   renderWinesList();
-  currentCheeses = (v.cheeseItems && v.cheeseItems.length)
-    ? v.cheeseItems.map(c => ({...c}))
-    : (v.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
+  // Structured cheeseItems if present; otherwise pull forward any cheese
+  // links still sitting on individual dishes from before Cheese moved out
+  // into its own section, so the connection isn't lost on first re-edit.
+  currentCheeses = (e.cheeseItems && e.cheeseItems.length)
+    ? e.cheeseItems.map(c => ({...c}))
+    : (e.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
   renderCheesesList();
   refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
   refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
-  currentSpirits = (v.spiritItems && v.spiritItems.length) ? v.spiritItems.map(s => ({...s})) : [];
+  currentSpirits = (e.spiritItems && e.spiritItems.length) ? e.spiritItems.map(s => ({...s})) : [];
   renderSpiritsList();
   refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
-  currentCharcuterie = (v.charcuterieItems && v.charcuterieItems.length) ? v.charcuterieItems.map(c => ({...c})) : [];
-  renderCharcuterieList();
-  refreshCharcuterieOptions().then(() => { readCharcuterieFromDom(); renderCharcuterieList(); });
-  currentAttachments = (v.attachments && v.attachments.length) ? v.attachments.map(a => ({...a})) : [];
-  renderAttachmentsList();
-  $('f-notes').value = v.notes || '';
-  setStars(v.rating || 0);
-}
-
-function openTicket(){
+  $('f-notes').value = e.notes || '';
+  $('f-tags').value = (e.tags||[]).join(', ');
+  setStars(e.rating || 0);
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-// "+ Visit" on a restaurant card: keeps that restaurant's info, starts a
-// blank visit dated today, appends as a new visit on save.
-function openForNewVisit(restaurantId){
-  const r = entries.find(x=>x.id===restaurantId);
-  if(!r) return;
-  resetForm();
-  editingId = restaurantId;
-  editingVisitId = null;
-  fillRestaurantFields(r);
-  $('f-date').value = new Date().toISOString().slice(0,10);
-  $('saveBtn').textContent = 'Save Visit';
-  openTicket();
-}
-
-// Editing one specific past visit (or, from the card's own "edit" button,
-// the most recent one) — updates that visit in place on save.
-function openForEditVisit(restaurantId, visitId){
-  const r = entries.find(x=>x.id===restaurantId);
-  if(!r) return;
-  const v = (r.visits||[]).find(x=>x.id===visitId);
-  if(!v) return;
-  editingId = restaurantId;
-  editingVisitId = visitId;
-  fillRestaurantFields(r);
-  fillVisitFields(v);
-  $('saveBtn').textContent = 'Update Visit';
-  openTicket();
-}
-
-// setStars() is defined in common.js, shared with every app in this suite.
-
-// One-time shape migration: entries used to be one row per visit (date,
-// dishItems, wineItems, ... all top-level alongside name/website/etc).
-// Now each row is one restaurant with a `visits` array holding those same
-// per-visit fields, so repeat visits live under one record instead of
-// spawning a duplicate restaurant card each time. Any entry loaded without
-// a `visits` array gets wrapped into one on the fly and written straight
-// back to storage — happens once per legacy entry, then never again.
-const VISIT_FIELD_KEYS = ['date','price','rating','dishItems','wineItems','cheeseItems','spiritItems','charcuterieItems','attachments','notes','dishes','photos'];
-
-function migrateEntryToVisits(raw){
-  if(raw && raw.visits) return { entry: raw, migrated: false };
-  const visit = { id: 'v' + Date.now() + Math.random().toString(36).slice(2,7) };
-  VISIT_FIELD_KEYS.forEach(k => { if(raw[k] !== undefined) visit[k] = raw[k]; });
-  const restaurant = { ...raw };
-  VISIT_FIELD_KEYS.forEach(k => { delete restaurant[k]; });
-  restaurant.visits = [visit];
-  return { entry: restaurant, migrated: true };
 }
 
 async function loadEntries(){
@@ -2453,47 +2555,37 @@ async function loadEntries(){
     // 'entry:m-...'. A bare 'entry:' prefix here would match both, silently
     // pulling every Music track into this app's own entry list (this
     // actually happened — it's what was surfacing as "Untitled" cards).
-    let loaded = [];
     if(storage.listWithValues){
       // Fast path: one request for everything.
       const result = await storage.listWithValues('entry:e');
-      loaded = (result.items || [])
+      entries = (result.items || [])
         .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
         .filter(Boolean);
-    } else {
-      // Fallback for storage backends without a batch method (Claude
-      // artifact storage, plain localStorage) — one request per entry.
-      const result = await storage.list('entry:e');
-      if(result && result.keys && result.keys.length){
-        for(const key of result.keys){
-          try{
-            const r = await storage.get(key);
-            if(r && r.value) loaded.push(JSON.parse(r.value));
-          }catch(err){ /* skip missing */ }
+      render();
+      return;
+    }
+    // Fallback for storage backends without a batch method (Claude artifact
+    // storage, plain localStorage) — one request per entry.
+    const result = await storage.list('entry:e');
+    if(!result || !result.keys || result.keys.length === 0){
+      entries = [];
+      render();
+      return;
+    }
+    const loaded = [];
+    for(const key of result.keys){
+      try{
+        const r = await storage.get(key);
+        if(r && r.value){
+          loaded.push(JSON.parse(r.value));
         }
-      }
+      }catch(err){ /* skip missing */ }
     }
-
-    const migratedEntries = [];
-    for(const raw of loaded){
-      const { entry, migrated } = migrateEntryToVisits(raw);
-      migratedEntries.push(entry);
-      if(migrated){
-        try{ await storage.set('entry:' + entry.id, JSON.stringify(entry)); }
-        catch(err){ console.error('Could not persist visit-shape migration for', entry.id, err); }
-      }
-    }
-    entries = migratedEntries;
+    entries = loaded;
   }catch(err){
     entries = [];
   }
-  applyIncomingSearchQuery();
   render();
-}
-
-function latestVisit(r){
-  if(!r.visits || !r.visits.length) return {};
-  return [...r.visits].sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
 }
 
 async function saveEntry(){
@@ -2512,12 +2604,14 @@ async function saveEntry(){
   const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
   readSpiritsFromDom();
   const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl || s.photoUrl);
-  readCharcuterieFromDom();
-  const charcuterieItems = currentCharcuterie.filter(c => c.charcuterieUrl);
-
-  const visitId = editingVisitId || ('v' + Date.now() + Math.random().toString(36).slice(2,7));
-  const visit = {
-    id: visitId,
+  const entry = {
+    id,
+    name,
+    website: normalizeAutofillUrl($('f-website').value),
+    neighborhood: $('f-neighborhood').value.trim(),
+    place: $('f-place').value.trim(),
+    state: $('f-state').value.trim(),
+    country: $('f-country').value.trim(),
     date: $('f-date').value,
     price: $('f-price').value,
     rating: currentStars,
@@ -2525,32 +2619,17 @@ async function saveEntry(){
     wineItems,
     cheeseItems,
     spiritItems,
-    charcuterieItems,
-    attachments: currentAttachments,
-    notes: $('f-notes').value.trim()
+    notes: $('f-notes').value.trim(),
+    tags
   };
-
-  const existing = entries.find(x=>x.id===id);
-  const restaurant = existing ? {...existing} : { id, visits: [] };
-  restaurant.name = name;
-  restaurant.website = normalizeAutofillUrl($('f-website').value);
-  restaurant.neighborhood = $('f-neighborhood').value.trim();
-  restaurant.place = $('f-place').value.trim();
-  restaurant.state = $('f-state').value.trim();
-  restaurant.country = $('f-country').value.trim();
-  restaurant.tags = tags;
-  restaurant.visits = existing ? [...existing.visits] : [];
-  if(editingVisitId){
-    const vIdx = restaurant.visits.findIndex(v=>v.id===editingVisitId);
-    if(vIdx>-1) restaurant.visits[vIdx] = visit; else restaurant.visits.push(visit);
-  } else {
-    restaurant.visits.push(visit);
-  }
-
   try{
-    await storage.set('entry:' + id, JSON.stringify(restaurant));
-    const idx = entries.findIndex(e=>e.id===id);
-    if(idx>-1) entries[idx] = restaurant; else entries.push(restaurant);
+    await storage.set('entry:' + id, JSON.stringify(entry));
+    if(editingId){
+      const idx = entries.findIndex(e=>e.id===id);
+      if(idx>-1) entries[idx] = entry; else entries.push(entry);
+    } else {
+      entries.push(entry);
+    }
     render();
     closeForm();
   }catch(err){
@@ -2559,7 +2638,6 @@ async function saveEntry(){
   }
 }
 
-// Removes the whole restaurant record (all of its visits).
 async function deleteEntry(id){
   try{
     await storage.delete('entry:' + id);
@@ -2571,34 +2649,10 @@ async function deleteEntry(id){
   }
 }
 
-// Removes one visit from a restaurant's history. If it's the last visit,
-// this removes the whole restaurant record instead (nothing meaningful is
-// left to keep), and the lightbox is closed since there's nothing to show.
-async function deleteVisit(restaurantId, visitId){
-  const r = entries.find(x=>x.id===restaurantId);
-  if(!r) return;
-  const remaining = (r.visits||[]).filter(v=>v.id!==visitId);
-  if(remaining.length === 0){
-    closeLightbox();
-    await deleteEntry(restaurantId);
-    return;
-  }
-  const updated = {...r, visits: remaining};
-  try{
-    await storage.set('entry:' + restaurantId, JSON.stringify(updated));
-    const idx = entries.findIndex(e=>e.id===restaurantId);
-    if(idx>-1) entries[idx] = updated;
-    render();
-    if($('lightbox').classList.contains('open') && currentLightboxId === restaurantId){
-      openLightbox(restaurantId);
-    }
-  }catch(err){
-    alert('Could not delete visit. Please try again.');
-    console.error(err);
-  }
+function closeForm(){
+  $('ticket').classList.remove('open');
+  resetForm();
 }
-
-// closeForm() is defined in common.js, shared with every app in this suite.
 
 $('toggleForm').addEventListener('click', () => {
   const t = $('ticket');
@@ -2618,43 +2672,6 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
 });
 
 $('search').addEventListener('input', render);
-
-// Restaurant-name autocomplete: as you type in "+ New Entry", suggests
-// restaurants you've already logged (sourced straight from the in-memory
-// `entries` list — no network call needed). Picking one switches the form
-// into "add a visit to that restaurant" instead of creating a duplicate
-// record with the same name. Harmless if triggered while already editing
-// that same restaurant — it just re-fills the name.
-function restaurantNameOptions(){
-  return entries
-    .map(r => ({ id: r.id, name: r.name }))
-    .filter(o => o.name)
-    .sort((a,b) => a.name.localeCompare(b.name));
-}
-function renderNameSuggestions(){
-  const list = $('f-name-options');
-  // Only offer this while creating a brand-new restaurant (editingId is
-  // null). If a visit is already being added/edited, silently switching
-  // restaurants here could discard whatever's been filled in so far.
-  if(editingId){ list.classList.remove('open'); return; }
-  const q = $('f-name').value.trim().toLowerCase();
-  const opts = restaurantNameOptions().filter(o => !q || o.name.toLowerCase().includes(q));
-  if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
-  list.innerHTML = opts.map(o => `<div data-id="${escapeHtml(o.id)}" data-name="${escapeHtml(o.name)}">${escapeHtml(o.name)}<span class="visit-hint">(${(entries.find(r=>r.id===o.id).visits||[]).length} visit${(entries.find(r=>r.id===o.id).visits||[]).length===1?'':'s'} logged)</span></div>`).join('');
-  list.classList.add('open');
-}
-function hideNameSuggestions(){ $('f-name-options').classList.remove('open'); }
-
-$('f-name').addEventListener('focus', renderNameSuggestions);
-$('f-name').addEventListener('input', renderNameSuggestions);
-$('f-name').addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
-$('f-name-options').addEventListener('mousedown', (e) => {
-  const opt = e.target.closest('[data-id]');
-  if(!opt) return;
-  const id = opt.dataset.id;
-  hideNameSuggestions();
-  openForNewVisit(id);
-});
 
 loadEntries().then(openFromHash);
 </script>
