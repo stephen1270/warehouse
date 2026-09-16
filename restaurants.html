@@ -257,7 +257,7 @@ function render(){
 
   // Search matches Restaurant name, Place, and Tags — typing a restaurant
   // name here is how you pull up "history of meals" at that place, since
-  // entries are already sorted most-recent-first below.
+  // entries are sorted chronologically (oldest first) below.
   const filtered = query ? entries.filter(e => {
     const haystack = [e.name, e.neighborhood, e.place, e.state, e.country, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(query);
@@ -281,7 +281,8 @@ function render(){
     return;
   }
 
-  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  // Chronological (oldest first) per request 2026-09-14 — was newest-first before.
+  const sorted = [...filtered].sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
   wrap.innerHTML = sorted.map(e => `
     <div class="entry" data-id="${e.id}">
