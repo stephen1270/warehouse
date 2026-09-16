@@ -16,6 +16,16 @@
     --paper:#f4f1e8; --paper-dark:#e9e4d5; --ink:#2a2b26;
     --accent:#7c2e2e; --accent2:#a6813f; --muted:#3f4a44; --line:#c9c2ab;
   }
+  /* style.css already has .visit-block (border/spacing) and
+     .visit-block .entry-actions button (smaller, since there's one set
+     per visit now instead of one per card) — added ahead of this rebuild,
+     apparently, but never actually used until now. It doesn't set
+     position:relative on .visit-block itself, though, and .entry-actions
+     is position:absolute — without this, every visit's edit/delete pair
+     would stack on top of each other at the card's own top-right corner
+     instead of each visit's own. */
+  .visit-block{position:relative;}
+  .addVisitBtn{margin-top:10px;}
 </style>
 </head>
 <body>
@@ -47,7 +57,8 @@
 
     <div class="field">
       <label>Restaurant</label>
-      <input id="f-name" type="text" placeholder="Bar Americano">
+      <input id="f-name" type="text" placeholder="Bar Americano" autocomplete="off">
+      <div class="autocomplete-list" id="f-name-options"></div>
     </div>
     <div class="field">
       <label>Restaurant link (optional)</label>
@@ -176,14 +187,29 @@
 </div>
 
 <script>
+// Data model (matches what's actually in kv_store, confirmed 2026-09-16 —
+// this file used to assume a flat one-row-per-visit shape that never
+// matched the real data, which is why dates/dishes/repeat-visits never
+// displayed correctly before this rewrite):
+//   entries[i] = {
+//     id, name, website, neighborhood, place, state, country, tags,
+//     visits: [ { id, date, price, rating, notes,
+//                 dishItems, wineItems, cheeseItems, spiritItems, photos } ]
+//   }
+// One entry per RESTAURANT; every time you go back, that's a new object
+// pushed into that same restaurant's `visits` array, not a new top-level
+// entry — that's what makes "Bar Americano" one card with 3 visits inside
+// it, instead of 3 separate, harder-to-find cards.
 let entries = [];
-let editingId = null;
+let editingRestaurantId = null; // restaurant being edited, or the one a new visit is being added to — null means "brand new restaurant"
+let editingVisitId = null; // specific visit being edited — null means "adding a new visit" (first one, or an additional one)
 let currentStars = 0;
-let currentLightboxId = null; // entry currently shown in the lightbox, for the copy-link button
-let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows
-let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows
-let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows
-let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows
+let currentLightboxRestaurantId = null; // restaurant currently shown in the lightbox, for the copy-link button
+let currentLightboxVisitId = null; // and the specific visit within it
+let currentDishes = []; // {name, note, cheeseUrl} — working copy for the open form's dish rows (one visit's worth)
+let currentWines = []; // {name, note, wineUrl} — working copy for the open form's wine rows (one visit's worth)
+let currentCheeses = []; // {name, note, cheeseUrl} — working copy for the open form's cheese rows (one visit's worth)
+let currentSpirits = []; // {name, note, spiritUrl} — working copy for the open form's spirit rows (one visit's worth)
 
 // --- Auth: read is public, only a signed-in session can add/edit/delete ---
 let currentUser = null;
@@ -250,6 +276,14 @@ function placeLine(e){
   return [e.neighborhood, e.place, e.state, e.country].filter(Boolean).join(', ');
 }
 
+// A restaurant's own sort position is its MOST RECENT visit's date —
+// so a place you just went back to jumps back to the top, same as the
+// old flat newest-first sort did per-visit.
+function mostRecentVisitDate(e){
+  const dates = (e.visits||[]).map(v=>v.date||'').filter(Boolean);
+  return dates.length ? dates.sort().slice(-1)[0] : '';
+}
+
 function render(){
   const wrap = $('entries');
   const rawQuery = ($('search').value || '').trim();
@@ -257,17 +291,18 @@ function render(){
 
   // Search matches Restaurant name, Place, and Tags — typing a restaurant
   // name here is how you pull up "history of meals" at that place, since
-  // entries are sorted newest-first below.
+  // every visit to it lives inside that one card, listed newest-first.
   const filtered = query ? entries.filter(e => {
     const haystack = [e.name, e.neighborhood, e.place, e.state, e.country, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(query);
   }) : entries;
 
+  const totalVisits = entries.reduce((n,e)=>n+((e.visits||[]).length),0);
   $('count').textContent = entries.length === 0
     ? 'no entries yet'
     : query
       ? `${filtered.length} of ${entries.length} match "${rawQuery}"`
-      : entries.length + (entries.length === 1 ? ' entry logged' : ' entries logged');
+      : `${entries.length} ${entries.length===1?'restaurant':'restaurants'}, ${totalVisits} ${totalVisits===1?'visit':'visits'} logged`;
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The list is empty.</span>Log the first table.</div>`;
@@ -281,54 +316,82 @@ function render(){
     return;
   }
 
-  // Newest-first per request 2026-09-16 (was oldest-first for two days).
-  const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const sorted = [...filtered].sort((a,b) => mostRecentVisitDate(b).localeCompare(mostRecentVisitDate(a)));
 
-  wrap.innerHTML = sorted.map(e => `
+  wrap.innerHTML = sorted.map(e => {
+    const websiteHref = safeUrl(e.website);
+    const nameHtml = websiteHref
+      ? `<a href="${escapeHtml(websiteHref)}" target="_blank" rel="noopener">${escapeHtml(e.name || 'Untitled')}</a>`
+      : escapeHtml(e.name || 'Untitled');
+    const visits = [...(e.visits||[])].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    return `
     <div class="entry" data-id="${e.id}">
-      <div class="entry-actions">
-        <button class="editBtn">edit</button>
-        <button class="delBtn">delete</button>
-      </div>
       <div class="entry-top">
         <div>
-          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
+          <div class="entry-name">${nameHtml}</div>
           <div class="entry-meta">
-            ${e.date ? `<span>${fmtDate(e.date)}</span>` : ''}
             ${placeLine(e) ? `<span>${escapeHtml(placeLine(e))}</span>` : ''}
+            <span>${visits.length} visit${visits.length===1?'':'s'}</span>
           </div>
         </div>
-        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
-      ${renderDishItemsHtml(e)}
-      ${renderWineItemsHtml(e)}
-      ${renderCheeseItemsHtml(e)}
-      ${renderSpiritItemsHtml(e)}
-      ${e.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(e.notes))}</div>` : ''}
-      ${(e.photos && e.photos.length) ? `<div class="entry-thumbs">${e.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
+      ${visits.map(v => `
+        <div class="visit-block" data-visit-id="${v.id}">
+          <div class="entry-actions">
+            <button class="editVisitBtn">edit</button>
+            <button class="delVisitBtn">delete</button>
+          </div>
+          <div class="entry-top">
+            <div class="entry-meta">
+              ${v.date ? `<span>${fmtDate(v.date)}</span>` : '<span>(no date)</span>'}
+              ${v.price ? `<span>${escapeHtml(v.price)}</span>` : ''}
+            </div>
+            ${v.rating ? `<div class="entry-rating">${starsHtml(v.rating)}</div>` : ''}
+          </div>
+          ${renderDishItemsHtml(v)}
+          ${renderWineItemsHtml(v)}
+          ${renderCheeseItemsHtml(v)}
+          ${renderSpiritItemsHtml(v)}
+          ${v.notes ? `<div class="entry-notes">${escapeHtml(stripPhotoTags(v.notes))}</div>` : ''}
+          ${(v.photos && v.photos.length) ? `<div class="entry-thumbs">${v.photos.map(p=>`<img src="${photoUrl(p)}" alt="">`).join('')}</div>` : ''}
+        </div>
+      `).join('')}
+      <button type="button" class="ghost-inline addVisitBtn">+ Add a visit</button>
       ${(e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 
-  wrap.querySelectorAll('.editBtn').forEach(btn=>{
+  wrap.querySelectorAll('.addVisitBtn').forEach(btn=>{
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const id = e.target.closest('.entry').dataset.id;
-      openForEdit(id);
+      openAddVisit(id);
     });
   });
-  wrap.querySelectorAll('.delBtn').forEach(btn=>{
+  wrap.querySelectorAll('.editVisitBtn').forEach(btn=>{
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const restaurantId = e.target.closest('.entry').dataset.id;
+      const visitId = e.target.closest('.visit-block').dataset.visitId;
+      openForEditVisit(restaurantId, visitId);
+    });
+  });
+  wrap.querySelectorAll('.delVisitBtn').forEach(btn=>{
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      const id = e.target.closest('.entry').dataset.id;
-      if(confirm('Remove this entry?')){
-        await deleteEntry(id);
+      const restaurantId = e.target.closest('.entry').dataset.id;
+      const visitId = e.target.closest('.visit-block').dataset.visitId;
+      if(confirm('Remove this visit?')){
+        await deleteVisit(restaurantId, visitId);
       }
     });
   });
-  wrap.querySelectorAll('.entry').forEach(card=>{
-    card.addEventListener('click', e => {
-      openLightbox(card.dataset.id);
+  wrap.querySelectorAll('.visit-block').forEach(block=>{
+    block.style.cursor = 'pointer';
+    block.addEventListener('click', e => {
+      const restaurantId = e.target.closest('.entry').dataset.id;
+      openLightbox(restaurantId, block.dataset.visitId);
     });
   });
   applyAuthGating();
@@ -412,9 +475,9 @@ async function createCheeseFromUrl(url){
     date: new Date().toISOString().slice(0,10),
     comment
   };
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -442,9 +505,9 @@ async function createNewCheese(name){
   // in the new cheese's Restaurant back-link automatically — it completes
   // the reciprocal connection for free. A brand-new, not-yet-saved entry
   // has no stable URL to give it yet, so this is skipped in that case.
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -776,9 +839,9 @@ async function createNewWine(name){
     date: new Date().toISOString().slice(0,10),
     comment: ''
   };
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1092,9 +1155,9 @@ async function createWineFromUrl(url){
     date: new Date().toISOString().slice(0,10),
     comment: data.comment || ''
   };
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1313,9 +1376,9 @@ async function createNewSpirit(name){
     date: new Date().toISOString().slice(0,10),
     comment: ''
   };
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1620,9 +1683,9 @@ async function createSpiritFromUrl(url){
     date: new Date().toISOString().slice(0,10),
     comment: data.comment || ''
   };
-  if(editingId){
+  if(editingRestaurantId){
     entry.restaurant = $('f-name').value.trim();
-    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingId;
+    entry.restaurantUrl = location.origin + location.pathname.replace(/restaurants\.html$/, '') + 'restaurants.html#' + editingRestaurantId;
   }
   const { error } = await supabaseClient
     .from('kv_store')
@@ -1710,10 +1773,16 @@ function renderNotesWithPhotos(e){
   return { html, leftoverPhotos };
 }
 
-function openLightbox(id){
-  const e = entries.find(x => x.id === id);
+// Shows ONE visit's full detail, with the parent restaurant's name/place
+// as header context — a restaurant with several visits opens whichever
+// one you actually clicked, not some flattened combination of all of them.
+function openLightbox(restaurantId, visitId){
+  const e = entries.find(x => x.id === restaurantId);
   if(!e) return;
-  currentLightboxId = id;
+  const v = (e.visits||[]).find(x => x.id === visitId);
+  if(!v) return;
+  currentLightboxRestaurantId = restaurantId;
+  currentLightboxVisitId = visitId;
 
   const websiteHref = safeUrl(e.website);
   if(websiteHref){
@@ -1723,46 +1792,47 @@ function openLightbox(id){
   }
 
   const metaBits = [];
-  if(e.date) metaBits.push(fmtDate(e.date));
+  if(v.date) metaBits.push(fmtDate(v.date));
   if(placeLine(e)) metaBits.push(placeLine(e));
-  if(e.rating) metaBits.push(starsHtml(e.rating));
+  if(v.price) metaBits.push(escapeHtml(v.price));
+  if(v.rating) metaBits.push(starsHtml(v.rating));
   $('lb-meta').innerHTML = metaBits.map(m => `<span>${m}</span>`).join('');
 
-  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(e);
+  const { html: notesHtml, leftoverPhotos } = renderNotesWithPhotos(v);
 
-  const dishItems = dishItemsOf(e);
+  const dishItems = dishItemsOf(v);
   if(dishItems.length){
     $('lb-dishes-wrap').style.display = 'block';
-    $('lb-dishes').innerHTML = renderDishItemsHtml(e);
+    $('lb-dishes').innerHTML = renderDishItemsHtml(v);
   } else {
     $('lb-dishes-wrap').style.display = 'none';
   }
 
-  const wineItems = wineItemsOf(e);
+  const wineItems = wineItemsOf(v);
   if(wineItems.length){
     $('lb-wines-wrap').style.display = 'block';
-    $('lb-wines').innerHTML = renderWineItemsHtml(e);
+    $('lb-wines').innerHTML = renderWineItemsHtml(v);
   } else {
     $('lb-wines-wrap').style.display = 'none';
   }
 
-  const cheeseItems = cheeseItemsOf(e);
+  const cheeseItems = cheeseItemsOf(v);
   if(cheeseItems.length){
     $('lb-cheeses-wrap').style.display = 'block';
-    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(e);
+    $('lb-cheeses').innerHTML = renderCheeseItemsHtml(v);
   } else {
     $('lb-cheeses-wrap').style.display = 'none';
   }
 
-  const spiritItems = spiritItemsOf(e);
+  const spiritItems = spiritItemsOf(v);
   if(spiritItems.length){
     $('lb-spirits-wrap').style.display = 'block';
-    $('lb-spirits').innerHTML = renderSpiritItemsHtml(e);
+    $('lb-spirits').innerHTML = renderSpiritItemsHtml(v);
   } else {
     $('lb-spirits-wrap').style.display = 'none';
   }
 
-  if(e.notes){
+  if(v.notes){
     $('lb-notes-wrap').style.display = 'block';
     $('lb-notes').innerHTML = notesHtml;
   } else {
@@ -1785,6 +1855,8 @@ function openLightbox(id){
     });
   });
 
+  // Tags are restaurant-level (they describe the place — "date night",
+  // "Fort Greene" — not any one visit), so they come from e, not v.
   $('lb-tags').innerHTML = (e.tags && e.tags.length)
     ? e.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')
     : '';
@@ -1792,10 +1864,14 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
+// Link format changed 2026-09-16 from a bare restaurant id (#e123) to
+// restaurantId:visitId (#e123:v456), since a link now needs to name which
+// specific visit it points at, not just which restaurant. See the local
+// openFromHash() override further down, which parses this.
 $('lightboxCopyLink').addEventListener('click', async e => {
   e.stopPropagation();
-  if(!currentLightboxId) return;
-  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  if(!currentLightboxRestaurantId || !currentLightboxVisitId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxRestaurantId + ':' + currentLightboxVisitId;
   const btn = $('lightboxCopyLink');
   try{
     await navigator.clipboard.writeText(url);
@@ -1807,6 +1883,26 @@ $('lightboxCopyLink').addEventListener('click', async e => {
   }
   setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
 });
+
+// Kept as local overrides instead of common.js's shared closeLightbox()/
+// openFromHash() on purpose: this page tracks WHICH VISIT is open
+// (currentLightboxRestaurantId + currentLightboxVisitId), not a single
+// currentLightboxId, and its deep-link hash is restaurantId:visitId, not
+// a bare id — the shared versions don't know about either.
+function closeLightbox(){
+  $('lightbox').classList.remove('open');
+  currentLightboxRestaurantId = null;
+  currentLightboxVisitId = null;
+}
+function openFromHash(){
+  const [restaurantId, visitId] = location.hash.replace(/^#/, '').split(':');
+  if(!restaurantId || !visitId) return;
+  const e = entries.find(x => x.id === restaurantId);
+  if(!e || !(e.visits||[]).some(v => v.id === visitId)) return;
+  openLightbox(restaurantId, visitId);
+  document.querySelector(`.entry[data-id="${restaurantId}"] .visit-block[data-visit-id="${visitId}"]`)
+    ?.scrollIntoView({behavior:'smooth', block:'center'});
+}
 
 $('lightboxClose').addEventListener('click', e => {
   e.stopPropagation();
@@ -1823,6 +1919,67 @@ document.addEventListener('keydown', e => {
   }
 });
 
+function fillRestaurantFields(e){
+  $('f-name').value = e.name || '';
+  $('f-website').value = e.website || '';
+  $('f-neighborhood').value = e.neighborhood || '';
+  $('f-place').value = e.place || '';
+  $('f-state').value = e.state || '';
+  $('f-country').value = e.country || '';
+  $('f-tags').value = (e.tags||[]).join(', ');
+}
+
+function clearVisitFields(){
+  $('f-date').value = new Date().toISOString().slice(0,10);
+  $('f-price').value = '';
+  currentDishes = [];
+  renderDishesList();
+  currentWines = [];
+  renderWinesList();
+  currentCheeses = [];
+  renderCheesesList();
+  currentSpirits = [];
+  renderSpiritsList();
+  $('f-notes').value = '';
+  setStars(0);
+}
+
+function fillVisitFields(v){
+  $('f-date').value = v.date || '';
+  $('f-price').value = v.price || '';
+  // Structured dishItems if present; otherwise convert the legacy flat
+  // `dishes` string into rows as an editable starting point — nothing is
+  // silently discarded or auto-migrated in the database, this only
+  // affects what you see when you open the form.
+  currentDishes = (v.dishItems && v.dishItems.length)
+    ? v.dishItems.map(d => ({...d}))
+    : (v.dishes ? v.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
+  renderDishesList();
+  currentWines = (v.wineItems && v.wineItems.length) ? v.wineItems.map(w => ({...w})) : [];
+  renderWinesList();
+  // Structured cheeseItems if present; otherwise pull forward any cheese
+  // links still sitting on individual dishes from before Cheese moved out
+  // into its own section, so the connection isn't lost on first re-edit.
+  currentCheeses = (v.cheeseItems && v.cheeseItems.length)
+    ? v.cheeseItems.map(c => ({...c}))
+    : (v.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
+  renderCheesesList();
+  currentSpirits = (v.spiritItems && v.spiritItems.length) ? v.spiritItems.map(s => ({...s})) : [];
+  renderSpiritsList();
+  $('f-notes').value = v.notes || '';
+  setStars(v.rating || 0);
+}
+
+// Cheese/wine/spirit options are fetched async so opening the form never
+// waits on a network round trip; re-render in place once they land. Reads
+// whatever was typed/filled in the meantime first, so nothing already on
+// the form gets lost.
+function refreshLinkedOptions(){
+  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
+  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
+  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
+}
+
 function resetForm(){
   $('f-autofillUrl').value='';
   setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
@@ -1833,68 +1990,95 @@ function resetForm(){
   $('f-place').value='';
   $('f-state').value='';
   $('f-country').value='';
-  $('f-date').value=new Date().toISOString().slice(0,10);
-  $('f-price').value='';
-  currentDishes = [];
-  renderDishesList();
-  currentWines = [];
-  renderWinesList();
-  currentCheeses = [];
-  renderCheesesList();
-  currentSpirits = [];
-  renderSpiritsList();
-  // Cheese/wine/spirit options are fetched async so opening the form
-  // never waits on a network round trip; re-render in place once they
-  // land. Reads whatever was typed in the meantime first, so a fast
-  // typer doesn't lose input.
-  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
-  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
-  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
-  $('f-notes').value='';
   $('f-tags').value='';
-  setStars(0);
-  editingId = null;
+  clearVisitFields();
+  refreshLinkedOptions();
+  editingRestaurantId = null;
+  editingVisitId = null;
 }
 
-function openForEdit(id){
-  const e = entries.find(x=>x.id===id);
+// Opens the form to log a new visit to an EXISTING restaurant: its
+// identity fields (name/website/place/tags/etc) are pre-filled and left
+// as-is unless you change them, while every visit field (date/price/
+// rating/dishes/wines/cheeses/spirits/notes) starts blank. This — or the
+// name-match suggestion while typing into "+ New Entry", see
+// setupNameAutocomplete() — is the deliberate way to log a repeat visit
+// without it splitting off into a second, separate card for the same
+// place.
+function openAddVisit(restaurantId){
+  const e = entries.find(x=>x.id===restaurantId);
   if(!e) return;
-  editingId = id;
-  $('f-name').value = e.name || '';
-  $('f-website').value = e.website || '';
-  $('f-neighborhood').value = e.neighborhood || '';
-  $('f-place').value = e.place || '';
-  $('f-state').value = e.state || '';
-  $('f-country').value = e.country || '';
-  $('f-date').value = e.date || '';
-  $('f-price').value = e.price || '';
-  // Structured dishItems if present; otherwise convert the legacy flat
-  // `dishes` string into rows as an editable starting point — nothing is
-  // silently discarded or auto-migrated in the database, this only
-  // affects what you see when you open the form.
-  currentDishes = (e.dishItems && e.dishItems.length)
-    ? e.dishItems.map(d => ({...d}))
-    : (e.dishes ? e.dishes.split(/,\s*/).filter(Boolean).map(name => ({name, note:'', cheeseUrl:'', photoUrl:''})) : []);
-  renderDishesList();
-  currentWines = (e.wineItems && e.wineItems.length) ? e.wineItems.map(w => ({...w})) : [];
-  renderWinesList();
-  // Structured cheeseItems if present; otherwise pull forward any cheese
-  // links still sitting on individual dishes from before Cheese moved out
-  // into its own section, so the connection isn't lost on first re-edit.
-  currentCheeses = (e.cheeseItems && e.cheeseItems.length)
-    ? e.cheeseItems.map(c => ({...c}))
-    : (e.dishItems || []).filter(d => d.cheeseUrl).map(d => ({ name: '', cheeseUrl: d.cheeseUrl, note: d.name ? `From dish: ${d.name}` : '' }));
-  renderCheesesList();
-  refreshCheeseOptions().then(() => { readCheesesFromDom(); renderCheesesList(); });
-  refreshWineOptions().then(() => { readWinesFromDom(); renderWinesList(); });
-  currentSpirits = (e.spiritItems && e.spiritItems.length) ? e.spiritItems.map(s => ({...s})) : [];
-  renderSpiritsList();
-  refreshSpiritOptions().then(() => { readSpiritsFromDom(); renderSpiritsList(); });
-  $('f-notes').value = e.notes || '';
-  $('f-tags').value = (e.tags||[]).join(', ');
-  setStars(e.rating || 0);
+  editingRestaurantId = restaurantId;
+  editingVisitId = null;
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
+  hideLocationPicker();
+  fillRestaurantFields(e);
+  clearVisitFields();
+  refreshLinkedOptions();
   $('ticket').classList.add('open');
   $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Opens the form on one SPECIFIC existing visit — both the parent
+// restaurant's fields and that visit's own fields are pre-filled, and
+// saving updates that one visit (and the restaurant's identity fields,
+// if you changed those too) in place.
+function openForEditVisit(restaurantId, visitId){
+  const e = entries.find(x=>x.id===restaurantId);
+  if(!e) return;
+  const v = (e.visits||[]).find(x=>x.id===visitId);
+  if(!v) return;
+  editingRestaurantId = restaurantId;
+  editingVisitId = visitId;
+  $('f-autofillUrl').value='';
+  setAutofillStatus('Pulls whatever it can find — works best on a restaurant\'s own site; review everything before saving.');
+  hideLocationPicker();
+  fillRestaurantFields(e);
+  fillVisitFields(v);
+  refreshLinkedOptions();
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Suggests existing restaurants while typing into "+ New Entry"'s name
+// field, each with how many visits are already logged — clicking one
+// switches straight into "add a visit to this restaurant" (openAddVisit)
+// instead of letting you finish typing and save a second, separate card
+// for a place you've already been. Bespoke rather than common.js's shared
+// setupAutocomplete(): that one only fills a text value in on click, it
+// has no way to carry the extra per-option visit-count hint or to trigger
+// a mode switch instead of a plain fill. Only active for a genuinely new
+// entry — once editingRestaurantId is set (adding or editing a visit),
+// matching your own restaurant's name against itself makes no sense, so
+// suggestions stay hidden.
+function setupNameAutocomplete(){
+  const input = $('f-name');
+  const list = $('f-name-options');
+
+  function hide(){ list.classList.remove('open'); list.innerHTML = ''; }
+
+  function showMatches(){
+    if(editingRestaurantId){ hide(); return; }
+    const q = input.value.trim().toLowerCase();
+    if(!q){ hide(); return; }
+    const matches = entries.filter(e => (e.name||'').toLowerCase().includes(q)).slice(0, 8);
+    if(!matches.length){ hide(); return; }
+    list.innerHTML = matches.map(e => {
+      const n = (e.visits||[]).length;
+      return `<div data-id="${e.id}">${escapeHtml(e.name)}<span class="visit-hint">${n} visit${n===1?'':'s'} already logged — click to add another</span></div>`;
+    }).join('');
+    list.classList.add('open');
+  }
+
+  input.addEventListener('input', showMatches);
+  input.addEventListener('blur', () => setTimeout(hide, 150));
+  list.addEventListener('mousedown', (e) => {
+    const opt = e.target.closest('[data-id]');
+    if(!opt) return;
+    hide();
+    openAddVisit(opt.dataset.id);
+  });
 }
 
 async function loadEntries(){
@@ -1946,8 +2130,6 @@ async function saveEntry(){
     $('f-name').focus();
     return;
   }
-  const id = editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7));
-  const tags = $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   readDishesFromDom();
   const dishItems = currentDishes.filter(d => d.name || d.photoUrl);
   readWinesFromDom();
@@ -1956,47 +2138,80 @@ async function saveEntry(){
   const cheeseItems = currentCheeses.filter(c => c.cheeseUrl);
   readSpiritsFromDom();
   const spiritItems = currentSpirits.filter(s => s.name || s.spiritUrl || s.photoUrl);
-  const entry = {
-    id,
+
+  const visitFields = {
+    date: $('f-date').value,
+    price: $('f-price').value,
+    rating: currentStars,
+    dishItems, wineItems, cheeseItems, spiritItems,
+    notes: $('f-notes').value.trim()
+  };
+  const restaurantFields = {
     name,
     website: normalizeAutofillUrl($('f-website').value),
     neighborhood: $('f-neighborhood').value.trim(),
     place: $('f-place').value.trim(),
     state: $('f-state').value.trim(),
     country: $('f-country').value.trim(),
-    date: $('f-date').value,
-    price: $('f-price').value,
-    rating: currentStars,
-    dishItems,
-    wineItems,
-    cheeseItems,
-    spiritItems,
-    notes: $('f-notes').value.trim(),
-    tags
+    tags: $('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean)
   };
+
+  // Builds the full restaurant object to save WITHOUT touching the live
+  // `entries` array yet — only swapped in after storage.set succeeds
+  // below, same reasoning as pantry.html's saveEntry(): a failed write
+  // shouldn't leave the in-memory list looking saved when it isn't.
+  const isNewRestaurant = !editingRestaurantId;
+  let idx = -1;
+  let restaurant;
+  if(isNewRestaurant){
+    restaurant = {
+      id: 'e' + Date.now() + Math.random().toString(36).slice(2,7),
+      ...restaurantFields,
+      visits: [{ id: 'v' + Date.now() + Math.random().toString(36).slice(2,7), ...visitFields }]
+    };
+  } else {
+    idx = entries.findIndex(e=>e.id===editingRestaurantId);
+    if(idx===-1) return; // the restaurant this form was opened for is gone (deleted in another tab, say)
+    const previousEntry = entries[idx];
+    const visits = editingVisitId
+      ? previousEntry.visits.map(v => v.id===editingVisitId ? {...v, ...visitFields} : v)
+      : [...previousEntry.visits, { id: 'v' + Date.now() + Math.random().toString(36).slice(2,7), ...visitFields }];
+    restaurant = {...previousEntry, ...restaurantFields, visits};
+  }
+
   try{
-    await storage.set('entry:' + id, JSON.stringify(entry));
-    if(editingId){
-      const idx = entries.findIndex(e=>e.id===id);
-      if(idx>-1) entries[idx] = entry; else entries.push(entry);
-    } else {
-      entries.push(entry);
-    }
-    render();
-    closeForm();
+    await storage.set('entry:' + restaurant.id, JSON.stringify(restaurant));
   }catch(err){
     alert('Could not save entry. Please try again.');
     console.error(err);
+    return; // nothing in `entries` was touched, so there's nothing to roll back
   }
+  if(isNewRestaurant) entries.push(restaurant);
+  else entries[idx] = restaurant;
+  render();
+  closeForm();
 }
 
-async function deleteEntry(id){
+// Removes one visit from its restaurant. If that was the last visit
+// logged there, the whole card goes with it — a restaurant with zero
+// visits isn't a thing this app has any use for keeping around.
+async function deleteVisit(restaurantId, visitId){
+  const idx = entries.findIndex(e=>e.id===restaurantId);
+  if(idx===-1) return;
+  const restaurant = entries[idx];
+  const remainingVisits = (restaurant.visits||[]).filter(v=>v.id!==visitId);
   try{
-    await storage.delete('entry:' + id);
-    entries = entries.filter(e=>e.id!==id);
+    if(remainingVisits.length === 0){
+      await storage.delete('entry:' + restaurantId);
+      entries.splice(idx, 1);
+    } else {
+      const updated = {...restaurant, visits: remainingVisits};
+      await storage.set('entry:' + restaurantId, JSON.stringify(updated));
+      entries[idx] = updated;
+    }
     render();
   }catch(err){
-    alert('Could not delete entry. Please try again.');
+    alert('Could not delete visit. Please try again.');
     console.error(err);
   }
 }
@@ -2019,6 +2234,7 @@ document.querySelectorAll('#f-stars span').forEach(s=>{
 });
 
 $('search').addEventListener('input', render);
+setupNameAutocomplete();
 
 loadEntries().then(openFromHash);
 </script>
