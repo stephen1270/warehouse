@@ -32,10 +32,13 @@
     <span class="count" id="count">loading…</span>
     <div class="toolbar-btns">
       <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan a barcode" autocomplete="off" inputmode="none" style="min-width:220px;">
+      <button class="importbtn" id="updatePricesBtn" title="Look up Discogs resale prices">Update prices</button>
       <button class="importbtn" id="toggleImport">Import from CLZ</button>
       <button class="newbtn" id="toggleForm">+ New Entry</button>
     </div>
   </div>
+
+  <div class="import-status" id="priceStatus" style="text-align:center;margin:0 0 12px;"></div>
 
   <div class="import-panel" id="importPanel">
     <p>Upload a CLZ Music export (.xml). Each album becomes an entry, keyed by its CLZ hash, so re-importing the same export updates existing records instead of duplicating them.</p>
@@ -91,6 +94,10 @@
       </div>
     </div>
     <div class="field">
+      <label>Discogs release (URL or ID, optional: overrides the automatic match)</label>
+      <input id="f-discogs" type="text" placeholder="https://www.discogs.com/release/123456">
+    </div>
+    <div class="field">
       <label>Genres (comma separated)</label>
       <input id="f-genres" type="text" placeholder="Dream Pop, Ethereal, Rock">
     </div>
@@ -114,6 +121,7 @@
       <option value="artist">Sort: Artist</option>
       <option value="year">Sort: Year</option>
       <option value="added">Sort: Recently Added</option>
+      <option value="value">Sort: Resale Value</option>
     </select>
   </div>
 
@@ -127,6 +135,7 @@
     <div class="lightbox-name" id="lb-name"></div>
     <div class="lightbox-meta" id="lb-meta"></div>
     <div class="lightbox-notes" id="lb-details"></div>
+    <div class="lightbox-notes" id="lb-price"></div>
     <div class="lightbox-tags" id="lb-tags"></div>
   </div>
 </div>
@@ -136,6 +145,10 @@ let entries = [];
 let editingId = null;
 let currentLightboxId = null;
 let currentStars = 0;
+// id -> the kv_store key that record actually lives under. Keys embed the
+// artist/title slug, so rebuilding a key from edited fields would write a
+// second row instead of updating the first; saves go back to the real key.
+const keyById = {};
 
 // $ (getElementById shorthand) is defined in common.js, shared with every app in this suite.
 
@@ -219,6 +232,8 @@ function applyAuthGating(){
   const scanInput = document.getElementById('hwScanInput');
   if(newBtn) newBtn.style.display = loggedIn ? '' : 'none';
   if(importBtn) importBtn.style.display = loggedIn ? '' : 'none';
+  const priceBtn = document.getElementById('updatePricesBtn');
+  if(priceBtn) priceBtn.style.display = loggedIn ? '' : 'none';
   if(scanInput) scanInput.style.display = loggedIn ? '' : 'none';
   document.querySelectorAll('.entry-actions').forEach(el=>{
     el.style.display = loggedIn ? '' : 'none';
@@ -250,11 +265,154 @@ function slug(s){
   return (s || 'x').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'x';
 }
 
+function keyFor(e){
+  return keyById[e.id] || (KEY_PREFIX + slug(e.artist) + '-' + slug(e.title) + '-' + e.id);
+}
 function condShort(c){
   if(!c) return '';
   const m = c.match(/\(([^)]+)\)/);
   return m ? m[1] : c;
 }
+
+// --- Resale prices (Discogs) ---
+// Each record can carry: discogsId, discogsUrl, and a `resale` object
+// { value, currency, condition, suggestions{grade:value}, lowest, numForSale,
+//   confidence, matchedTitle, pricedAt, error }. Filled by the
+// music-discogs-price edge function, which matches the record on Discogs
+// and returns the suggested price for its media condition.
+const PRICE_URL = SUPABASE_URL + '/functions/v1/music-discogs-price';
+const PRICE_STALE_DAYS = 30;
+function fmtMoney(v, cur){
+  if(v === null || v === undefined || isNaN(v)) return '';
+  const sym = (!cur || cur === 'USD') ? '$' : (cur + ' ');
+  return sym + Number(v).toFixed(2);
+}
+// The figure used for display, sorting and the collection total:
+// Discogs' suggestion for this record's condition, else the lowest listing.
+function resaleValue(e){
+  const r = e.resale;
+  if(!r) return null;
+  if(typeof r.value === 'number') return r.value;
+  if(r.lowest && typeof r.lowest.value === 'number') return r.lowest.value;
+  return null;
+}
+function collectionTotal(list){
+  let total = 0, priced = 0;
+  list.forEach(e => {
+    const v = resaleValue(e);
+    if(v !== null){ total += v * (e.quantity || 1); priced++; }
+  });
+  return { total, priced };
+}
+async function fetchPrice(e){
+  const res = await fetch(PRICE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'apikey': SUPABASE_KEY
+    },
+    body: JSON.stringify({
+      discogsId: e.discogsId || null,
+      artist: e.artist, title: e.title, labelNumber: e.labelNumber,
+      label: e.label, format: e.format, year: e.year,
+      mediaCondition: e.mediaCondition, sleeveCondition: e.sleeveCondition
+    })
+  });
+  let data = null;
+  try{ data = await res.json(); }catch(err){ /* non-JSON */ }
+  return { status: res.status, data: data || {} };
+}
+// Looks up one record and saves the result onto it. Returns 'ok', 'nomatch',
+// 'ratelimited' or 'error'. A "no match" is saved too (as resale.error), so
+// bulk runs don't keep retrying records Discogs doesn't have.
+async function updatePrice(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return 'error';
+  const { status, data } = await fetchPrice(e);
+  if(status === 429 || data.rateLimited) return 'ratelimited';
+  let updated;
+  if(data.ok){
+    updated = Object.assign({}, e, {
+      discogsId: data.discogsId,
+      discogsUrl: data.discogsUrl,
+      resale: {
+        value: data.suggested ? data.suggested.value : null,
+        currency: data.suggested ? data.suggested.currency : 'USD',
+        condition: data.condition,
+        suggestions: data.suggestions || {},
+        suggestionError: data.suggestionError || '',
+        lowest: data.lowest,
+        numForSale: data.numForSale,
+        // A refresh re-uses the stored release id, which the function reports
+        // as 'manual'; keep the original match confidence unless it really was.
+        confidence: (data.confidence === 'manual' && !e.discogsManual)
+          ? ((e.resale && e.resale.confidence && e.resale.confidence !== 'manual') ? e.resale.confidence : 'high')
+          : data.confidence,
+        matchedTitle: data.matchedTitle,
+        pricedAt: data.pricedAt
+      }
+    });
+  } else if(status === 404){
+    updated = Object.assign({}, e, { resale: { error: data.error || 'No Discogs match', pricedAt: new Date().toISOString() } });
+  } else {
+    throw new Error(data.error || ('HTTP ' + status));
+  }
+  await storage.set(keyFor(updated), JSON.stringify(updated));
+  const idx = entries.findIndex(x => x.id === id);
+  if(idx > -1) entries[idx] = updated;
+  return data.ok ? 'ok' : 'nomatch';
+}
+let priceRunActive = false, priceRunStop = false;
+async function runBulkPriceUpdate(){
+  const btn = $('updatePricesBtn');
+  const statusEl = $('priceStatus');
+  if(priceRunActive){ priceRunStop = true; btn.textContent = 'Stopping…'; return; }
+  const cutoff = Date.now() - PRICE_STALE_DAYS * 86400000;
+  const stale = entries.filter(e => !e.resale || !e.resale.pricedAt || Date.parse(e.resale.pricedAt) < cutoff);
+  let todo = stale;
+  if(stale.length === 0){
+    if(!confirm(`Every record was priced within the last ${PRICE_STALE_DAYS} days. Re-price all ${entries.length} anyway?`)) return;
+    todo = entries.slice();
+  } else if(!confirm(`Look up Discogs prices for ${stale.length} record${stale.length===1?'':'s'}${stale.length < entries.length ? ` (the other ${entries.length - stale.length} were priced in the last ${PRICE_STALE_DAYS} days)` : ''}? Discogs allows about one record every few seconds, so keep this tab open. You can stop anytime and resume later.`)){
+    return;
+  }
+  priceRunActive = true; priceRunStop = false;
+  btn.textContent = 'Stop updating';
+  let done = 0, ok = 0, miss = 0, failed = 0;
+  for(const e of todo){
+    if(priceRunStop) break;
+    statusEl.textContent = `Pricing ${done + 1} / ${todo.length}: ${e.artist || ''} – ${e.title || ''}`;
+    let result;
+    try{
+      result = await updatePrice(e.id);
+      if(result === 'ratelimited'){
+        statusEl.textContent = 'Discogs rate limit reached, pausing 60 seconds…';
+        await new Promise(r => setTimeout(r, 60000));
+        result = await updatePrice(e.id);
+      }
+    }catch(err){
+      console.error('Price lookup failed for', e.id, err);
+      result = 'error';
+      if(/token/i.test(err.message || '')){
+        statusEl.textContent = err.message;
+        break;
+      }
+    }
+    if(result === 'ok') ok++; else if(result === 'nomatch') miss++; else failed++;
+    done++;
+    if(done % 5 === 0) render();
+    // ~5 Discogs calls per record against a 60/min limit
+    await new Promise(r => setTimeout(r, 4500));
+  }
+  priceRunActive = false;
+  btn.textContent = 'Update prices';
+  render();
+  if(!/token/i.test(statusEl.textContent)){
+    statusEl.textContent = `${priceRunStop ? 'Stopped' : 'Done'}: ${ok} priced, ${miss} not found on Discogs${failed ? `, ${failed} failed (try again later)` : ''}.`;
+  }
+}
+$('updatePricesBtn').addEventListener('click', runBulkPriceUpdate);
 
 // --- filters ---
 function populateFilterOptions(){
@@ -290,6 +448,8 @@ function getFiltered(){
     list.sort((a,b)=> (a.artist||'').localeCompare(b.artist||'') || (a.title||'').localeCompare(b.title||''));
   } else if(sort === 'year'){
     list.sort((a,b)=> (b.year||'0').localeCompare(a.year||'0'));
+  } else if(sort === 'value'){
+    list.sort((a,b)=> (resaleValue(b) ?? -1) - (resaleValue(a) ?? -1));
   } else {
     list.sort((a,b)=> (b.addedDate||'').localeCompare(a.addedDate||''));
   }
@@ -300,8 +460,10 @@ function render(){
   populateFilterOptions();
   const wrap = $('entries');
   const filtered = getFiltered();
+  const tot = collectionTotal(filtered);
   $('count').textContent = entries.length === 0 ? 'no records yet' :
-    `${filtered.length} of ${entries.length} record${entries.length===1?'':'s'}`;
+    `${filtered.length} of ${entries.length} record${entries.length===1?'':'s'}` +
+    (tot.priced ? ` · est. value ${fmtMoney(tot.total)} (${tot.priced} priced)` : '');
 
   if(entries.length === 0){
     wrap.innerHTML = `<div class="empty"><span class="big">The crate is empty.</span>Add a record, or import a CLZ export.</div>`;
@@ -331,7 +493,10 @@ function render(){
             ${e.quantity && e.quantity > 1 ? `<span>×${e.quantity}</span>` : ''}
           </div>
         </div>
-        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
+        <div style="text-align:right;">
+          ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
+          ${resaleValue(e) !== null ? `<div class="entry-price" style="font-size:12px;color:var(--accent);white-space:nowrap;margin-top:2px;">${fmtMoney(resaleValue(e), e.resale.currency)}</div>` : ''}
+        </div>
       </div>
       ${(e.sleeveCondition || e.mediaCondition) ? `<div class="entry-cond">${e.sleeveCondition ? 'sleeve: ' + escapeHtml(condShort(e.sleeveCondition)) : ''}${e.sleeveCondition && e.mediaCondition ? ' · ' : ''}${e.mediaCondition ? 'media: ' + escapeHtml(condShort(e.mediaCondition)) : ''}</div>` : ''}
       ${(e.genres && e.genres.length) ? `<div class="entry-tags">${e.genres.map(g=>`<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
@@ -388,6 +553,23 @@ function openLightbox(id){
     ? detailLines.map(([label, val]) => `<div><span class="lbl" style="display:inline;margin:0;">${escapeHtml(label)}:</span> ${escapeHtml(val)}</div>`).join('')
     : '';
 
+  $('lb-price').innerHTML = priceHtml(e);
+  const rb = $('lb-refreshPrice');
+  if(rb){
+    rb.style.display = (!supabaseClient || (!!currentUser && mfaSatisfied)) ? '' : 'none';
+    rb.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      rb.disabled = true; rb.textContent = 'looking up…';
+      try{
+        const r = await updatePrice(e.id);
+        if(r === 'ratelimited') alert('Discogs rate limit reached; try again in a minute.');
+      }catch(err){
+        alert('Price lookup failed: ' + err.message);
+      }
+      render();
+      openLightbox(e.id);
+    });
+  }
   $('lb-tags').innerHTML = (e.genres && e.genres.length)
     ? e.genres.map(g => `<span class="tag">${escapeHtml(g)}</span>`).join('')
     : '';
@@ -395,6 +577,27 @@ function openLightbox(id){
   $('lightbox').classList.add('open');
 }
 
+function priceHtml(e){
+  const r = e.resale;
+  const btn = `<button id="lb-refreshPrice" class="importbtn" style="font-size:11px;padding:3px 8px;margin-top:6px;">${r ? 'refresh price' : 'look up price'}</button>`;
+  if(!r) return `<div><span class="lbl" style="display:inline;margin:0;">Resale:</span> not priced yet</div>${btn}`;
+  if(r.error) return `<div><span class="lbl" style="display:inline;margin:0;">Resale:</span> ${escapeHtml(r.error)} Add a Discogs release link via edit to match it by hand.</div>${btn}`;
+  const lines = [];
+  const v = resaleValue(e);
+  if(typeof r.value === 'number'){
+    lines.push(`<div><span class="lbl" style="display:inline;margin:0;">Resale:</span> <strong>${fmtMoney(r.value, r.currency)}</strong> suggested for ${escapeHtml(condShort(r.condition))}${e.quantity > 1 ? ` (×${e.quantity} = ${fmtMoney(r.value * e.quantity, r.currency)})` : ''}</div>`);
+  } else if(v !== null){
+    lines.push(`<div><span class="lbl" style="display:inline;margin:0;">Resale:</span> <strong>${fmtMoney(v, r.lowest.currency)}</strong> (lowest current listing; no suggested price${r.suggestionError ? ': ' + escapeHtml(r.suggestionError) : ''})</div>`);
+  }
+  if(r.lowest) lines.push(`<div><span class="lbl" style="display:inline;margin:0;">Market:</span> ${r.numForSale} for sale, lowest ${fmtMoney(r.lowest.value, r.lowest.currency)}</div>`);
+  else if(r.numForSale === 0) lines.push(`<div><span class="lbl" style="display:inline;margin:0;">Market:</span> none for sale right now</div>`);
+  const grades = Object.entries(r.suggestions || {});
+  if(grades.length) lines.push(`<div style="font-size:11px;opacity:.8;">${grades.map(([g, val]) => `${escapeHtml(condShort(g))} ${fmtMoney(val)}`).join(' · ')}</div>`);
+  const conf = r.confidence === 'low' ? ' <em>(low-confidence match, check it)</em>' : r.confidence === 'manual' ? ' (set by hand)' : '';
+  if(e.discogsUrl) lines.push(`<div style="font-size:11px;">Matched: <a href="${escapeHtml(e.discogsUrl)}" target="_blank" rel="noopener">${escapeHtml(r.matchedTitle || 'Discogs release')}</a>${conf}</div>`);
+  if(r.pricedAt) lines.push(`<div style="font-size:11px;opacity:.7;">Priced ${escapeHtml(fmtDate(r.pricedAt.slice(0,10)))}</div>`);
+  return lines.join('') + btn;
+}
 // closeLightbox() is defined in common.js, shared with every app in this suite.
 
 $('lightboxCopyLink').addEventListener('click', async e => {
@@ -439,6 +642,7 @@ function resetForm(){
   $('f-sleeve').value='';
   $('f-media').value='';
   $('f-genres').value='';
+  $('f-discogs').value='';
   setStars(0);
   editingId = null;
 }
@@ -461,6 +665,7 @@ function openForEdit(id){
   $('f-sleeve').value = e.sleeveCondition || '';
   $('f-media').value = e.mediaCondition || '';
   $('f-genres').value = (e.genres||[]).join(', ');
+  $('f-discogs').value = e.discogsUrl || '';
   setStars(e.rating || 0);
   $('importPanel').classList.remove('open');
   $('ticket').classList.add('open');
@@ -473,7 +678,10 @@ async function loadEntries(){
       // Fast path: one request for everything.
       const result = await storage.listWithValues(KEY_PREFIX);
       entries = (result.items || [])
-        .map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } })
+        .map(it => {
+          try{ const e = JSON.parse(it.value); if(e && e.id) keyById[e.id] = it.key; return e; }
+          catch(e){ return null; }
+        })
         .filter(Boolean);
       applyIncomingSearchQuery('filterSearch');
       render();
@@ -492,7 +700,7 @@ async function loadEntries(){
     for(const key of result.keys){
       try{
         const r = await storage.get(key);
-        if(r && r.value) loaded.push(JSON.parse(r.value));
+        if(r && r.value){ const e = JSON.parse(r.value); if(e && e.id) keyById[e.id] = key; loaded.push(e); }
       }catch(err){ /* skip missing */ }
     }
     entries = loaded;
@@ -512,7 +720,10 @@ async function saveEntry(){
   }
   const id = editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
   const genres = $('f-genres').value.split(',').map(g=>g.trim()).filter(Boolean);
+  const prev = entries.find(e=>e.id===id) || {};
   const entry = {
+    // keep fields the form doesn't edit (Discogs match, resale price, etc.)
+    ...prev,
     id,
     barcode: $('f-barcode').value.trim() || null,
     artist,
@@ -528,11 +739,24 @@ async function saveEntry(){
     rating: currentStars,
     addedDate: (entries.find(e=>e.id===id) || {}).addedDate || new Date().toISOString().slice(0,10)
   };
-  const key = editingId
-    ? (entries.find(e=>e.id===id) ? KEY_PREFIX + slug(artist) + '-' + slug(title) + '-' + id : KEY_PREFIX + id)
-    : KEY_PREFIX + slug(artist) + '-' + slug(title) + '-' + id;
+  // Discogs release: a pasted URL/ID overrides the automatic match; changing
+  // it (or the media condition) invalidates the stored price.
+  const discogsInput = $('f-discogs').value.trim();
+  const idMatch = discogsInput.match(/release\/(\d+)/) || discogsInput.match(/^\[?r?(\d+)\]?$/i);
+  const newDiscogsId = idMatch ? parseInt(idMatch[1]) : null;
+  if(!discogsInput){
+    if(prev.discogsUrl){ delete entry.discogsId; delete entry.discogsUrl; delete entry.discogsManual; delete entry.resale; }
+  } else if(newDiscogsId && newDiscogsId !== prev.discogsId){
+    entry.discogsId = newDiscogsId;
+    entry.discogsUrl = 'https://www.discogs.com/release/' + newDiscogsId;
+    entry.discogsManual = true;
+    delete entry.resale;
+  }
+  if(entry.resale && prev.mediaCondition !== entry.mediaCondition) delete entry.resale;
+  const key = keyFor(entry);
   try{
     await storage.set(key, JSON.stringify(entry));
+    keyById[id] = key;
     const idx = entries.findIndex(e=>e.id===id);
     if(idx>-1) entries[idx] = entry; else entries.push(entry);
     render();
@@ -545,12 +769,17 @@ async function saveEntry(){
 
 async function deleteEntry(id){
   try{
-    const result = await storage.list(KEY_PREFIX);
-    const keys = (result && result.keys) || [];
-    for(const key of keys){
-      if(key.endsWith('-' + id) || key === KEY_PREFIX + id){
-        await storage.delete(key);
-        break;
+    if(keyById[id]){
+      await storage.delete(keyById[id]);
+      delete keyById[id];
+    } else {
+      const result = await storage.list(KEY_PREFIX);
+      const keys = (result && result.keys) || [];
+      for(const key of keys){
+        if(key.endsWith('-' + id) || key === KEY_PREFIX + id){
+          await storage.delete(key);
+          break;
+        }
       }
     }
     entries = entries.filter(e=>e.id!==id);
@@ -708,7 +937,15 @@ $('importFile').addEventListener('change', async (e) => {
     statusEl.textContent = `Importing 0 / ${records.length}…`;
     let done = 0;
     for(const rec of records){
-      const key = KEY_PREFIX + slug(rec.artist) + '-' + slug(rec.title) + '-' + rec.id;
+      // Re-imports keep any Discogs match/price already on the record.
+      const existing = entries.find(x => x.id === rec.id);
+      if(existing){
+        ['barcode','discogsId','discogsUrl','discogsManual','resale'].forEach(f => {
+          if(existing[f] !== undefined && existing[f] !== null && rec[f] === undefined) rec[f] = existing[f];
+        });
+        if(rec.resale && existing.mediaCondition !== rec.mediaCondition) delete rec.resale;
+      }
+      const key = existing ? keyFor(existing) : (KEY_PREFIX + slug(rec.artist) + '-' + slug(rec.title) + '-' + rec.id);
       await storage.set(key, JSON.stringify(rec));
       done++;
       if(done % 10 === 0 || done === records.length){
