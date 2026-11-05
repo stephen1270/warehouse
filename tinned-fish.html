@@ -5,593 +5,223 @@
 <title>Tinned Fish</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="common.js"></script>
+<link rel="stylesheet" href="style.css">
 <style>
   :root{
-    --paper: #F5F0E4;
-    --paper-dim: #ECE5D3;
-    --ink: #2B2318;
-    --ink-soft: #5B5241;
-    --moss: #4B5D3A;
-    --moss-dark: #384728;
-    --mustard: #C79A3D;
-    --rust: #8B4A3B;
-    --line: #D8CFB8;
+    --paper:#f3efe6; --paper-dark:#e4dccb; --ink:#1f2a2e;
+    --accent:#2f6f7e; --accent2:#c8963e; --muted:#5a6b6e; --line:#d3cbb8;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:'IBM Plex Sans', sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 80px;}
-
-  .back-link{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.75rem;
-    color:var(--ink-soft);
-    letter-spacing:0.06em;
-    margin-bottom:6px;
-  }
-  .back-link a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
-  .back-link a:hover{color:var(--ink);border-color:var(--ink-soft);}
-
-  header{
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    border-bottom:2px solid var(--ink);
-    padding-bottom:14px;
-    margin-bottom:22px;
-    flex-wrap:wrap;
-    gap:8px;
-  }
-  header h1{
-    font-family:'Fraunces', serif;
-    font-weight:700;
-    font-size:2rem;
-    margin:0;
-    letter-spacing:-0.01em;
-  }
-  header .tally{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.8rem;
-    color:var(--ink-soft);
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-  }
-
-  .toolbar{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:18px;
-    align-items:center;
-  }
-  input[type=text], select{
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:16px; /* 16px minimum prevents iOS Safari auto-zoom on focus */
-    padding:9px 12px;
-    border:1px solid var(--line);
-    border-radius:3px;
-    background:#fff;
+  /* Tinned Fish-specific: the leading square is a rating chip (your Pantry
+     score, shaded red -> yellow -> green) instead of a photo thumb. */
+  .tf-score{
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--display-font);font-style:italic;font-weight:300;font-size:26px;
     color:var(--ink);
   }
-  #search{flex:1;min-width:200px;}
-  select{cursor:pointer;}
-  button{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.8rem;
-    letter-spacing:0.03em;
-    text-transform:uppercase;
-    padding:9px 16px;
-    border-radius:3px;
-    border:1px solid var(--ink);
-    background:var(--ink);
-    color:var(--paper);
-    cursor:pointer;
-  }
-  button.ghost{background:transparent;color:var(--ink);}
-  button.small{padding:5px 10px;font-size:0.7rem;}
-  .auth-control{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--ink-soft);}
-  .auth-control input[type=email], .auth-control input[type=password]{
-    padding:5px 8px;font-size:16px;border:1px solid var(--line);border-radius:4px;
-    background:var(--paper);color:var(--ink);width:130px;
-  }
-  .auth-control form{display:flex;gap:6px;align-items:center;}
-  .auth-error{color:var(--rust);font-size:0.7rem;}
-  button:hover{opacity:0.85;}
-
-  .grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
-    gap:14px;
-  }
-  .card{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:16px 16px 14px;
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-  .card .badge{
-    position:absolute;
-    top:14px;
-    right:14px;
-    width:40px;height:40px;
-    border-radius:50%;
-    background:var(--moss);
-    color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:600;
-    font-size:0.95rem;
-    border:2px solid var(--moss-dark);
-  }
-  .card .badge.none{background:var(--paper-dim);color:var(--ink-soft);border-color:var(--line);}
-  .card h3{
-    font-family:'Fraunces', serif;
-    font-size:1.15rem;
-    margin:0;
-    padding-right:44px;
-    line-height:1.25;
-  }
-  .card .brand{font-size:0.82rem;color:var(--ink-soft);font-style:italic;}
-  .card .meta{font-size:0.78rem;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
-  .card .notes{font-size:0.85rem;margin-top:2px;color:var(--ink);}
-  .card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
-  .tag{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.68rem;
-    text-transform:uppercase;
-    letter-spacing:0.04em;
-    padding:2px 7px;
-    border:1px solid var(--mustard);
-    color:var(--moss-dark);
-    background:#FBF4E1;
-    border-radius:2px;
-  }
-  .card .subrates{
-    font-size:0.72rem;
-    color:var(--ink-soft);
-    font-family:'IBM Plex Mono',monospace;
-    margin-top:2px;
-  }
-  .card-actions{
-    display:flex;gap:6px;margin-top:auto;padding-top:8px;
-  }
-
-  .empty{
-    text-align:center;
-    padding:60px 20px;
-    color:var(--ink-soft);
-    font-family:'Fraunces', serif;
-    font-size:1.1rem;
-    font-style:italic;
-  }
-
-  .load-error{
-    text-align:center;
-    padding:20px;
-    margin-bottom:18px;
-    border:1px solid var(--rust);
-    background:#F3E4DE;
-    color:var(--rust);
-    border-radius:4px;
-  }
-  .load-error .msg{margin-bottom:10px;font-size:0.85rem;}
-  .load-error button{
-    border:1px solid var(--rust);
-    color:var(--rust);
-    background:transparent;
-    padding:6px 14px;
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:0.8rem;
-    border-radius:3px;
-    cursor:pointer;
-  }
-  .load-error button:hover{background:var(--rust);color:var(--paper);}
-
-  .overlay{
-    display:none;
-    position:fixed;inset:0;
-    background:rgba(43,35,24,0.4);
-    align-items:flex-start;justify-content:center;
-    padding:40px 16px;
-    overflow-y:auto;
-    z-index:10;
-  }
-  .overlay.open{display:flex;}
-  .panel{
-    background:var(--paper);
-    border:2px solid var(--ink);
-    border-radius:5px;
-    padding:26px;
-    width:100%;max-width:520px;
-  }
-  .panel h2{
-    font-family:'Fraunces', serif;
-    margin:0 0 16px;
-    font-size:1.4rem;
-    border-bottom:1px solid var(--line);
-    padding-bottom:10px;
-  }
-  .field{margin-bottom:12px;display:flex;flex-direction:column;gap:4px;position:relative;}
-  .autocomplete-list{
-    position:absolute;top:100%;left:0;right:0;z-index:20;
-    background:var(--paper);border:1px solid var(--ink);border-top:none;
-    max-height:160px;overflow-y:auto;display:none;
-  }
-  .autocomplete-list.open{display:block;}
-  .autocomplete-list div{
-    padding:7px 10px;font-size:0.85rem;cursor:pointer;
-  }
-  .autocomplete-list div:hover, .autocomplete-list div.active{
-    background:var(--paper-dim);
-  }
-  .field label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.7rem;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:var(--ink-soft);
-  }
-  .field input, .field textarea, .field select{
-    font-family:'IBM Plex Sans', sans-serif;
-    padding:8px 10px;
-    border:1px solid var(--line);
-    border-radius:3px;
-    font-size:16px; /* 16px minimum prevents iOS Safari auto-zoom on focus */
-    background:#fff;
-    width:100%;
-    box-sizing:border-box;
-  }
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-  .panel-actions{display:flex;justify-content:space-between;margin-top:18px;gap:10px;}
-  textarea{resize:vertical;min-height:50px;}
-  .hint{font-size:0.72rem;color:var(--ink-soft);margin-top:-2px;}
-
-  .card .thumbwrap{
-    width:100%;height:120px;
-    border-radius:3px;overflow:hidden;
-    margin-bottom:4px;
-    background:var(--paper-dim);
-  }
-  .card .thumbwrap img{width:100%;height:100%;object-fit:cover;display:block;}
-
-  .gallery{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
-  .gallery .thumb{
-    position:relative;width:72px;height:72px;
-    border-radius:3px;overflow:hidden;
-    border:1px solid var(--line);
-  }
-  .gallery .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .gallery .thumb .rm{
-    position:absolute;top:2px;right:2px;
-    width:18px;height:18px;border-radius:50%;
-    background:rgba(43,35,24,0.75);color:#fff;
-    border:none;font-size:11px;line-height:1;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;padding:0;
-  }
-  .gallery .addtile{
-    width:72px;height:72px;
-    border:1px dashed var(--line);
-    border-radius:3px;
-    display:flex;align-items:center;justify-content:center;
-    color:var(--ink-soft);
-    font-size:1.4rem;
-    cursor:pointer;
-    background:var(--paper-dim);
-  }
-  #f_photos{display:none;}
-  .mlist-section{margin-bottom:20px;}
-  .mlist-section h3{
-    font-family:'IBM Plex Mono', monospace;font-size:0.75rem;text-transform:uppercase;
-    letter-spacing:0.06em;color:var(--ink-soft);margin:0 0 8px;
-    border-bottom:1px solid var(--line);padding-bottom:6px;
-  }
-  .mlist-row{
-    display:flex;align-items:center;gap:8px;padding:6px 0;
-    border-bottom:1px solid var(--paper-dim);
-  }
-  .mlist-val{flex:1;font-size:0.9rem;}
-  .mlist-count{font-size:0.7rem;color:var(--ink-soft);white-space:nowrap;}
-  .mlist-empty{font-size:0.8rem;color:var(--ink-soft);font-style:italic;}
-  button.danger{border-color:var(--rust);color:var(--rust);}
+  .tf-score.untasted{color:var(--muted);opacity:.45;font-size:18px;}
+  .tf-score.unrated{font-size:12px;font-style:normal;font-family:inherit;color:var(--muted);text-align:center;line-height:1.2;}
+  .tf-price{white-space:nowrap;color:var(--ink);}
+  .tf-soldout{color:#a14a3b;}
+  .filters .f-sel{min-width:120px;}
+  .import-status{margin:0 0 14px;}
+  .lightbox-links{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:6px;}
+  .lightbox-links a{color:var(--accent);}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div class="wrap">
-  <div class="back-link"><a href="index.html">&larr; Warehouse</a></div>
   <header>
+    <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; Est. In Practice</div>
     <h1>Tinned Fish</h1>
-    <div class="tally" id="tally">0 entries</div>
-    <div id="authControl" class="auth-control"></div>
+    <div class="sub">conservas catalog &mdash; what&rsquo;s out there, what it costs, and how you liked it</div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
+    <div class="rule"></div>
   </header>
 
   <div class="toolbar">
-    <input type="text" id="search" placeholder="Search name, brand, notes…">
-    <select id="filterCategory"><option value="">All categories</option></select>
-    <select id="filterTag"><option value="">All tags</option></select>
-    <select id="sortBy">
-      <option value="name_asc" selected>Name A–Z</option>
-      <option value="date_desc">Newest first</option>
-      <option value="date_asc">Oldest first</option>
-      <option value="rating_desc">Highest rated</option>
-      <option value="rating_asc">Lowest rated</option>
+    <span class="count" id="count">loading&hellip;</span>
+    <input type="text" id="search" placeholder="Search brand, fish, sauce, country, shop…">
+    <div class="toolbar-btns">
+      <button class="newbtn importbtn" id="importBtn" title="Load or refresh the catalog from tinned-fish-catalog.json">&#8635; Import catalog</button>
+      <button class="newbtn" id="toggleForm">+ New Tin</button>
+    </div>
+  </div>
+
+  <div class="import-status" id="importStatus"></div>
+
+  <div class="filters">
+    <select class="f-sel" id="fSeafood"><option value="">All seafood</option></select>
+    <select class="f-sel" id="fCountry"><option value="">All countries</option></select>
+    <select class="f-sel" id="fShop">
+      <option value="">Any shop</option>
+      <option value="mercado">Mercado Central NYC</option>
+      <option value="mercado-in">Mercado Central, in stock</option>
+      <option value="jubilee">Jubilee Marketplace</option>
+      <option value="supermarket">Supermarket brands</option>
     </select>
-    <button id="addBtn">+ Add entry</button>
-    <input type="text" id="hwScanInput" placeholder="🔫 Click here, then scan with a USB/Bluetooth scanner" autocomplete="off" inputmode="none" style="min-width:260px;">
-    <button class="ghost" id="manageListsBtn">Manage lists</button>
+    <select class="f-sel" id="fTasted">
+      <option value="">Tasted or not</option>
+      <option value="tasted">Tasted</option>
+      <option value="untasted">Not tasted</option>
+    </select>
+    <select class="f-sel" id="fSort">
+      <option value="brand">Sort: brand A&ndash;Z</option>
+      <option value="rating">Sort: my rating</option>
+      <option value="price-asc">Sort: price, low&ndash;high</option>
+      <option value="price-desc">Sort: price, high&ndash;low</option>
+      <option value="peroz">Sort: price per oz</option>
+    </select>
   </div>
 
-  <div id="loadErrorState" class="load-error" style="display:none;">
-    <div class="msg"></div>
-    <button id="retryLoadBtn" type="button">Retry</button>
+  <div class="load-error" id="loadErrorState">
+    <span class="msg"></span>
+    <button id="retryLoadBtn">Retry</button>
   </div>
-  <div id="grid" class="grid"></div>
-  <div id="emptyState" class="empty" style="display:none;">No entries yet — add your first product to the list.</div>
-</div>
 
-
-  
-<div class="overlay" id="manageListsOverlay">
-  <div class="panel">
-    <h2>Manage lists</h2>
-    <div class="hint" style="margin-bottom:16px;">Rename a value to update it everywhere it's used, or delete to clear it from those entries (the entries themselves aren't removed).</div>
-    <div id="manageListsBody"></div>
-    <div class="panel-actions">
-      <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="closeManageListsBtn">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="detailOverlay">
-  <div class="panel" style="max-width:560px;">
-    <div id="detailBody"></div>
-    <div class="panel-actions">
-      <div id="detailEditWrap"></div>
-      <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="closeDetailBtn">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="overlay">
-  <div class="panel">
-    <h2 id="panelTitle">New entry</h2>
-    <input type="hidden" id="editId">
-
+  <div class="ticket" id="ticket">
     <div class="field">
-      <label for="f_name">Name</label>
-      <input type="text" id="f_name" required>
+      <label>Product</label>
+      <input id="f-name" type="text" placeholder="Sardines in Olive Oil with Lemon">
     </div>
-
     <div class="row2">
       <div class="field">
-        <label for="f_brand">Brand</label>
-        <input type="text" id="f_brand" autocomplete="off">
-        <div class="autocomplete-list" id="f_brand_options"></div>
+        <label>Brand</label>
+        <input id="f-brand" type="text" placeholder="Nuri" autocomplete="off">
+        <div class="autocomplete-list" id="f-brand-options"></div>
       </div>
       <div class="field">
-        <label for="f_category">Category</label>
-        <input type="text" id="f_category" autocomplete="off">
-        <div class="autocomplete-list" id="f_category_options"></div>
+        <label>Country</label>
+        <input id="f-country" type="text" placeholder="Portugal">
       </div>
     </div>
-
-    <div class="field" id="packedInField" style="display:none;">
-      <label for="f_packedIn">Packed in</label>
-      <input type="text" id="f_packedIn" autocomplete="off">
-      <div class="autocomplete-list" id="f_packedIn_options"></div>
-    </div>
-
     <div class="row2">
       <div class="field">
-        <label for="f_source">Source</label>
-        <input type="text" id="f_source" autocomplete="off">
-        <div class="autocomplete-list" id="f_source_options"></div>
+        <label>Seafood</label>
+        <input id="f-seafood" type="text" placeholder="Sardines">
       </div>
       <div class="field">
-        <label for="f_price">Price</label>
-        <input type="text" id="f_price" inputmode="decimal" placeholder="$">
+        <label>Canning liquid / sauce</label>
+        <input id="f-packedIn" type="text" placeholder="Olive oil with lemon">
       </div>
     </div>
-
     <div class="row2">
       <div class="field">
-        <label for="f_netWeightValue">Net weight</label>
-        <div style="display:flex;gap:6px;">
-          <input type="number" id="f_netWeightValue" step="any" min="0">
-          <select id="f_netWeightUnit" style="max-width:80px;">
-            <option value="g">g</option>
-            <option value="kg">kg</option>
-            <option value="oz">oz</option>
-            <option value="lb">lb</option>
-            <option value="ml">ml</option>
-            <option value="l">l</option>
-          </select>
-        </div>
+        <label>Size (oz)</label>
+        <input id="f-size" type="number" step="0.01" min="0" placeholder="4.4">
       </div>
       <div class="field">
-        <label for="f_dryWeightValue">Drained/dry weight</label>
-        <div style="display:flex;gap:6px;">
-          <input type="number" id="f_dryWeightValue" step="any" min="0">
-          <select id="f_dryWeightUnit" style="max-width:80px;">
-            <option value="g">g</option>
-            <option value="kg">kg</option>
-            <option value="oz">oz</option>
-            <option value="lb">lb</option>
-          </select>
-        </div>
+        <label>Price per tin (USD)</label>
+        <input id="f-price" type="number" step="0.01" min="0" placeholder="9.99">
       </div>
     </div>
-
-    <div class="field" id="barcodeField" style="display:none;">
-      <label for="f_barcode">Barcode</label>
-      <input type="text" id="f_barcode" readonly>
+    <div class="row2">
+      <div class="field">
+        <label>Price source</label>
+        <input id="f-priceSource" type="text" placeholder="Shop name">
+      </div>
+      <div class="field">
+        <label>Price source link (optional)</label>
+        <input id="f-priceSourceUrl" type="url" placeholder="https://&hellip;">
+      </div>
     </div>
-
     <div class="field">
-      <label for="f_tags">Tags</label>
-      <input type="text" id="f_tags" placeholder="comma, separated, tags">
+      <label>Where to buy</label>
+      <input id="f-whereToBuy" type="text" placeholder="Shops, sites">
     </div>
-
     <div class="field">
-      <label for="f_notes">Notes</label>
-      <textarea id="f_notes"></textarea>
+      <label>Linked Pantry entry (your rating comes from here)</label>
+      <select id="f-pantry"><option value="">&mdash;</option></select>
+      <div class="field-hint">Rate tins in Pantry; linking one here shows its score and colors the card.</div>
     </div>
-
-    <div class="row4">
-      <div class="field">
-        <label for="f_overall">Overall</label>
-        <input type="number" id="f_overall" min="1" max="10" step="1">
-      </div>
-      <div class="field">
-        <label for="f_flavor">Flavor</label>
-        <input type="number" id="f_flavor" min="1" max="10" step="1">
-      </div>
-      <div class="field">
-        <label for="f_quality">Quality</label>
-        <input type="number" id="f_quality" min="1" max="10" step="1">
-      </div>
-      <div class="field">
-        <label for="f_value">Value</label>
-        <input type="number" id="f_value" min="1" max="10" step="1">
-      </div>
-    </div>
-
     <div class="field">
-      <label>Photos</label>
-      <div class="gallery" id="galleryWrap">
-        <div class="addtile" id="addTile">+</div>
-      </div>
-      <input type="file" id="f_photos" accept="image/*" multiple>
-      <div class="hint" id="photoHint">Add one or more photos of this product.</div>
+      <label>My notes</label>
+      <textarea id="f-myNotes" placeholder="Want to try, gift idea, who recommended it&hellip;"></textarea>
     </div>
+    <div class="form-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save Tin</button>
+    </div>
+  </div>
 
-    <div class="panel-actions">
-      <button class="danger" id="deleteBtn" type="button" style="display:none;">Delete</button>
-      <div style="display:flex;gap:8px;margin-left:auto;">
-        <button class="ghost" id="cancelBtn" type="button">Cancel</button>
-        <button id="saveBtn" type="button">Save entry</button>
-      </div>
-    </div>
+  <div id="entries" class="loading">loading&hellip;</div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
+    <button class="lightbox-copy-link" id="lightboxCopyLink">&#128279; copy link</button>
+    <div class="lightbox-name" id="lb-name"></div>
+    <div class="lightbox-fields" id="lb-fields"></div>
+    <div class="lightbox-links" id="lb-links"></div>
   </div>
 </div>
 
 <script>
-const STORE_KEY = 'tinnedfish-products';
-let products = [];
-let currentImages = []; // full-size base64 images for the entry currently being edited
+// Tinned Fish: a catalog of conservas (one kv_store row per tin under
+// KEY_PREFIX), separate from Pantry, which stays the record of what you
+// actually own and how you rated it. A catalog row can point at a Pantry
+// row (pantryId); the score shown here is read live from that Pantry row
+// on every load, so rating something in Pantry updates this page with no
+// second step. Rows are seeded from tinned-fish-catalog.json via the
+// Import button (signed-in only); re-importing a newer JSON refreshes
+// prices/stock on rows you haven't edited, never touches your notes or
+// Pantry links, and skips anything you deleted here.
+const KEY_PREFIX = 'tinnedfish:';
+const DELETED_KEY = 'tinnedfish-deleted'; // ids deleted here, so re-import doesn't resurrect them
+const CATALOG_URL = 'tinned-fish-catalog.json';
+// Fields a re-import keeps fresh even on rows you've edited (they change
+// shop to shop and week to week; nothing you'd type yourself).
+const LIVE_FIELDS = ['mercadoPrice','mercadoStock','jubileePrice'];
 
-// Supabase-backed storage, so entries sync across devices instead of being
-// trapped in one browser's localStorage. Falls back to localStorage if
-// Supabase can't be reached (e.g. offline), and to Claude's window.storage
-// when running inside a Claude artifact.
-const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
+let entries = [];
+let pantry = {};          // pantry row id -> product object
+let deletedIds = [];
+let editingId = null;
+let currentLightboxId = null;
 
-const localStorageAdapter = {
-  async get(key){
-    const v = localStorage.getItem(key);
-    if(v === null) throw new Error('not found');
-    return {key, value: v};
-  },
-  async set(key, value){
-    localStorage.setItem(key, value);
-    return {key, value};
-  },
-  async delete(key){
-    localStorage.removeItem(key);
-    return {key, deleted: true};
-  },
-  async list(prefix){
-    const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
-    return {keys};
-  }
-};
-
-let supabaseClient = null;
-let supabaseInitError = null;
-
-function makeSupabaseAdapter(){
-  if(typeof window === 'undefined' || !window.supabase || !window.supabase.createClient){
-    supabaseInitError = "Couldn't load the Supabase library (blocked by an ad blocker/network filter, or a connectivity issue) — showing this browser's local copy only. Entries saved from other devices won't appear until this loads successfully.";
-    console.error('Tinned Fish:', supabaseInitError);
-    return null;
-  }
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const client = supabaseClient;
-  return {
-    async get(key){
-      const { data, error } = await client.from('kv_store').select('value').eq('key', key).maybeSingle();
-      if(error) throw error;
-      if(!data) throw new Error('not found');
-      // keep a local mirror so the app still works offline
-      try{ localStorage.setItem(key, data.value); }catch(e){}
-      return {key, value: data.value};
-    },
-    async set(key, value){
-      const { error } = await client.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
-      if(error) throw error;
-      try{ localStorage.setItem(key, value); }catch(e){}
-      return {key, value};
-    },
-    async delete(key){
-      const { error } = await client.from('kv_store').delete().eq('key', key);
-      if(error) throw error;
-      try{ localStorage.removeItem(key); }catch(e){}
-      return {key, deleted: true};
-    },
-    async list(prefix){
-      let query = client.from('kv_store').select('key');
-      if(prefix) query = query.like('key', prefix + '%');
-      const { data, error } = await query;
-      if(error) throw error;
-      return { keys: (data||[]).map(r => r.key) };
-    }
-  };
-}
-
-// Priority: Claude artifact storage > Supabase > localStorage
-const storage = (typeof window !== 'undefined' && window.storage)
-  ? window.storage
-  : (makeSupabaseAdapter() || localStorageAdapter);
-
-// --- Auth: read is public, only a signed-in session can add/edit/delete ---
+// --- Auth: read is public, only a signed-in session can add/edit/delete.
+// Same pattern (and same Supabase Auth account) as the other collection apps. ---
 let currentUser = null;
+let mfaSatisfied = true;
 
 function renderAuthControl(){
   const el = document.getElementById('authControl');
-  if(!supabaseClient){
-    el.innerHTML = ''; // no Supabase (local/offline mode) — no gating possible, leave open
+  if(!supabaseClient){ el.innerHTML = ''; return; }
+  if(currentUser && !mfaSatisfied){
+    el.innerHTML = `
+      <form id="mfaChallengeForm">
+        <input type="text" id="mfaChallengeCode" placeholder="6-digit code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code">
+        <button type="submit">Verify</button>
+      </form>
+      <span class="auth-error" id="mfaChallengeError"></span>`;
+    document.getElementById('mfaChallengeForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const code = document.getElementById('mfaChallengeCode').value.trim();
+      const errEl = document.getElementById('mfaChallengeError');
+      const { data: factors, error: listErr } = await supabaseClient.auth.mfa.listFactors();
+      const factor = listErr ? null : (factors.totp || []).find(f => f.status === 'verified');
+      if(!factor){ errEl.textContent = 'No 2FA factor found on this account.'; return; }
+      const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+      if(error){ errEl.textContent = 'Incorrect code — try again.'; return; }
+      await checkMfaStatus();
+      renderAuthControl();
+      applyAuthGating();
+    });
     return;
   }
   if(currentUser){
-    el.innerHTML = `
-      <span>${esc(currentUser.email)}</span>
-      <button class="ghost small" id="signOutBtn">Sign out</button>`;
-    document.getElementById('signOutBtn').addEventListener('click', async ()=>{
-      await supabaseClient.auth.signOut();
-    });
+    el.innerHTML = `<span>${escapeHtml(currentUser.email)}</span><button id="signOutBtn">Sign out</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async ()=>{ await supabaseClient.auth.signOut(); });
   } else {
     el.innerHTML = `
       <form id="signInForm">
         <input type="email" id="authEmail" placeholder="Email" required>
         <input type="password" id="authPassword" placeholder="Password" required>
-        <button class="ghost small" type="submit">Sign in</button>
+        <button type="submit">Sign in</button>
       </form>
       <span class="auth-error" id="authError"></span>`;
     document.getElementById('signInForm').addEventListener('submit', async (e)=>{
@@ -604,705 +234,425 @@ function renderAuthControl(){
   }
 }
 
+function canEdit(){ return !supabaseClient || (!!currentUser && mfaSatisfied); }
+
 function applyAuthGating(){
-  const loggedIn = !supabaseClient || !!currentUser; // if no Supabase, don't block (local mode)
-  const addBtn = document.getElementById('addBtn');
-  if(addBtn) addBtn.style.display = loggedIn ? '' : 'none';
-  const manageBtn = document.getElementById('manageListsBtn');
-  if(manageBtn) manageBtn.style.display = loggedIn ? '' : 'none';
-  const hwScanInput = document.getElementById('hwScanInput');
-  if(hwScanInput) hwScanInput.style.display = loggedIn ? '' : 'none';
-  document.querySelectorAll('.card-actions').forEach(el=>{
-    el.style.display = loggedIn ? '' : 'none';
-  });
+  const loggedIn = canEdit();
+  ['toggleForm','importBtn'].forEach(id => { const b = $(id); if(b) b.style.display = loggedIn ? '' : 'none'; });
+  document.querySelectorAll('.entry-actions').forEach(el => { el.style.display = loggedIn ? '' : 'none'; });
 }
 
 if(supabaseClient){
-  supabaseClient.auth.getSession().then(({data})=>{
+  supabaseClient.auth.getSession().then(async ({data})=>{
     currentUser = data.session ? data.session.user : null;
-    renderAuthControl();
-    applyAuthGating();
+    await checkMfaStatus(); renderAuthControl(); applyAuthGating(); render();
   });
-  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+  supabaseClient.auth.onAuthStateChange(async (_event, session)=>{
     currentUser = session ? session.user : null;
-    renderAuthControl();
-    applyAuthGating();
+    await checkMfaStatus(); renderAuthControl(); applyAuthGating();
   });
 } else {
   renderAuthControl();
 }
 
-function imagesKey(id){ return 'tinnedfish-images:' + id; }
+// --- helpers ---
+function money(n){ return (typeof n === 'number' && isFinite(n)) ? '$' + n.toFixed(2) : ''; }
+function num(v){ const n = parseFloat(v); return isFinite(n) ? n : null; }
+function shortCountry(c){ return (c || '').split(/[;(]/)[0].trim(); }
+function seafoodGroup(s){ return (s || '').split(' (')[0].trim(); }
+function perOz(e){ return (e.price && e.sizeOz) ? e.price / e.sizeOz : null; }
 
-function resizeImage(file, maxDim, quality){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if(w > h && w > maxDim){ h = Math.round(h * maxDim/w); w = maxDim; }
-        else if(h >= w && h > maxDim){ w = Math.round(w * maxDim/h); h = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// Your Pantry score for a catalog row: {score:Number|null} when linked, null when not.
+function ratingOf(e){
+  const p = e.pantryId && pantry[e.pantryId];
+  if(!p) return null;
+  const s = num(p.overall);
+  return { score: s, product: p };
 }
 
-function renderGallery(){
-  const wrap = document.getElementById('galleryWrap');
-  wrap.querySelectorAll('.thumb').forEach(el=>el.remove());
-  currentImages.forEach((src, idx)=>{
-    const div = document.createElement('div');
-    div.className = 'thumb';
-    div.innerHTML = `<img src="${src}"><button type="button" class="rm" data-idx="${idx}">&times;</button>`;
-    wrap.insertBefore(div, document.getElementById('addTile'));
-  });
-  wrap.querySelectorAll('.rm').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      currentImages.splice(Number(btn.dataset.idx), 1);
-      renderGallery();
-    });
-  });
-  document.getElementById('photoHint').textContent = currentImages.length
-    ? `${currentImages.length} photo${currentImages.length>1?'s':''} attached`
-    : 'Add one or more photos of this product.';
-}
-
-function setLoadError(message){
-  const el = document.getElementById('loadErrorState');
-  if(!el) return;
-  if(message){
-    el.style.display = 'block';
-    el.querySelector('.msg').textContent = message;
-  }else{
-    el.style.display = 'none';
-  }
-}
-
-async function load(){
-  try{
-    const res = await storage.get(STORE_KEY);
-    products = res ? JSON.parse(res.value) : [];
-    // even on a "successful" read, if we're silently running on the local
-    // fallback because the Supabase library never loaded, keep the warning
-    // visible — a clean local read here does NOT mean your real data is safe
-    setLoadError(supabaseInitError);
-  }catch(e){
-    if(e && e.message === 'not found' && !supabaseInitError){
-      // no saved data yet for this key, and Supabase loaded fine —
-      // genuinely empty, not a failure
-      products = [];
-      setLoadError(null);
-    }else{
-      // real failure: either Supabase never initialized (supabaseInitError
-      // set above) or the request itself failed (network, auth, etc.) —
-      // log it and tell the user, instead of silently wiping the list
-      console.error('Tinned Fish: failed to load entries', e);
-      setLoadError(supabaseInitError ||
-        `Couldn't load your entries (${e.message || e}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
-      // leave `products` as whatever was already in memory rather than
-      // clobbering a good list with an empty one on a transient failure
+// 1 = red, 5.5 = yellow, 10 = green (same scale as the spreadsheet).
+function ratingColor(v){
+  const stops = [[1,[0xF8,0x69,0x6B]],[5.5,[0xFF,0xEB,0x84]],[10,[0x63,0xBE,0x7B]]];
+  v = Math.max(1, Math.min(10, v));
+  for(let i=0;i<stops.length-1;i++){
+    const [a,ca] = stops[i], [b,cb] = stops[i+1];
+    if(v <= b){
+      const t = (v-a)/(b-a);
+      return 'rgb(' + ca.map((c,k)=>Math.round(c + (cb[k]-c)*t)).join(',') + ')';
     }
   }
-  render();
-}
-document.getElementById('retryLoadBtn').addEventListener('click', load);
-
-async function persist(){
-  try{
-    await storage.set(STORE_KEY, JSON.stringify(products));
-  }catch(e){
-    console.error('Storage error', e);
-    alert('Could not save — please try again.');
-  }
+  return 'rgb(99,190,123)';
 }
 
-function uid(){return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);}
-
-// --- Barcode scanning: uses the device camera to read a barcode, then
-// looks up basic product info from Open Food Facts to pre-fill the form.
-// Coverage is best-effort — small/artisanal brands often aren't in that
-// database, in which case you just fill the form in manually as usual. ---
-
-// Takes a decoded/typed barcode, looks it up on Open Food Facts (public,
-// no key needed) to pre-fill what it can, then opens the entry form.
-// Works the same whether the code came from the camera scanner or a
-// hardware USB/Bluetooth scanner (see hwScanInput below) — both just
-// hand a barcode string to this function.
-async function processScannedBarcode(code){
-  code = (code || '').trim();
-  if(!code) return;
-  const prefill = { barcode: code };
-  let photoDataUrl = null;
-  try{
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-    const data = await res.json();
-    if(data && data.status === 1 && data.product){
-      const p = data.product;
-      if(p.product_name) prefill.name = p.product_name;
-      if(p.brands) prefill.brand = p.brands.split(',')[0].trim();
-      if(p.quantity){
-        const m = String(p.quantity).match(/([\d.]+)\s*(kg|g|lb|oz|ml|l)?/i);
-        if(m){
-          prefill.netWeightValue = m[1];
-          prefill.netWeightUnit = (m[2] || 'g').toLowerCase();
-        }
-      }
-      // Category/source are deliberately NOT auto-filled: Open Food Facts'
-      // category taxonomy doesn't match your own "Tinned Fish"-style
-      // vocabulary, and OFF has no idea where *you* bought this — auto-
-      // filling either would just pollute the Manage Lists dropdowns with
-      // near-duplicate values instead of your established ones.
-      const photoUrl = p.image_front_url || p.image_url;
-      if(photoUrl){
-        try{
-          const imgRes = await fetch(photoUrl);
-          const blob = await imgRes.blob();
-          // reuse the same resize pipeline manually-added photos go
-          // through, so scanned photos match in size/quality
-          photoDataUrl = await resizeImage(blob, 1200, 0.75);
-        }catch(e){
-          console.error('Could not fetch product photo from Open Food Facts', e);
-          // not fatal — the entry still opens fine without a photo
-        }
-      }
-    }
-  }catch(e){
-    console.error('Open Food Facts lookup failed', e);
-    // not fatal — still open the form with the barcode filled in and
-    // let the rest be typed in by hand
-  }
-  openNew(prefill);
-  if(photoDataUrl){
-    // openNew() always resets currentImages to [] and re-renders the
-    // gallery, so this has to happen after — otherwise it'd get wiped
-    currentImages = [photoDataUrl];
-    renderGallery();
-  }
+function scoreChip(e){
+  const r = ratingOf(e);
+  if(!r) return `<div class="entry-thumb tf-score untasted">&mdash;</div>`;
+  if(r.score === null) return `<div class="entry-thumb tf-score unrated" style="background:#d9d9d9">in<br>pantry</div>`;
+  return `<div class="entry-thumb tf-score" style="background:${ratingColor(r.score)}">${r.score}</div>`;
 }
 
-
-const G_PER_OZ = 28.3495231;
-function formatWeight(value, unit, label){
-  const v = Number(value);
-  if(!v || isNaN(v)) return null;
-  const prefix = label ? `${label} ` : '';
-  if(unit === 'oz'){
-    const g = Math.round(v * G_PER_OZ);
-    return `${prefix}${v}oz (${g}g)`;
-  }
-  const oz = Math.round((v / G_PER_OZ) * 10) / 10;
-  return `${prefix}${v}g (${oz}oz)`;
+function populateFilters(){
+  const fill = (id, values, allLabel) => {
+    const el = $(id), cur = el.value;
+    el.innerHTML = `<option value="">${allLabel}</option>` +
+      values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if(values.includes(cur)) el.value = cur;
+  };
+  fill('fSeafood', [...new Set(entries.map(e => seafoodGroup(e.seafood)).filter(Boolean))].sort(), 'All seafood');
+  fill('fCountry', [...new Set(entries.map(e => shortCountry(e.country)).filter(c => c && !/^not stated/i.test(c)))].sort(), 'All countries');
+  const brands = [...new Set(entries.map(e => e.brand).filter(Boolean))].sort();
+  $('f-brand-options').dataset.options = JSON.stringify(brands);
 }
 
-function allCategories(){
-  return [...new Set(products.map(p=>p.category).filter(Boolean))].sort();
-}
-function allBrands(){
-  return [...new Set(products.map(p=>p.brand).filter(Boolean))].sort();
-}
-function allSources(){
-  return [...new Set(products.map(p=>p.source).filter(Boolean))].sort();
-}
-function allPackedIn(){
-  return [...new Set(products.map(p=>p.packedIn).filter(Boolean))].sort();
-}
-
-// --- Manage lists: rename/delete a category, brand, source, packed-in,
-// or tag value everywhere it's used across your products in one go. ---
-const MANAGEABLE_FIELDS = [
-  { key: 'category', label: 'Categories', getter: allCategories, type: 'scalar' },
-  { key: 'brand', label: 'Brands', getter: allBrands, type: 'scalar' },
-  { key: 'source', label: 'Sources', getter: allSources, type: 'scalar' },
-  { key: 'packedIn', label: 'Packed In', getter: allPackedIn, type: 'scalar' },
-  { key: 'tags', label: 'Tags', getter: allTags, type: 'array' },
-];
-
-function countUsing(field, val){
-  if(field.type === 'array') return products.filter(p => (p.tags||[]).includes(val)).length;
-  return products.filter(p => (p[field.key]||'') === val).length;
+function passesFilters(e){
+  const sf = $('fSeafood').value, ct = $('fCountry').value, shop = $('fShop').value, tasted = $('fTasted').value;
+  if(sf && seafoodGroup(e.seafood) !== sf) return false;
+  if(ct && shortCountry(e.country) !== ct) return false;
+  if(shop === 'mercado' && e.mercadoPrice == null) return false;
+  if(shop === 'mercado-in' && !(e.mercadoPrice != null && e.mercadoStock === 'In stock')) return false;
+  if(shop === 'jubilee' && e.jubileePrice == null) return false;
+  if(shop === 'supermarket' && !/^Supermarket/.test(e.availability || '')) return false;
+  const r = ratingOf(e);
+  if(tasted === 'tasted' && !r) return false;
+  if(tasted === 'untasted' && r) return false;
+  return true;
 }
 
-function renderManageLists(){
-  const wrap = document.getElementById('manageListsBody');
-  wrap.innerHTML = MANAGEABLE_FIELDS.map(f=>{
-    const vals = f.getter();
-    const rows = vals.length
-      ? vals.map(v=>{
-          const count = countUsing(f, v);
-          return `<div class="mlist-row">
-            <span class="mlist-val">${esc(v)}</span>
-            <span class="mlist-count">${count} item${count===1?'':'s'}</span>
-            <button class="ghost small" data-action="rename" data-type="${f.type}" data-key="${f.key}" data-val="${esc(v)}">Rename</button>
-            <button class="ghost small danger" data-action="delete" data-type="${f.type}" data-key="${f.key}" data-val="${esc(v)}">Delete</button>
-          </div>`;
-        }).join('')
-      : `<div class="mlist-empty">No values yet.</div>`;
-    return `<div class="mlist-section"><h3>${f.label}</h3>${rows}</div>`;
-  }).join('');
-}
-
-async function renameListValue(type, key, oldVal){
-  const newVal = prompt(`Rename "${oldVal}" to:`, oldVal);
-  if(newVal === null) return;
-  const trimmed = type === 'array' ? newVal.trim().toLowerCase() : newVal.trim();
-  if(!trimmed || trimmed === oldVal) return;
-  if(type === 'array'){
-    products.forEach(p=>{
-      if(!p.tags || !p.tags.includes(oldVal)) return;
-      p.tags = [...new Set(p.tags.map(t => t===oldVal ? trimmed : t))]; // dedupe in case renamed tag already exists
-    });
-  } else {
-    products.forEach(p=>{ if((p[key]||'') === oldVal) p[key] = trimmed; });
-  }
-  await persist();
-  render();
-  renderManageLists();
-}
-
-async function deleteListValue(type, key, val){
-  const field = MANAGEABLE_FIELDS.find(f=>f.key===key);
-  const count = countUsing(field, val);
-  if(!confirm(`Remove "${val}" from ${count} item${count===1?'':'s'}? This clears it from those entries — it does not delete the entries themselves.`)) return;
-  if(type === 'array'){
-    products.forEach(p=>{ if(p.tags) p.tags = p.tags.filter(t=>t!==val); });
-  } else {
-    products.forEach(p=>{ if((p[key]||'') === val) p[key] = ''; });
-  }
-  await persist();
-  render();
-  renderManageLists();
-}
-
-function openManageLists(){
-  renderManageLists();
-  document.getElementById('manageListsOverlay').classList.add('open');
-}
-function closeManageLists(){
-  document.getElementById('manageListsOverlay').classList.remove('open');
-}
-function allTags(){
-  return [...new Set(products.flatMap(p=>p.tags||[]))].sort();
-}
-
-function refreshFilterOptions(){
-  const catSel = document.getElementById('filterCategory');
-  const tagSel = document.getElementById('filterTag');
-  const curCat = catSel.value, curTag = tagSel.value;
-  catSel.innerHTML = '<option value="">All categories</option>' + allCategories().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  tagSel.innerHTML = '<option value="">All tags</option>' + allTags().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
-  catSel.value = curCat; tagSel.value = curTag;
-
-  document.getElementById('f_category_options').dataset.options = JSON.stringify(allCategories());
-  document.getElementById('f_brand_options').dataset.options = JSON.stringify(allBrands());
-  document.getElementById('f_source_options').dataset.options = JSON.stringify(allSources());
-  document.getElementById('f_packedIn_options').dataset.options = JSON.stringify(allPackedIn());
-}
-
-// Custom autocomplete dropdown (replaces native <datalist>, which Safari
-// handles unreliably). Shows suggestions on focus, filters as you type,
-// still allows any free-text value.
-function setupAutocomplete(inputId, listId){
-  const input = document.getElementById(inputId);
-  const list = document.getElementById(listId);
-
-  function optionsFor(){
-    try{ return JSON.parse(list.dataset.options || '[]'); }catch(e){ return []; }
-  }
-
-  function renderList(opts){
-    if(opts.length === 0){ list.classList.remove('open'); list.innerHTML=''; return; }
-    list.innerHTML = opts.map(o=>`<div data-val="${esc(o)}">${esc(o)}</div>`).join('');
-    list.classList.add('open');
-  }
-  function showAll(){
-    renderList(optionsFor()); // on focus: show every option, not just ones matching what's already typed
-    input.select(); // highlight existing text so typing (or tapping an option) cleanly replaces it
-  }
-  function showFiltered(){
-    const q = input.value.trim().toLowerCase();
-    renderList(optionsFor().filter(o => !q || o.toLowerCase().includes(q)));
-  }
-  function hide(){ list.classList.remove('open'); }
-
-  input.addEventListener('focus', showAll);
-  input.addEventListener('input', showFiltered);
-  input.addEventListener('blur', ()=> setTimeout(hide, 150)); // delay so click below registers first
-  list.addEventListener('mousedown', (e)=>{
-    const opt = e.target.closest('[data-val]');
-    if(!opt) return;
-    input.value = opt.dataset.val;
-    input.dispatchEvent(new Event('input', { bubbles: true })); // so listeners like the Packed In toggle fire on click-select too
-    hide();
+function sortEntries(list){
+  const by = $('fSort').value;
+  const name = (e) => ((e.brand||'') + ' ' + (e.name||'')).toLowerCase();
+  const nullsLast = (a, b, f, dir) => {
+    const x = f(a), y = f(b);
+    if(x == null && y == null) return name(a).localeCompare(name(b));
+    if(x == null) return 1; if(y == null) return -1;
+    return dir * (x - y) || name(a).localeCompare(name(b));
+  };
+  return [...list].sort((a,b) => {
+    if(by === 'rating') return nullsLast(a, b, e => { const r = ratingOf(e); return r ? r.score : null; }, -1);
+    if(by === 'price-asc') return nullsLast(a, b, e => e.price, 1);
+    if(by === 'price-desc') return nullsLast(a, b, e => e.price, -1);
+    if(by === 'peroz') return nullsLast(a, b, perOz, 1);
+    return name(a).localeCompare(name(b));
   });
-}
-setupAutocomplete('f_category', 'f_category_options');
-setupAutocomplete('f_brand', 'f_brand_options');
-setupAutocomplete('f_source', 'f_source_options');
-setupAutocomplete('f_packedIn', 'f_packedIn_options');
-
-function togglePackedInField(){
-  const cat = document.getElementById('f_category').value.trim().toLowerCase();
-  document.getElementById('packedInField').style.display = (cat === 'tinned fish') ? '' : 'none';
-}
-document.getElementById('f_category').addEventListener('input', togglePackedInField);
-
-function esc(s){
-  return (s||'').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
 function render(){
-  refreshFilterOptions();
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  const catF = document.getElementById('filterCategory').value;
-  const tagF = document.getElementById('filterTag').value;
-  const sortBy = document.getElementById('sortBy').value;
+  const wrap = $('entries');
+  const { query, rawQuery, filtered: searched } = applySearchFilter(entries, e =>
+    [e.name, e.brand, e.seafood, e.packedIn, e.country, e.whereToBuy, e.priceSource, e.notes, e.myNotes]);
+  const filtered = searched.filter(passesFilters);
+  const narrowed = query || filtered.length !== searched.length;
+  const tastedCount = entries.filter(e => ratingOf(e)).length;
 
-  let list = products.filter(p=>{
-    if(catF && p.category !== catF) return false;
-    if(tagF && !(p.tags||[]).includes(tagF)) return false;
-    if(q){
-      const hay = [p.name,p.brand,p.notes,p.category,(p.tags||[]).join(' ')].join(' ').toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
-    return true;
-  });
+  $('count').textContent = entries.length === 0
+    ? 'no tins yet'
+    : narrowed
+      ? `${filtered.length} of ${entries.length} tins` + (rawQuery ? ` match "${rawQuery}"` : '')
+      : `${entries.length} tins · ${tastedCount} tasted`;
 
-  list.sort((a,b)=>{
-    if(sortBy==='date_desc') return b.dateAdded.localeCompare(a.dateAdded);
-    if(sortBy==='date_asc') return a.dateAdded.localeCompare(b.dateAdded);
-    if(sortBy==='rating_desc') return (b.overall||0)-(a.overall||0);
-    if(sortBy==='rating_asc') return (a.overall||0)-(b.overall||0);
-    if(sortBy==='name_asc') return a.name.localeCompare(b.name);
-    return 0;
-  });
-
-  document.getElementById('tally').textContent = `${products.length} ${products.length===1?'entry':'entries'}`;
-  const grid = document.getElementById('grid');
-  const empty = document.getElementById('emptyState');
-  if(list.length===0){
-    grid.innerHTML='';
-    empty.style.display='block';
-    empty.textContent = products.length===0 ? 'No entries yet — add your first product to the list.' : 'No entries match your search/filters.';
+  if(entries.length === 0){
+    wrap.innerHTML = canEdit()
+      ? `<div class="empty"><span class="big">The shelf is empty.</span>Press &ldquo;Import catalog&rdquo; to load the tinned fish list, or add a tin by hand.</div>`
+      : `<div class="empty"><span class="big">The shelf is empty.</span>Sign in and import the catalog to fill it.</div>`;
+    applyAuthGating();
     return;
   }
-  empty.style.display='none';
+  if(filtered.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="big">No matches.</span>Try a different search or loosen the filters.</div>`;
+    applyAuthGating();
+    return;
+  }
 
-  grid.innerHTML = list.map(p=>{
-    const badge = p.overall ? `<div class="badge">${p.overall}</div>` : `<div class="badge none">—</div>`;
-    const subrates = [
-      p.flavor?`Fl ${p.flavor}`:null,
-      p.quality?`Qu ${p.quality}`:null,
-      p.value?`Va ${p.value}`:null
-    ].filter(Boolean).join(' · ');
-    const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
-    const tags = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
-    const thumbHtml = p.thumb ? `<div class="thumbwrap"><img src="${p.thumb}"></div>` : '';
-    const isOnHand = p.onHand !== false; // undefined (older entries) counts as on-hand
-    const onHandBadge = isOnHand ? '' : `<div class="tag" style="border-color:var(--rust);color:var(--rust);margin-bottom:6px;display:inline-block;">OUT</div>`;
+  wrap.innerHTML = sortEntries(filtered).map(e => {
+    const meta = [];
+    if(e.brand) meta.push(`<strong>${escapeHtml(e.brand)}</strong>`);
+    if(e.seafood) meta.push(escapeHtml(e.seafood));
+    if(e.packedIn && e.packedIn !== 'Not stated') meta.push(escapeHtml(e.packedIn));
+    const c = shortCountry(e.country);
+    if(c && !/^not stated/i.test(c)) meta.push(escapeHtml(c));
+    if(e.sizeOz) meta.push(escapeHtml(e.sizeOz + ' oz'));
+    if(e.price != null) meta.push(`<span class="tf-price">${money(e.price)}</span>`);
+    else if(e.localPrice) meta.push(`<span class="tf-price">${escapeHtml(e.localPrice)}</span>`);
+    if(e.mercadoPrice != null) meta.push(`Mercado Central ${money(e.mercadoPrice)}` + (e.mercadoStock === 'Sold out' ? ` <span class="tf-soldout">sold out</span>` : ''));
+    if(e.jubileePrice != null) meta.push(`Jubilee ${money(e.jubileePrice)}`);
+    const r = ratingOf(e);
+    const note = r && r.product.notes ? r.product.notes : (e.myNotes || '');
     return `
-    <div class="card" onclick="openDetail('${p.id}')" style="cursor:pointer;${isOnHand?'':'opacity:0.6;'}">
-      ${badge}
-      ${thumbHtml}
-      ${onHandBadge}
-      <h3>${esc(p.name)}</h3>
-      ${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}
-      <div class="meta">${[p.category, p.source, p.price?('$'+esc(p.price)):null].filter(Boolean).join(' · ')}</div>
-      ${subrates?`<div class="subrates">${subrates}</div>`:''}
-      ${p.notes?`<div class="notes">${esc(p.notes)}</div>`:''}
-      ${tags?`<div class="tags">${tags}</div>`:''}
-      <div class="card-actions">
-        <button class="ghost small" onclick="event.stopPropagation(); openEdit('${p.id}')">Edit</button>
-        <button class="ghost small" onclick="event.stopPropagation(); toggleOnHand('${p.id}')">${isOnHand ? 'Mark Out' : 'Mark On-Hand'}</button>
+    <div class="entry entry-row" data-id="${escapeHtml(e.id)}">
+      <div class="entry-actions">
+        <button class="editBtn">edit</button>
+        <button class="delBtn">delete</button>
+      </div>
+      ${scoreChip(e)}
+      <div class="entry-body">
+        <div class="entry-top"><div>
+          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
+          <div class="entry-meta">${meta.map(m=>`<span>${m}</span>`).join('')}</div>
+        </div></div>
+        ${note ? `<div class="entry-comment">${escapeHtml(note)}</div>` : ''}
       </div>
     </div>`;
   }).join('');
+
+  wrap.querySelectorAll('.editBtn').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); openForEdit(ev.target.closest('.entry').dataset.id);
+  }));
+  wrap.querySelectorAll('.delBtn').forEach(btn => btn.addEventListener('click', async ev => {
+    ev.stopPropagation();
+    const id = ev.target.closest('.entry').dataset.id;
+    if(confirm('Remove this tin from the catalog?')) await deleteEntry(id);
+  }));
+  wrap.querySelectorAll('.entry').forEach(card => card.addEventListener('click', () => openLightbox(card.dataset.id)));
   applyAuthGating();
 }
 
-function openNew(prefill){
-  prefill = prefill || {};
-  document.getElementById('panelTitle').textContent = 'New entry';
-  document.getElementById('editId').value = '';
-  ['f_name','f_brand','f_category','f_source','f_price','f_tags','f_notes','f_overall','f_flavor','f_quality','f_value','f_packedIn','f_netWeightValue','f_dryWeightValue','f_barcode'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f_netWeightUnit').value = 'g';
-  document.getElementById('f_dryWeightUnit').value = 'g';
-  document.getElementById('deleteBtn').style.display='none';
-  currentImages = [];
-  renderGallery();
+function openLightbox(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  currentLightboxId = id;
+  $('lb-name').textContent = (e.brand ? e.brand + ' · ' : '') + (e.name || 'Untitled');
+  const rows = [];
+  const r = ratingOf(e);
+  if(r) rows.push(['My rating', r.score !== null
+    ? `<span class="tf-score" style="display:inline-flex;width:34px;height:24px;font-size:16px;background:${ratingColor(r.score)}">${r.score}</span> / 10`
+    : 'In Pantry, not rated yet']);
+  if(r && r.product.notes) rows.push(['Pantry note', escapeHtml(r.product.notes)]);
+  if(e.seafood) rows.push(['Seafood', escapeHtml(e.seafood)]);
+  if(e.packedIn) rows.push(['Packed in', escapeHtml(e.packedIn)]);
+  if(e.country) rows.push(['Country', escapeHtml(e.country)]);
+  if(e.sizeOz) rows.push(['Size', escapeHtml(e.sizeOz + ' oz')]);
+  if(e.price != null) rows.push(['Price per tin', money(e.price) + (e.priceSource ? ' at ' + linkOrText(e.priceSource, e.priceSourceUrl) : '')]);
+  if(perOz(e)) rows.push(['Price per oz', money(perOz(e))]);
+  if(e.localPrice) rows.push(['Local price', escapeHtml(e.localPrice) + (e.price == null && e.priceSource ? ' at ' + linkOrText(e.priceSource, e.priceSourceUrl) : '')]);
+  if(e.mercadoPrice != null) rows.push(['Mercado Central NYC', money(e.mercadoPrice) + (e.mercadoStock ? ' · ' + escapeHtml(e.mercadoStock) : '')]);
+  if(e.jubileePrice != null) rows.push(['Jubilee (Instacart)', money(e.jubileePrice)]);
+  if(e.availability) rows.push(['Availability', escapeHtml(e.availability)]);
+  if(e.whereToBuy) rows.push(['Where to buy', escapeHtml(e.whereToBuy)]);
+  if(e.notes) rows.push(['Notes', escapeHtml(e.notes)]);
+  if(e.myNotes) rows.push(['My notes', escapeHtml(e.myNotes)]);
+  if(e.dateAdded) rows.push(['Added', escapeHtml(fmtDate(e.dateAdded))]);
+  $('lb-fields').innerHTML = rows.map(([l, v]) => `<div class="row"><span class="lbl">${l}</span><span>${v}</span></div>`).join('');
 
-  if(prefill.name) document.getElementById('f_name').value = prefill.name;
-  if(prefill.brand) document.getElementById('f_brand').value = prefill.brand;
-  if(prefill.netWeightValue){
-    document.getElementById('f_netWeightValue').value = prefill.netWeightValue;
-    document.getElementById('f_netWeightUnit').value = prefill.netWeightUnit || 'g';
-  }
-  document.getElementById('f_barcode').value = prefill.barcode || '';
-  document.getElementById('barcodeField').style.display = prefill.barcode ? '' : 'none';
-  togglePackedInField();
-
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('f_name').focus();
+  const links = [];
+  const q = encodeURIComponent([e.brand, e.name, 'tin'].filter(Boolean).join(' '));
+  links.push(`<a href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener">View tin photos</a>`);
+  if(r) links.push(`<a href="pantry.html?q=${encodeURIComponent(r.product.name || e.brand || '')}">Open in Pantry</a>`);
+  if(safeUrl(e.priceSourceUrl)) links.push(`<a href="${escapeHtml(safeUrl(e.priceSourceUrl))}" target="_blank" rel="noopener">Price source</a>`);
+  $('lb-links').innerHTML = links.join('');
+  $('lightbox').classList.add('open');
 }
 
-async function openDetail(id){
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
+$('lightboxCopyLink').addEventListener('click', async ev => {
+  ev.stopPropagation();
+  if(!currentLightboxId) return;
+  const url = location.origin + location.pathname + '#' + currentLightboxId;
+  const btn = $('lightboxCopyLink');
+  try{ await navigator.clipboard.writeText(url); btn.textContent = '✓ copied'; }
+  catch(err){ prompt('Copy this link:', url); }
+  setTimeout(()=>{ btn.textContent = '🔗 copy link'; }, 1500);
+});
+$('lightboxClose').addEventListener('click', ev => { ev.stopPropagation(); closeLightbox(); });
+$('lightbox').addEventListener('click', ev => { if(ev.target.id === 'lightbox') closeLightbox(); });
+document.addEventListener('keydown', ev => { if(ev.key === 'Escape') closeLightbox(); });
 
-  const netW = formatWeight(p.netWeightValue ?? p.weightValue, p.netWeightUnit ?? p.weightUnit, p.dryWeightValue ? 'Net' : null);
-  const dryW = formatWeight(p.dryWeightValue, p.dryWeightUnit, 'Dry');
-  const ratingRows = [
-    ['Overall', p.overall], ['Flavor', p.flavor], ['Quality', p.quality], ['Value', p.value]
-  ].filter(([,v])=>v);
-  const packedInTag = p.packedIn ? `<span class="tag">${esc(p.packedIn)}</span>` : '';
-  const tagsHtml = (p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('') + packedInTag;
-
-  const infoRows = [
-    ['Brand', p.brand], ['Category', p.category], ['Source', p.source],
-    ['Price', p.price ? '$'+esc(p.price) : null],
-    ['Net Weight', netW], ['Dry Weight', dryW],
-    ['Barcode', p.barcode],
-  ].filter(([,v])=>v);
-
-  const isOnHand = p.onHand !== false; // undefined (older entries) counts as on-hand
-  const onHandBadge = isOnHand ? '' : `<div class="tag" style="border-color:var(--rust);color:var(--rust);margin-bottom:6px;display:inline-block;">OUT</div>`;
-
-  document.getElementById('detailBody').innerHTML = `
-    ${onHandBadge}
-    <h2 style="margin-bottom:4px;">${esc(p.name)}</h2>
-    <div id="detailGallery" style="margin:12px 0;"></div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
-      ${infoRows.map(([label,val])=>`
-        <tr>
-          <td style="padding:4px 10px 4px 0;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);white-space:nowrap;vertical-align:top;">${label}</td>
-          <td style="padding:4px 0;">${val}</td>
-        </tr>`).join('')}
-    </table>
-    ${ratingRows.length ? `<div class="subrates" style="margin-bottom:10px;">${ratingRows.map(([l,v])=>`${l} ${v}`).join(' · ')}</div>` : ''}
-    ${p.notes ? `<div class="notes" style="margin-bottom:10px;">${esc(p.notes)}</div>` : ''}
-    ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
-  `;
-
-  // owner-only edit/mark-out shortcuts inside the detail view
-  const editWrap = document.getElementById('detailEditWrap');
-  const loggedIn = !supabaseClient || !!currentUser;
-  editWrap.innerHTML = loggedIn
-    ? `<button class="ghost" id="detailEditBtn">Edit</button>
-       <button class="ghost" id="detailMarkOutBtn">${isOnHand ? 'Mark Out' : 'Mark On-Hand'}</button>`
-    : '';
-  if(loggedIn){
-    document.getElementById('detailEditBtn').addEventListener('click', ()=>{
-      closeDetail();
-      openEdit(p.id);
-    });
-    document.getElementById('detailMarkOutBtn').addEventListener('click', async ()=>{
-      await toggleOnHand(p.id);
-      openDetail(p.id); // refresh the open detail view in place (toggleOnHand only re-renders the grid)
-    });
-  }
-
-  document.getElementById('overlay').classList.remove('open'); // just in case
-  document.getElementById('detailOverlay').classList.add('open');
-
-  // load full photo gallery (not just the thumb) in the background
-  const galleryEl = document.getElementById('detailGallery');
-  if(p.thumb){
-    try{
-      const res = await storage.get(imagesKey(p.id));
-      const images = res ? JSON.parse(res.value) : [];
-      galleryEl.innerHTML = images.map(src=>`<img src="${src}" style="width:100%;border-radius:4px;margin-bottom:8px;">`).join('') || `<img src="${p.thumb}" style="width:100%;border-radius:4px;">`;
-    }catch(e){
-      galleryEl.innerHTML = `<img src="${p.thumb}" style="width:100%;border-radius:4px;">`;
-    }
-  }
+// --- form ---
+function pantryFishOptions(){
+  return Object.entries(pantry)
+    .filter(([, p]) => /tinned fish/i.test(p.category || '') || /tuna|sardine|anchov|mackerel|trout|salmon|mussel|oyster|octopus|squid/i.test(p.name || ''))
+    .map(([id, p]) => ({ id, label: [p.brand, p.name].filter(Boolean).join(' · ') + (p.overall ? ` (${p.overall}/10)` : '') }))
+    .sort((a,b) => a.label.localeCompare(b.label));
 }
-function closeDetail(){
-  document.getElementById('detailOverlay').classList.remove('open');
+function fillPantrySelect(current){
+  const sel = $('f-pantry');
+  sel.innerHTML = '<option value="">&mdash;</option>' +
+    pantryFishOptions().map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)}</option>`).join('');
+  if(current && !pantry[current]) sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(current)}">(linked Pantry entry not found)</option>`);
+  sel.value = current || '';
 }
 
-async function openEdit(id){
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
-  document.getElementById('panelTitle').textContent = 'Edit entry';
-  document.getElementById('editId').value = p.id;
-  document.getElementById('f_name').value = p.name||'';
-  document.getElementById('f_brand').value = p.brand||'';
-  document.getElementById('f_category').value = p.category||'';
-  document.getElementById('f_packedIn').value = p.packedIn||'';
-  togglePackedInField();
-  document.getElementById('f_source').value = p.source||'';
-  document.getElementById('f_price').value = p.price||'';
-  document.getElementById('f_netWeightValue').value = (p.netWeightValue ?? p.weightValue ?? '');
-  document.getElementById('f_netWeightUnit').value = p.netWeightUnit || p.weightUnit || 'g';
-  document.getElementById('f_dryWeightValue').value = (p.dryWeightValue !== null && p.dryWeightValue !== undefined) ? p.dryWeightValue : '';
-  document.getElementById('f_dryWeightUnit').value = p.dryWeightUnit || 'g';
-  document.getElementById('f_barcode').value = p.barcode || '';
-  document.getElementById('barcodeField').style.display = p.barcode ? '' : 'none';
-  document.getElementById('f_tags').value = (p.tags||[]).join(', ');
-  document.getElementById('f_notes').value = p.notes||'';
-  document.getElementById('f_overall').value = p.overall||'';
-  document.getElementById('f_flavor').value = p.flavor||'';
-  document.getElementById('f_quality').value = p.quality||'';
-  document.getElementById('f_value').value = p.value||'';
-  document.getElementById('deleteBtn').style.display='inline-block';
-
-  currentImages = [];
-  renderGallery();
-  document.getElementById('photoHint').textContent = 'Loading photos…';
-  if(p.thumb){
-    try{
-      const res = await storage.get(imagesKey(p.id));
-      currentImages = res ? JSON.parse(res.value) : [];
-    }catch(e){
-      currentImages = [];
-    }
-  }
-  renderGallery();
-
-  document.getElementById('overlay').classList.add('open');
+function resetForm(){
+  editingId = null;
+  ['f-name','f-brand','f-country','f-seafood','f-packedIn','f-size','f-price','f-priceSource','f-priceSourceUrl','f-whereToBuy','f-myNotes']
+    .forEach(id => { $(id).value = ''; });
+  fillPantrySelect('');
+  $('saveBtn').textContent = 'Save Tin';
 }
 
-function closePanel(){
-  document.getElementById('overlay').classList.remove('open');
-}
-
-async function toggleOnHand(id){
-  const p = products.find(x=>x.id===id);
-  if(!p) return;
-  p.onHand = p.onHand === false ? true : false; // undefined counts as currently on-hand, so first toggle marks it out
-  await persist();
-  render();
+function openForEdit(id){
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  resetForm();
+  editingId = id;
+  $('f-name').value = e.name || '';
+  $('f-brand').value = e.brand || '';
+  $('f-country').value = e.country || '';
+  $('f-seafood').value = e.seafood || '';
+  $('f-packedIn').value = e.packedIn || '';
+  $('f-size').value = e.sizeOz ?? '';
+  $('f-price').value = e.price ?? '';
+  $('f-priceSource').value = e.priceSource || '';
+  $('f-priceSourceUrl').value = e.priceSourceUrl || '';
+  $('f-whereToBuy').value = e.whereToBuy || '';
+  $('f-myNotes').value = e.myNotes || '';
+  fillPantrySelect(e.pantryId || '');
+  $('saveBtn').textContent = 'Update Tin';
+  $('ticket').classList.add('open');
+  $('ticket').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 async function saveEntry(){
-  const name = document.getElementById('f_name').value.trim();
-  if(!name){ alert('Name is required.'); return; }
-  let id = document.getElementById('editId').value;
-  const tags = document.getElementById('f_tags').value.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
-  const numOrNull = v => v===''? null: Number(v);
-
-  const saveBtn = document.getElementById('saveBtn');
-  saveBtn.textContent = 'Saving…';
-  saveBtn.disabled = true;
-
-  const data = {
-    name,
-    brand: document.getElementById('f_brand').value.trim(),
-    category: document.getElementById('f_category').value.trim(),
-    source: document.getElementById('f_source').value.trim(),
-    price: document.getElementById('f_price').value.trim(),
-    tags,
-    notes: document.getElementById('f_notes').value.trim(),
-    overall: numOrNull(document.getElementById('f_overall').value),
-    flavor: numOrNull(document.getElementById('f_flavor').value),
-    quality: numOrNull(document.getElementById('f_quality').value),
-    value: numOrNull(document.getElementById('f_value').value),
-    netWeightValue: numOrNull(document.getElementById('f_netWeightValue').value),
-    netWeightUnit: document.getElementById('f_netWeightUnit').value,
-    dryWeightValue: numOrNull(document.getElementById('f_dryWeightValue').value),
-    dryWeightUnit: document.getElementById('f_dryWeightUnit').value,
-    barcode: document.getElementById('f_barcode').value.trim() || null,
-    thumb: currentImages[0] || null,
-  };
-  data.packedIn = (data.category.toLowerCase() === 'tinned fish')
-    ? document.getElementById('f_packedIn').value.trim()
-    : '';
-
-  if(id){
-    const idx = products.findIndex(p=>p.id===id);
-    if(idx>-1) products[idx] = {...products[idx], ...data};
-  }else{
-    id = uid();
-    products.push({id, dateAdded: new Date().toISOString().slice(0,10), ...data});
-  }
-
+  const name = $('f-name').value.trim();
+  if(!name){ $('f-name').focus(); return; }
+  const existing = editingId ? entries.find(e => e.id === editingId) : null;
+  const id = editingId || ('tf-' + Date.now() + Math.random().toString(36).slice(2,7));
+  const entry = Object.assign({}, existing || { dateAdded: new Date().toISOString().slice(0,10) }, {
+    id, name,
+    brand: $('f-brand').value.trim(),
+    country: $('f-country').value.trim(),
+    seafood: $('f-seafood').value.trim(),
+    packedIn: $('f-packedIn').value.trim(),
+    sizeOz: num($('f-size').value),
+    price: num($('f-price').value),
+    priceSource: $('f-priceSource').value.trim(),
+    priceSourceUrl: $('f-priceSourceUrl').value.trim(),
+    whereToBuy: $('f-whereToBuy').value.trim(),
+    pantryId: $('f-pantry').value,
+    myNotes: $('f-myNotes').value.trim(),
+    edited: true   // re-imports leave this row's fields alone (except live shop prices)
+  });
   try{
-    if(currentImages.length){
-      await storage.set(imagesKey(id), JSON.stringify(currentImages));
-    }else{
-      try{ await storage.delete(imagesKey(id)); }catch(e){ /* no images existed, fine */ }
-    }
-  }catch(e){
-    console.error('Image storage error', e);
+    await storage.set(KEY_PREFIX + id, JSON.stringify(entry));
+    const idx = entries.findIndex(e => e.id === id);
+    if(idx > -1) entries[idx] = entry; else entries.push(entry);
+    populateFilters(); render(); closeForm();
+  }catch(err){
+    console.error(err);
+    alert('Could not save this tin. Please try again.');
   }
+}
 
-  await persist();
-  saveBtn.textContent = 'Save entry';
-  saveBtn.disabled = false;
-  closePanel();
+async function deleteEntry(id){
+  try{
+    await storage.delete(KEY_PREFIX + id);
+    entries = entries.filter(e => e.id !== id);
+    if(!deletedIds.includes(id)){
+      deletedIds.push(id);
+      await storage.set(DELETED_KEY, JSON.stringify(deletedIds));
+    }
+    populateFilters(); render();
+  }catch(err){
+    console.error(err);
+    alert('Could not delete this tin. Please try again.');
+  }
+}
+
+// --- import ---
+function setImportStatus(msg){ $('importStatus').textContent = msg || ''; }
+
+async function importCatalog(){
+  if(!canEdit()) return;
+  const btn = $('importBtn');
+  btn.disabled = true;
+  try{
+    setImportStatus('Fetching catalog…');
+    const res = await fetch(CATALOG_URL, { cache: 'no-store' });
+    if(!res.ok) throw new Error('could not load ' + CATALOG_URL + ' (HTTP ' + res.status + ')');
+    const items = await res.json();
+    const byId = new Map(entries.map(e => [e.id, e]));
+    const toWrite = [];
+    let added = 0, refreshed = 0, skipped = 0;
+    for(const item of items){
+      if(!item || !item.id || deletedIds.includes(item.id)){ skipped++; continue; }
+      const cur = byId.get(item.id);
+      let next;
+      if(!cur){ next = item; added++; }
+      else if(cur.edited){
+        next = Object.assign({}, cur);
+        LIVE_FIELDS.forEach(f => { if(item[f] !== undefined) next[f] = item[f]; else delete next[f]; });
+      } else {
+        next = Object.assign({}, item, { myNotes: cur.myNotes, pantryId: cur.pantryId || item.pantryId, dateAdded: cur.dateAdded || item.dateAdded });
+        if(!next.myNotes) delete next.myNotes;
+      }
+      if(!cur || JSON.stringify(cur) !== JSON.stringify(next)){
+        if(cur) refreshed++;
+        toWrite.push(next);
+      }
+    }
+    const now = new Date().toISOString();
+    if(supabaseClient){
+      // Batched upsert (100 rows per request) rather than one request per tin.
+      for(let i = 0; i < toWrite.length; i += 100){
+        const chunk = toWrite.slice(i, i + 100);
+        setImportStatus(`Saving ${Math.min(i + 100, toWrite.length)} of ${toWrite.length}…`);
+        const { error } = await supabaseClient.from('kv_store').upsert(
+          chunk.map(e => ({ key: KEY_PREFIX + e.id, value: JSON.stringify(e), updated_at: now })));
+        if(error) throw error;
+      }
+    } else {
+      for(const e of toWrite) await storage.set(KEY_PREFIX + e.id, JSON.stringify(e));
+    }
+    setImportStatus(`Import done: ${added} added, ${refreshed} updated, ${items.length - added - refreshed - skipped} unchanged` + (skipped ? `, ${skipped} skipped (deleted here)` : '') + '.');
+    await loadEntries();
+  }catch(err){
+    console.error('Tinned Fish: import failed', err);
+    setImportStatus('Import failed: ' + (err.message || err) + '. Nothing already saved was removed.');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// --- load ---
+async function loadPrefix(prefix){
+  if(storage.listWithValues){
+    const result = await storage.listWithValues(prefix);
+    return (result.items || []).map(it => { try{ return JSON.parse(it.value); }catch(e){ return null; } }).filter(Boolean);
+  }
+  const result = await storage.list(prefix);
+  const out = [];
+  for(const key of (result && result.keys) || []){
+    try{ const r = await storage.get(key); if(r && r.value) out.push(JSON.parse(r.value)); }catch(e){ /* skip */ }
+  }
+  return out;
+}
+
+async function loadEntries(){
+  try{
+    const [rows, pantryRows] = await Promise.all([
+      loadPrefix(KEY_PREFIX),
+      loadPrefix('pantry:').catch(err => { console.error('Tinned Fish: could not load Pantry ratings', err); return []; })
+    ]);
+    entries = rows;
+    pantry = {};
+    pantryRows.forEach(p => { if(p && p.id) pantry[p.id] = p; });
+    try{ const d = await storage.get(DELETED_KEY); deletedIds = JSON.parse(d.value) || []; }catch(e){ deletedIds = []; }
+    setLoadError(supabaseInitError);
+    applyIncomingSearchQuery();
+  }catch(err){
+    console.error('Tinned Fish: failed to load entries', err);
+    setLoadError(supabaseInitError ||
+      `Couldn't load the catalog (${err.message || err}). Your data is safe in storage — this looks like a connection hiccup, not lost data.`);
+  }
+  populateFilters();
   render();
 }
 
-async function deleteEntry(){
-  const id = document.getElementById('editId').value;
-  if(!id) return;
-  if(!confirm('Delete this entry?')) return;
-  products = products.filter(p=>p.id!==id);
-  try{ await storage.delete(imagesKey(id)); }catch(e){ /* fine if none existed */ }
-  await persist();
-  closePanel();
-  render();
-}
-
-document.getElementById('addBtn').addEventListener('click', openNew);
-document.getElementById('manageListsBtn').addEventListener('click', openManageLists);
-document.getElementById('closeManageListsBtn').addEventListener('click', closeManageLists);
-// Hardware USB/Bluetooth scanners (e.g. a Zebra LS2208) act like a keyboard:
-// they "type" the barcode digits into whatever field has focus, then send
-// Enter. So: click into this field once, then just scan — no camera needed,
-// and it stays focused/ready for scanning the next item right after.
-document.getElementById('hwScanInput').addEventListener('keydown', (e)=>{
-  if(e.key !== 'Enter') return;
-  e.preventDefault();
-  const code = e.target.value.trim();
-  e.target.value = '';
-  if(code) processScannedBarcode(code);
+$('retryLoadBtn').addEventListener('click', loadEntries);
+$('search').addEventListener('input', render);
+['fSeafood','fCountry','fShop','fTasted','fSort'].forEach(id => $(id).addEventListener('change', render));
+$('importBtn').addEventListener('click', importCatalog);
+$('toggleForm').addEventListener('click', () => {
+  const t = $('ticket');
+  if(t.classList.contains('open')){ closeForm(); return; }
+  resetForm();
+  t.classList.add('open');
+  t.scrollIntoView({behavior:'smooth', block:'start'});
+  $('f-name').focus();
 });
-document.getElementById('manageListsOverlay').addEventListener('click', e=>{ if(e.target.id==='manageListsOverlay') closeManageLists(); });
-document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
-document.getElementById('detailOverlay').addEventListener('click', e=>{ if(e.target.id==='detailOverlay') closeDetail(); });
-document.getElementById('manageListsBody').addEventListener('click', e=>{
-  const btn = e.target.closest('button[data-action]');
-  if(!btn) return;
-  const { action, type, key, val } = btn.dataset;
-  if(action === 'rename') renameListValue(type, key, val);
-  if(action === 'delete') deleteListValue(type, key, val);
-});
-document.getElementById('cancelBtn').addEventListener('click', closePanel);
-document.getElementById('saveBtn').addEventListener('click', saveEntry);
-document.getElementById('deleteBtn').addEventListener('click', deleteEntry);
-document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closePanel(); });
-document.getElementById('search').addEventListener('input', render);
-document.getElementById('filterCategory').addEventListener('change', render);
-document.getElementById('filterTag').addEventListener('change', render);
-document.getElementById('sortBy').addEventListener('change', render);
+$('cancelBtn').addEventListener('click', closeForm);
+$('saveBtn').addEventListener('click', saveEntry);
+setupAutocomplete('f-brand', 'f-brand-options');
 
-document.getElementById('addTile').addEventListener('click', ()=>document.getElementById('f_photos').click());
-document.getElementById('f_photos').addEventListener('change', async (e)=>{
-  const files = Array.from(e.target.files || []);
-  if(!files.length) return;
-  document.getElementById('photoHint').textContent = 'Processing photos…';
-  for(const file of files){
-    try{
-      const resized = await resizeImage(file, 1200, 0.75);
-      currentImages.push(resized);
-    }catch(err){
-      console.error('Image resize failed', err);
-    }
-  }
-  e.target.value = '';
-  renderGallery();
-});
-
-load();
+loadEntries().then(openFromHash);
 </script>
 </body>
 </html>

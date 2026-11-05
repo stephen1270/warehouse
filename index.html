@@ -210,10 +210,15 @@
   <div class="section">
     <div class="section-label">Food</div>
     <div class="grid">
-      <a class="card" href="pantry.html" data-count="pantry-products">
+      <a class="card" href="pantry.html" data-count="pantry:">
         <span class="card-count" data-count-badge></span>
         <h2>Pantry</h2>
         <div class="desc">Pantry staples, and conservas — tasted, rated, and sourced.</div>
+      </a>
+      <a class="card" href="tinned-fish.html" data-count="tinnedfish:">
+        <span class="card-count" data-count-badge></span>
+        <h2>Tinned Fish</h2>
+        <div class="desc">The conservas catalog — brands, sauces, prices, and where to buy, shaded by how you rated them.</div>
       </a>
       <a class="card" href="restaurants.html" data-count="entry:e">
         <span class="card-count" data-count-badge></span>
@@ -309,14 +314,13 @@
 <script>
 // Entry-count badges on each card. Read-only, public data (same "Public
 // read access" policy every app already relies on) — no auth needed here.
-// Counting strategy: fetch every key once (cheap — key column only, no
-// values) and count client-side by prefix, since prefixes vary in shape
-// (most are "name:", but Restaurants/Music/Movies all share the older
-// "entry:" prefix and are distinguished by their own sub-prefix — see
-// the scoping comments in those apps' own source for why). Pantry is the
-// one exception: it stores its whole product list as a single JSON blob
-// under one key, not one row per product, so its count comes from a
-// separate targeted fetch of that one row's array length.
+// One head-only count query per card (count:'exact', no rows returned),
+// filtered by that app's key prefix. This replaced an older approach that
+// fetched every key in one request and counted client-side: the API caps
+// a single response at 1000 rows, so once kv_store passed 1000 keys (the
+// Tinned Fish catalog alone is ~600) every badge after the cutoff would
+// silently undercount. Pantry counts its own "pantry:" rows now too (it
+// moved off the old single-blob key in 2026-09).
 (async function () {
   const SUPABASE_URL = 'https://psbdjeyianlhfkgwwsvt.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_fmEJD4dXEZF0elMTqgfhIg_nH-dCQn_';
@@ -328,30 +332,16 @@
     if (!window.supabase || !window.supabase.createClient) throw new Error('Supabase library did not load');
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const [keysRes, pantryRes] = await Promise.all([
-      client.from('kv_store').select('key'),
-      client.from('kv_store').select('value').eq('key', 'pantry-ledger-products').maybeSingle(),
-    ]);
-    if (keysRes.error) throw keysRes.error;
-
-    const keys = (keysRes.data || []).map(r => r.key);
-
-    let pantryCount = null;
-    if (!pantryRes.error && pantryRes.data) {
-      try {
-        const arr = JSON.parse(pantryRes.data.value);
-        if (Array.isArray(arr)) pantryCount = arr.length;
-      } catch (_e) { /* leave pantry badge blank on parse failure */ }
-    }
-
-    badges.forEach(card => {
-      const prefix = card.dataset.count;
+    await Promise.all(badges.map(async card => {
       const badge = card.querySelector('[data-count-badge]');
       if (!badge) return;
-      const n = prefix === 'pantry-products' ? pantryCount : keys.filter(k => k.startsWith(prefix)).length;
-      if (n === null || n === undefined) { badge.remove(); return; }
-      badge.textContent = n;
-    });
+      const { count, error } = await client
+        .from('kv_store')
+        .select('key', { count: 'exact', head: true })
+        .like('key', card.dataset.count + '%');
+      if (error || count === null || count === undefined) { badge.remove(); return; }
+      badge.textContent = count;
+    }));
   } catch (err) {
     // No count is better than a wrong or stuck-loading one.
     console.error('Warehouse index: could not load entry counts', err);
@@ -377,6 +367,7 @@
 (function () {
   const CATEGORY_MAP = {
     pantry: 'pantry.html',
+    tinned: 'tinned-fish.html', conservas: 'tinned-fish.html', tins: 'tinned-fish.html', fish: 'tinned-fish.html',
     restaurant: 'restaurants.html', restaurants: 'restaurants.html', dining: 'restaurants.html',
     bakery: 'bakeries.html', bakeries: 'bakeries.html',
     cheese: 'cheese.html', cheeses: 'cheese.html',
