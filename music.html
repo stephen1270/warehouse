@@ -16,6 +16,15 @@
     --paper:#f2ede1; --paper-dark:#e6ded0; --ink:#26221c;
     --accent:#5b2a4a; --accent2:#a6813f; --muted:#48453e; --line:#cfc4ad;
   }
+  /* Resale price pinned to each card's bottom-right corner (.entry is
+     position:relative in style.css). Right padding on the tag row keeps
+     long genre lists from running under it. */
+  .entry-price{
+    position:absolute; right:16px; bottom:14px;
+    font-size:13px; color:var(--accent); white-space:nowrap;
+  }
+  .entry:has(.entry-price) .entry-tags,
+  .entry:has(.entry-price) .entry-cond{ padding-right:72px; }
 </style>
 </head>
 <body>
@@ -493,13 +502,11 @@ function render(){
             ${e.quantity && e.quantity > 1 ? `<span>×${e.quantity}</span>` : ''}
           </div>
         </div>
-        <div style="text-align:right;">
-          ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
-          ${resaleValue(e) !== null ? `<div class="entry-price" style="font-size:12px;color:var(--accent);white-space:nowrap;margin-top:2px;">${fmtMoney(resaleValue(e), e.resale.currency)}</div>` : ''}
-        </div>
+        ${e.rating ? `<div class="entry-rating">${starsHtml(e.rating)}</div>` : ''}
       </div>
       ${(e.sleeveCondition || e.mediaCondition) ? `<div class="entry-cond">${e.sleeveCondition ? 'sleeve: ' + escapeHtml(condShort(e.sleeveCondition)) : ''}${e.sleeveCondition && e.mediaCondition ? ' · ' : ''}${e.mediaCondition ? 'media: ' + escapeHtml(condShort(e.mediaCondition)) : ''}</div>` : ''}
       ${(e.genres && e.genres.length) ? `<div class="entry-tags">${e.genres.map(g=>`<span class="tag">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
+      ${resaleValue(e) !== null ? `<div class="entry-price">${fmtMoney(resaleValue(e), e.resale.currency)}</div>` : ''}
     </div>
   `).join('');
 
