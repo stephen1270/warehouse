@@ -5,7 +5,7 @@
 <title>Pantry</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Instrument+Sans:wght@400;500;600&family=Reenie+Beanie&display=swap" rel="stylesheet">
 <style>
   :root{
     --paper: #F5F0E4;
@@ -326,6 +326,41 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="common.js"></script>
+<style>
+  /* House style (2026-11): brings Pantry onto the Warehouse design system
+     (ivory ground, Cormorant Garamond + Instrument Sans, hairlines, square
+     corners, the centred department header) while keeping its own card
+     grid, which already reads like a shop shelf. Layered last so it wins
+     over the rules above without rewriting them. */
+  :root{
+    --paper:#fbf8f2; --paper-dim:#f3eee4; --ink:#1d1a16; --ink-soft:#6f665b;
+    --moss:#5e6b3a; --moss-dark:#4a5530; --mustard:#b08a3a; --rust:#8c3b2b;
+    --line:rgba(29,26,22,.14);
+  }
+  body{background:var(--paper-dim);font-family:'Instrument Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;}
+  .wrap{padding-top:8px;}
+  .back-link{display:none;}
+  header{display:block;text-align:center;border-bottom:none;padding:44px 0 0;margin:0 0 40px;}
+  header h1{font-family:'Cormorant Garamond',Georgia,serif;font-weight:300;font-size:clamp(58px,12vw,120px);line-height:.92;letter-spacing:-.025em;margin:18px 0 18px;}
+  header .tally{font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.18em;color:var(--ink-soft);margin-top:16px;}
+  header .auth-control{justify-content:center;margin-top:14px;}
+  .toolbar{max-width:none;}
+  input[type=text], select, textarea, input[type=email], input[type=password], input[type=number], input[type=url]{
+    font-family:'Instrument Sans',sans-serif;border-radius:0 !important;background:var(--paper);border-color:var(--line);}
+  button, .ghost{font-family:'Instrument Sans',sans-serif !important;font-size:10px !important;font-weight:500;letter-spacing:.16em !important;border-radius:0 !important;}
+  .card{border-radius:0 !important;border:none !important;background:var(--paper) !important;
+    box-shadow:0 0 0 1px var(--line), 0 18px 30px -26px rgba(29,26,22,.45) !important;transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s;}
+  .card:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(29,26,22,.2), 0 24px 40px -26px rgba(29,26,22,.55) !important;}
+  .card h3, .panel h2{font-family:'Cormorant Garamond',Georgia,serif !important;font-weight:400 !important;letter-spacing:-.01em;}
+  .card h3{font-size:22px !important;line-height:1.1 !important;}
+  .card .brand, .card .meta{font-family:'Instrument Sans',sans-serif !important;}
+  .card .meta{font-size:10px !important;letter-spacing:.14em;text-transform:uppercase;}
+  .card .thumbwrap, .card .thumbwrap img{border-radius:0 !important;}
+  .card .badge{border-radius:50% !important;font-family:'Cormorant Garamond',Georgia,serif !important;}
+  .tag{border-radius:0 !important;font-family:'Instrument Sans',sans-serif !important;letter-spacing:.12em;text-transform:uppercase;font-size:10px !important;}
+  .panel{border-radius:0 !important;}
+  .overlay{background:rgba(29,26,22,.62) !important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+</style>
 </head>
 <body>
 <div class="wrap">

@@ -6,54 +6,209 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Instrument+Sans:wght@400;500;600&family=Reenie+Beanie&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="common.js"></script>
 <link rel="stylesheet" href="style.css">
 <style>
+  /* ---------- Tinned Fish: "the shelf" ----------
+     Layered on top of style.css. The catalog is arranged like a shop's
+     shelves: tins are grouped into sections (by fish, country, brand or
+     shop), each with its own heading, a short note, and price/tasted
+     stats. Big shelves show a handful of tins and expand on tap. A warm
+     paper palette and serif text set this page apart from the colder
+     list layout used elsewhere. */
   :root{
-    --paper:#f3efe6; --paper-dark:#e4dccb; --ink:#1f2a2e;
-    --accent:#2f6f7e; --accent2:#c8963e; --muted:#5a6b6e; --line:#d3cbb8;
+    --text-font:var(--ui-font);
   }
-  /* Tinned Fish-specific: the leading square is a rating chip (your Pantry
-     score, shaded red -> yellow -> green) instead of a photo thumb. */
-  .tf-score{
+  .wrap{max-width:1120px;}
+
+  /* hero */
+  .tf-stats{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;margin:18px 0 2px;}
+  .tf-stat{text-align:center;}
+  .tf-stat b{display:block;font-family:var(--display-font);font-style:italic;font-weight:300;font-size:32px;line-height:1;color:var(--ink);}
+  .tf-stat span{font-family:var(--ui-font);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+
+  /* sticky search + shelf index */
+  .tf-sticky{position:sticky;top:0;z-index:20;margin:16px -20px 6px;padding:12px 20px 0;
+    background:rgba(243,238,228,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);}
+  .toolbar{margin:0 0 10px;align-items:center;font-family:var(--ui-font);}
+  .toolbar #search{order:1;}
+  .toolbar .count{order:2;flex:1;font-size:12px;color:var(--muted);opacity:1;}
+  .toolbar-btns{order:3;}
+  .toolbar-btns .newbtn{font-family:var(--ui-font);border-radius:0;padding:8px 15px;font-size:11px;letter-spacing:.08em;}
+  .toolbar-btns .newbtn.importbtn{background:transparent;color:var(--ink);border-color:var(--line);}
+  .toolbar-btns .newbtn.importbtn:hover{border-color:var(--accent);color:var(--accent);}
+  @media (max-width:640px){ .toolbar #search{flex-basis:100%;} }
+
+  .tf-index{display:flex;gap:6px;overflow-x:auto;margin:0 -20px;padding:0 20px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  .tf-index::-webkit-scrollbar{display:none;}
+  .tf-jump{flex:none;display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+    font-family:var(--ui-font);font-size:12px;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line);border-radius:0;padding:6px 12px 6px 9px;transition:background .15s,border-color .15s,color .15s;}
+  .tf-jump i{width:9px;height:9px;border-radius:50%;background:var(--band,#999);flex:none;}
+  .tf-jump em{font-style:normal;color:var(--muted);font-size:11px;}
+  .tf-jump:hover{border-color:var(--ink);}
+  .tf-jump.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .tf-jump.on em{color:rgba(251,246,236,.7);}
+  .tf-jump.letter{padding:6px 10px;min-width:30px;justify-content:center;}
+
+  /* view controls */
+  .filters{background:none;border:none;margin:10px -20px 4px;padding:2px 20px 4px;gap:8px;
+    flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;align-items:center;}
+  .filters::-webkit-scrollbar{display:none;}
+  .filters .f-label{font-family:var(--ui-font);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);flex:none;}
+  .filters select.f-sel{flex:none;min-width:0;appearance:none;-webkit-appearance:none;cursor:pointer;
+    font-family:var(--ui-font);font-size:12px;color:var(--ink);
+    border:1px solid var(--line);border-radius:0;background-color:var(--paper);
+    padding:7px 30px 7px 13px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237d6858' stroke-width='1.4'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;}
+  .filters select.f-sel:focus{outline:none;border-color:var(--accent);}
+  .filters select#fGroup{background-color:var(--ink);color:var(--paper);border-color:var(--ink);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23fbf6ec' stroke-width='1.4'/%3E%3C/svg%3E");}
+  #fSeafood{display:none;}
+  .import-status{margin:0 0 14px;text-align:center;font-family:var(--ui-font);}
+
+  /* the shelves run full width, wider than the house reading column */
+  #entries, .tf-sticky .toolbar, .filters{max-width:none;}
+  .tf-sticky .toolbar{margin-top:0;}
+
+  /* shelves */
+  #entries{scroll-margin-top:140px;}
+  .shelf{margin:38px 0 10px;scroll-margin-top:150px;}
+  .shelf-head{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:end;margin-bottom:16px;}
+  .shelf-no{grid-row:1/3;font-family:var(--display-font);font-style:italic;font-weight:300;font-size:58px;line-height:.8;
+    color:var(--band);opacity:.9;}
+  .shelf-head h2{margin:0;font-family:var(--display-font);font-style:italic;font-weight:300;font-size:34px;line-height:1.05;color:var(--ink);}
+  .shelf-head h2 .flag{font-style:normal;font-size:26px;margin-right:6px;}
+  .shelf-stats{font-family:var(--ui-font);font-size:11px;letter-spacing:.06em;color:var(--muted);}
+  .shelf-stats b{color:var(--band);font-weight:600;}
+  .shelf-blurb{grid-column:1/-1;margin:8px 0 0;font-size:14px;line-height:1.55;color:var(--ink);opacity:.82;font-style:italic;max-width:640px;}
+  .shelf-rule{height:8px;margin:0 0 18px;
+    background:
+      radial-gradient(circle, var(--band) 1.4px, transparent 1.6px) 0 50%/10px 8px repeat-x;opacity:.55;}
+  .shelf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+  @media (min-width:700px){ .shelf-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;} }
+  .shelf-more{display:block;margin:16px auto 0;font-family:var(--ui-font);font-size:12px;letter-spacing:.06em;
+    color:var(--band);background:transparent;border:1px solid var(--band);border-radius:0;padding:9px 18px;cursor:pointer;}
+  .shelf-more:hover{background:var(--band);color:#fff;}
+
+  /* your tasted tins */
+  .tasted{margin:26px 0 0;padding:20px 20px 22px;border-radius:0;
+    background:var(--paper);box-shadow:0 0 0 1px var(--line);}
+  .tasted-head{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin-bottom:12px;}
+  .tasted-head h2{margin:0;font-family:var(--display-font);font-style:italic;font-weight:300;font-size:28px;}
+  .tasted-head span{font-family:var(--ui-font);font-size:11px;color:var(--muted);letter-spacing:.06em;}
+  .tasted-row{display:flex;gap:12px;overflow-x:auto;margin:0 -20px;padding:2px 20px 6px;scrollbar-width:none;scroll-snap-type:x mandatory;}
+  .tasted-row::-webkit-scrollbar{display:none;}
+  .tasted-row .entry.tin{flex:0 0 172px;scroll-snap-align:start;}
+
+  /* the tin card */
+  .entry.tin{padding:0;margin:0;border:none;border-radius:0;overflow:hidden;position:relative;
+    display:flex;flex-direction:column;background:var(--paper);
+    box-shadow:0 0 0 1px rgba(58,42,33,.08), 0 1px 2px rgba(58,42,33,.05), 0 8px 20px -12px rgba(58,42,33,.35);
+    transition:transform .18s ease, box-shadow .18s ease;}
+  .entry.tin:hover{transform:translateY(-3px);
+    box-shadow:0 0 0 1px rgba(58,42,33,.12), 0 2px 4px rgba(58,42,33,.08), 0 16px 30px -14px rgba(58,42,33,.45);}
+  .tin-cap{height:7px;background:var(--band);
+    background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 2px, transparent 2px 7px);}
+  .tin-inner{margin:7px;border:1px solid color-mix(in srgb, var(--band) 28%, transparent);border-radius:0;
+    padding:12px 12px 10px;flex:1;display:flex;flex-direction:column;}
+  .tin-brand{font-family:var(--ui-font);font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;
+    color:var(--band);padding-right:38px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tin-name{font-family:var(--display-font);font-style:normal;font-weight:400;font-size:21px;line-height:1.12;color:var(--ink);margin-top:5px;}
+  .tin-packed{font-size:12px;font-style:italic;color:var(--muted);margin-top:5px;line-height:1.4;}
+  .tin-origin{font-family:var(--ui-font);font-size:11px;color:var(--muted);margin-top:8px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+  .tin-origin .flag{font-size:13px;line-height:1;}
+  .tin-note{font-size:12px;color:var(--ink);opacity:.85;margin-top:8px;font-style:italic;line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .tin-foot{margin-top:auto;padding-top:10px;display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;}
+  .tin-foot::before{content:"";flex-basis:100%;height:1px;margin-bottom:8px;
+    background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 8px);}
+  .tin-price{font-family:var(--display-font);font-style:italic;font-size:24px;line-height:1;color:var(--ink);}
+  .tin-price.none{font-family:var(--ui-font);font-style:normal;font-size:11px;color:var(--muted);opacity:.75;}
+  .tin-peroz{font-family:var(--ui-font);font-size:10px;color:var(--muted);}
+  .tin-shops{flex-basis:100%;display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+  .tin-pill{font-family:var(--ui-font);font-size:10px;padding:3px 8px;border-radius:0;
+    background:rgba(95,122,72,.13);color:#4e6a3a;white-space:nowrap;}
+  .tin-pill.out{background:rgba(36,96,110,.1);color:var(--accent);}
+  .tin-score{position:absolute;top:16px;right:14px;width:34px;height:34px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;
-    font-family:var(--display-font);font-style:italic;font-weight:300;font-size:26px;
-    color:var(--ink);
+    font-family:var(--display-font);font-style:italic;font-size:18px;color:var(--ink);
+    border:2px solid #fff;box-shadow:0 2px 6px rgba(58,42,33,.25);}
+  .tin-score.unrated{background:#ece4d6;font-size:14px;color:var(--muted);}
+  .entry.tin .entry-actions{position:static;display:flex;justify-content:flex-end;gap:10px;margin:-2px 14px 9px;}
+  .entry.tin .entry-actions button{font-family:var(--ui-font);font-size:10px;}
+
+  .empty{font-family:var(--text-font);}
+
+  /* lightbox */
+  .lightbox{align-items:center;background:rgba(40,28,20,.78);}
+  .lightbox-card{padding:0;border:none;border-radius:0;overflow:hidden;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);}
+  .lb-band{position:relative;background:var(--band,#a4492f);color:#fff;padding:48px 26px 24px;
+    background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 2px, transparent 2px 9px),
+      linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.14));}
+  .lb-brand{font-family:var(--ui-font);font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;opacity:.95;}
+  .lightbox-name{font-size:32px;line-height:1.1;margin:6px 0 0;padding-right:62px;}
+  .lb-band .tin-score{top:auto;bottom:22px;right:24px;width:54px;height:54px;font-size:27px;}
+  .lightbox-close, .lightbox-copy-link{font-family:var(--ui-font);color:rgba(255,255,255,.85);z-index:2;}
+  .lightbox-close:hover, .lightbox-copy-link:hover{color:#fff;}
+  .lb-inner{padding:18px 26px 24px;}
+  .lightbox-fields .row{font-size:13px;font-family:var(--text-font);}
+  .lightbox-fields .lbl{font-family:var(--ui-font);color:var(--accent);}
+  .lightbox-fields a{color:var(--accent);}
+  .lightbox-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .lightbox-links a{font-family:var(--ui-font);font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:0;padding:7px 13px;}
+  .lightbox-links a:hover{border-color:var(--accent);}
+  .tf-soldout{color:var(--accent);}
+
+  /* form */
+  .ticket, .ticket input, .ticket textarea, .ticket select, .ticket label, .ticket button{font-family:var(--ui-font);}
+
+  @media (max-width:420px){
+      .tin-name{font-size:19px;}
+    .tin-price{font-size:21px;}
+    .shelf-head h2{font-size:29px;}
+    .shelf-no{font-size:48px;}
+    .tf-stats{gap:18px;}
+    .tf-stat b{font-size:27px;}
   }
-  .tf-score.untasted{color:var(--muted);opacity:.45;font-size:18px;}
-  .tf-score.unrated{font-size:12px;font-style:normal;font-family:inherit;color:var(--muted);text-align:center;line-height:1.2;}
-  .tf-price{white-space:nowrap;color:var(--ink);}
-  .tf-soldout{color:#a14a3b;}
-  .filters .f-sel{min-width:120px;}
-  .import-status{margin:0 0 14px;}
-  .lightbox-links{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:6px;}
-  .lightbox-links a{color:var(--accent);}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="kicker"><a href="index.html">&larr; Warehouse</a> &middot; Est. In Practice</div>
+    <div class="kicker"><a href="index.html">&larr; Warehouse</a></div>
     <h1>Tinned Fish</h1>
-    <div class="sub">conservas catalog &mdash; what&rsquo;s out there, what it costs, and how you liked it</div>
-    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:10px;"></div>
-    <div class="rule"></div>
+    <div class="sub">what&rsquo;s out there, what it costs, and how you liked it</div>
+    <div class="tf-stats" id="tfStats"></div>
+    <div id="authControl" class="auth-control" style="justify-content:center;margin-top:12px;"></div>
   </header>
 
-  <div class="toolbar">
-    <span class="count" id="count">loading&hellip;</span>
-    <input type="text" id="search" placeholder="Search brand, fish, sauce, country, shop…">
-    <div class="toolbar-btns">
-      <button class="newbtn importbtn" id="importBtn" title="Load or refresh the catalog from tinned-fish-catalog.json">&#8635; Import catalog</button>
-      <button class="newbtn" id="toggleForm">+ New Tin</button>
+  <div class="tf-sticky">
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search brand, fish, sauce, country, shop…">
+      <span class="count" id="count">loading&hellip;</span>
+      <div class="toolbar-btns">
+        <button class="newbtn importbtn" id="importBtn" title="Load or refresh the catalog from tinned-fish-catalog.json">&#8635; Import</button>
+        <button class="newbtn" id="toggleForm">+ New Tin</button>
+      </div>
     </div>
+    <nav class="tf-index" id="tfIndex" aria-label="Jump to shelf"></nav>
   </div>
 
   <div class="import-status" id="importStatus"></div>
 
   <div class="filters">
+    <span class="f-label">Shelve by</span>
+    <select class="f-sel" id="fGroup">
+      <option value="fish">Fish</option>
+      <option value="country">Country</option>
+      <option value="brand">Brand</option>
+      <option value="shop">Where to buy</option>
+    </select>
     <select class="f-sel" id="fSeafood"><option value="">All seafood</option></select>
     <select class="f-sel" id="fCountry"><option value="">All countries</option></select>
     <select class="f-sel" id="fShop">
@@ -147,16 +302,22 @@
     </div>
   </div>
 
-  <div id="entries" class="loading">loading&hellip;</div>
+  <div id="entries"><div class="loading">loading&hellip;</div></div>
 </div>
 
 <div class="lightbox" id="lightbox">
   <div class="lightbox-card">
     <button class="lightbox-close" id="lightboxClose">close &#10005;</button>
     <button class="lightbox-copy-link" id="lightboxCopyLink">&#128279; copy link</button>
-    <div class="lightbox-name" id="lb-name"></div>
-    <div class="lightbox-fields" id="lb-fields"></div>
-    <div class="lightbox-links" id="lb-links"></div>
+    <div class="lb-band" id="lb-band">
+      <div class="lb-brand" id="lb-brand"></div>
+      <div class="lightbox-name" id="lb-name"></div>
+      <div id="lb-score"></div>
+    </div>
+    <div class="lb-inner">
+      <div class="lightbox-fields" id="lb-fields"></div>
+      <div class="lightbox-links" id="lb-links"></div>
+    </div>
   </div>
 </div>
 
@@ -284,11 +445,208 @@ function ratingColor(v){
   return 'rgb(99,190,123)';
 }
 
-function scoreChip(e){
+// Round score badge for a card. Untasted tins get no badge.
+function scoreBadge(e){
   const r = ratingOf(e);
-  if(!r) return `<div class="entry-thumb tf-score untasted">&mdash;</div>`;
-  if(r.score === null) return `<div class="entry-thumb tf-score unrated" style="background:#d9d9d9">in<br>pantry</div>`;
-  return `<div class="entry-thumb tf-score" style="background:${ratingColor(r.score)}">${r.score}</div>`;
+  if(!r) return '';
+  if(r.score === null) return `<div class="tin-score unrated" title="In Pantry, not rated yet">&#10003;</div>`;
+  return `<div class="tin-score" style="background:${ratingColor(r.score)}" title="My rating">${r.score}</div>`;
+}
+
+// ---- Shelves ----
+// Fish families: the default way the catalog is shelved. Order here is
+// display order; each has a color (card cap, section numerals) and a note.
+const FAMILIES = [
+  { key:'sardines', short:'Sardines', name:'Sardines & small fish', color:'#2f6b78', re:/sardin|herring|sprat|stickleback|garfish|brisling|horse mackerel/i,
+    blurb:'The heart of any conserva shelf. Rich and oily, and endlessly varied by oil, spice, size and season.' },
+  { key:'tuna', short:'Tuna', name:'Tuna & bonito', color:'#b0442c', re:/tuna|bonito|ventresca/i,
+    blurb:'From everyday chunk to prized ventresca belly. Northern Spain&rsquo;s line-caught bonito is the benchmark.' },
+  { key:'mackerel', short:'Mackerel', name:'Mackerel', color:'#34466b', re:/mackerel/i,
+    blurb:'Meatier and bolder than sardines, and often the best value on the shelf.' },
+  { key:'anchovies', short:'Anchovies', name:'Anchovies', color:'#6e6a2c', re:/anchov/i,
+    blurb:'Salt-cured and hand-filleted. Cantabrian fillets are worth the splurge.' },
+  { key:'shellfish', short:'Shellfish', name:'Mussels, clams & shellfish', color:'#c0603a', re:/mussel|oyster|scallop|cockle|clam|razor|whelk|shellfish/i,
+    blurb:'Mussels in escabeche, plump cockles, scallops and razor clams. The Galician tradition at its best.' },
+  { key:'cephalopods', short:'Squid & octopus', name:'Squid & octopus', color:'#6f3a5b', re:/squid|octopus|cuttle/i,
+    blurb:'Squid in its ink, octopus in oil, cuttlefish. Tender, briny, made for toast.' },
+  { key:'salmonids', short:'Salmon & trout', name:'Salmon & trout', color:'#bf7a2c', re:/salmon|trout/i,
+    blurb:'Smoked and cured fillets, mostly from colder water. Mild and easy to love.' },
+  { key:'whitefish', short:'White fish', name:'Cod, hake & white fish', color:'#4f6f8c', re:/cod|hake|halibut|bass|rockfish|scorpion|skate|eel/i,
+    blurb:'Delicate flesh, often in a rich sauce or whipped into p&acirc;t&eacute;.' },
+  { key:'delicacies', short:'Rarities', name:'Roe, crab & rarities', color:'#8a6a1f', re:/roe|caviar|urchin|bottarga|crab|lobster|cucumber|barnacle/i,
+    blurb:'Urchin, caviar, spider crab, percebes. The special-occasion tins.' },
+  { key:'other', short:'Other', name:'Everything else', color:'#6b5d52', re:/.*/,
+    blurb:'Plant-based tins and the odd ones that don&rsquo;t fit a shelf.' },
+];
+function familyOf(seafood){ return FAMILIES.find(f => f.re.test(seafood || '')) || FAMILIES[FAMILIES.length-1]; }
+function bandColor(seafood){ return familyOf(seafood).color; }
+
+const FLAGS = [['Spain','🇪🇸'],['Portugal','🇵🇹'],['USA','🇺🇸'],['France','🇫🇷'],['Norway','🇳🇴'],['Denmark','🇩🇰'],
+  ['Canada','🇨🇦'],['Japan','🇯🇵'],['Germany','🇩🇪'],['Italy','🇮🇹'],['UK','🇬🇧'],['South Korea','🇰🇷']];
+function flagOf(c){ const f = FLAGS.find(([n]) => (c || '').startsWith(n)); return f ? f[1] : ''; }
+// "USA brand", "Spain-made, UK brand", "Canada / USA" -> one clean country.
+function cleanCountry(c){
+  c = shortCountry(c);
+  if(!c || /^not stated|^—/i.test(c)) return '';
+  const f = FLAGS.find(([n]) => c.startsWith(n));
+  return f ? f[0] : c;
+}
+const COUNTRY_NOTES = {
+  Spain:'Galicia and the Cantabrian coast: escabeche, ventresca, and the deepest conserva tradition anywhere.',
+  Portugal:'Sardines and mackerel from canneries that go back a century, wrapped in famously beautiful paper.',
+  France:'Brittany&rsquo;s vintage sardines, left to age in the tin like wine.',
+  USA:'Pacific Northwest smoked fish and a new wave of design-forward brands.',
+  Norway:'Brisling, herring and smoked fish from cold northern water.',
+  Denmark:'Smoked and pickled fish in the Scandinavian manner.',
+  Japan:'Precise, umami-forward tins, from saba to yellowtail.',
+  Canada:'Cold-water seafood from both coasts.',
+};
+const COUNTRY_COLORS = { Spain:'#b0442c', Portugal:'#2f6b78', France:'#34466b', USA:'#6f3a5b', Norway:'#4f6f8c', Denmark:'#c0603a', Japan:'#8a6a1f' };
+
+const SHOPS = [
+  { key:'mercado-in', name:'Mercado Central NYC', sub:'in stock', color:'#4e6a3a', test:e => e.mercadoPrice != null && e.mercadoStock !== 'Sold out',
+    blurb:'On the shelf at the Degraw St and 3rd Ave shops as of the last price check.' },
+  { key:'jubilee', name:'Jubilee Marketplace', sub:'via Instacart', color:'#2f6b78', test:e => e.jubileePrice != null,
+    blurb:'Available for delivery from Jubilee.' },
+  { key:'mercado-out', name:'Mercado Central NYC', sub:'sold out', color:'#a4492f', test:e => e.mercadoPrice != null && e.mercadoStock === 'Sold out',
+    blurb:'Carried at Mercado Central but out of stock at the last check.' },
+  { key:'supermarket', name:'Supermarket brands', sub:'', color:'#bf7a2c', test:e => /^Supermarket/.test(e.availability || ''),
+    blurb:'Easy to find on a regular grocery run.' },
+  { key:'specialty', name:'Specialty & online', sub:'', color:'#6b5d52', test:() => true,
+    blurb:'Specialty shops, importers, and brands that sell direct.' },
+];
+
+const SHELF_PREVIEW = 8;     // tins shown per shelf before "Show all"
+const expandedShelves = new Set();
+
+function groupEntries(list, by){
+  const groups = new Map();
+  const add = (key, meta, e) => {
+    if(!groups.has(key)) groups.set(key, Object.assign({ key, items:[] }, meta));
+    groups.get(key).items.push(e);
+  };
+  list.forEach(e => {
+    if(by === 'country'){
+      const c = cleanCountry(e.country);
+      if(c) add('c-' + c, { name:c, flag:flagOf(c), color:COUNTRY_COLORS[c] || '#6b5d52', blurb:COUNTRY_NOTES[c] || '' }, e);
+      else add('c-zz', { name:'Origin not listed', flag:'', color:'#8b7b6e', blurb:'' , last:true }, e);
+    } else if(by === 'brand'){
+      const b = (e.brand || '').trim() || 'Unbranded';
+      add('b-' + b.toLowerCase(), { name:b, color:bandColor(e.seafood), blurb:'' }, e);
+    } else if(by === 'shop'){
+      const s = SHOPS.find(s => s.test(e));
+      add('s-' + s.key, { name:s.name, sub:s.sub, color:s.color, blurb:s.blurb, order:SHOPS.indexOf(s) }, e);
+    } else {
+      const f = familyOf(e.seafood);
+      add('f-' + f.key, { name:f.name, short:f.short, color:f.color, blurb:f.blurb, order:FAMILIES.indexOf(f) }, e);
+    }
+  });
+  const arr = [...groups.values()];
+  if(by === 'country') arr.sort((a,b) => (a.last?1:0) - (b.last?1:0) || b.items.length - a.items.length || a.name.localeCompare(b.name));
+  else if(by === 'brand'){
+    arr.forEach(g => { // brand color = its most common fish family
+      const tally = {}; g.items.forEach(e => { const c = bandColor(e.seafood); tally[c] = (tally[c]||0)+1; });
+      g.color = Object.entries(tally).sort((a,b)=>b[1]-a[1])[0][0];
+      const cs = [...new Set(g.items.map(e => cleanCountry(e.country)).filter(Boolean))];
+      if(cs.length === 1){ g.flag = flagOf(cs[0]); }
+    });
+    arr.sort((a,b) => a.name.localeCompare(b.name, undefined, {sensitivity:'base'}));
+  }
+  else arr.sort((a,b) => a.order - b.order);
+  return arr;
+}
+
+function shelfStats(items){
+  const prices = items.map(e => e.price).filter(p => typeof p === 'number' && isFinite(p));
+  const tasted = items.filter(e => ratingOf(e)).length;
+  const parts = [`<b>${items.length}</b> tin${items.length === 1 ? '' : 's'}`];
+  if(prices.length){
+    const lo = Math.min(...prices), hi = Math.max(...prices);
+    parts.push(lo === hi ? money(lo) : `${money(lo)}&ndash;${money(hi)}`);
+  }
+  if(tasted) parts.push(`${tasted} tasted`);
+  return parts.join(' &middot; ');
+}
+
+function tinCard(e){
+  const c = cleanCountry(e.country);
+  const origin = [];
+  if(c) origin.push(`<span class="flag">${flagOf(c)}</span><span>${escapeHtml(c)}</span>`);
+  if(e.sizeOz) origin.push(`<span>${escapeHtml(e.sizeOz + ' oz')}</span>`);
+  const price = e.price != null
+    ? `<span class="tin-price">${money(e.price)}</span>${perOz(e) ? `<span class="tin-peroz">${money(perOz(e))}/oz</span>` : ''}`
+    : e.localPrice ? `<span class="tin-price">${escapeHtml(e.localPrice)}</span>` : `<span class="tin-price none">no price yet</span>`;
+  const shops = [];
+  if(e.mercadoPrice != null) shops.push(e.mercadoStock === 'Sold out'
+    ? `<span class="tin-pill out">Mercado &middot; sold out</span>`
+    : `<span class="tin-pill">Mercado ${money(e.mercadoPrice)}</span>`);
+  if(e.jubileePrice != null) shops.push(`<span class="tin-pill">Jubilee ${money(e.jubileePrice)}</span>`);
+  const r = ratingOf(e);
+  const note = r && r.product.notes ? r.product.notes : (e.myNotes || '');
+  const packed = e.packedIn && e.packedIn !== 'Not stated' ? e.packedIn : '';
+  const packedTxt = /^[A-Z][a-z]/.test(packed) ? packed.charAt(0).toLowerCase() + packed.slice(1) : packed;
+  return `
+  <article class="entry tin" data-id="${escapeHtml(e.id)}" style="--band:${bandColor(e.seafood)}">
+    <div class="tin-cap"></div>
+    ${scoreBadge(e)}
+    <div class="tin-inner">
+      <div class="tin-brand">${escapeHtml(e.brand || seafoodGroup(e.seafood) || 'Conserva')}</div>
+      <div class="tin-name">${escapeHtml(e.name || 'Untitled')}</div>
+      ${packed ? `<div class="tin-packed">${escapeHtml(packedTxt)}</div>` : ''}
+      ${origin.length ? `<div class="tin-origin">${origin.join('<span>&middot;</span>')}</div>` : ''}
+      ${note ? `<div class="tin-note">&ldquo;${escapeHtml(note)}&rdquo;</div>` : ''}
+      <div class="tin-foot">${price}${shops.length ? `<div class="tin-shops">${shops.join('')}</div>` : ''}</div>
+    </div>
+    <div class="entry-actions">
+      <button class="editBtn">edit</button>
+      <button class="delBtn">delete</button>
+    </div>
+  </article>`;
+}
+
+function renderStats(){
+  const brands = new Set(entries.map(e => e.brand).filter(Boolean)).size;
+  const countries = new Set(entries.map(e => cleanCountry(e.country)).filter(Boolean)).size;
+  const tasted = entries.filter(e => ratingOf(e)).length;
+  $('tfStats').innerHTML = entries.length ? [
+    [entries.length, 'tins'], [brands, 'brands'], [countries, 'countries'], [tasted, 'tasted']
+  ].map(([n, l]) => `<div class="tf-stat"><b>${n}</b><span>${l}</span></div>`).join('') : '';
+}
+
+function renderIndex(groups, by){
+  const nav = $('tfIndex');
+  if(!groups.length){ nav.innerHTML = ''; return; }
+  if(by === 'brand'){
+    // A-Z letters jump to the first brand starting with that letter.
+    const firsts = new Map();
+    groups.forEach(g => { const L = /^[a-z]/i.test(g.name) ? g.name[0].toUpperCase() : '#'; if(!firsts.has(L)) firsts.set(L, g.key); });
+    nav.innerHTML = [...firsts].map(([L, key]) => `<button class="tf-jump letter" data-target="${escapeHtml(key)}">${L}</button>`).join('');
+  } else {
+    nav.innerHTML = groups.map(g =>
+      `<button class="tf-jump" data-target="${escapeHtml(g.key)}" style="--band:${g.color}">${g.flag ? g.flag + ' ' : '<i></i>'}${escapeHtml(by === 'fish' ? (g.short || g.name) : g.name + (g.sub ? ' · ' + g.sub : ''))} <em>${g.items.length}</em></button>`).join('');
+  }
+  nav.querySelectorAll('.tf-jump').forEach(b => b.addEventListener('click', () => {
+    const el = document.getElementById('shelf-' + b.dataset.target);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }));
+}
+
+// Highlight the index pill for the shelf currently in view.
+let shelfObserver = null;
+function watchShelves(){
+  if(shelfObserver) shelfObserver.disconnect();
+  if(!('IntersectionObserver' in window)) return;
+  shelfObserver = new IntersectionObserver(items => {
+    items.forEach(it => {
+      if(!it.isIntersecting) return;
+      const key = it.target.id.replace(/^shelf-/, '');
+      const nav = $('tfIndex');
+      nav.querySelectorAll('.tf-jump').forEach(b => b.classList.toggle('on', b.dataset.target === key));
+      const on = nav.querySelector('.tf-jump.on');
+      if(on) nav.scrollTo({ left: on.offsetLeft - 20, behavior:'smooth' });
+    });
+  }, { rootMargin:'-160px 0px -65% 0px' });
+  document.querySelectorAll('.shelf').forEach(s => shelfObserver.observe(s));
 }
 
 function populateFilters(){
@@ -299,15 +657,16 @@ function populateFilters(){
     if(values.includes(cur)) el.value = cur;
   };
   fill('fSeafood', [...new Set(entries.map(e => seafoodGroup(e.seafood)).filter(Boolean))].sort(), 'All seafood');
-  fill('fCountry', [...new Set(entries.map(e => shortCountry(e.country)).filter(c => c && !/^not stated/i.test(c)))].sort(), 'All countries');
+  fill('fCountry', [...new Set(entries.map(e => cleanCountry(e.country)).filter(Boolean))].sort(), 'All countries');
   const brands = [...new Set(entries.map(e => e.brand).filter(Boolean))].sort();
   $('f-brand-options').dataset.options = JSON.stringify(brands);
+  renderStats();
 }
 
 function passesFilters(e){
   const sf = $('fSeafood').value, ct = $('fCountry').value, shop = $('fShop').value, tasted = $('fTasted').value;
   if(sf && seafoodGroup(e.seafood) !== sf) return false;
-  if(ct && shortCountry(e.country) !== ct) return false;
+  if(ct && cleanCountry(e.country) !== ct) return false;
   if(shop === 'mercado' && e.mercadoPrice == null) return false;
   if(shop === 'mercado-in' && !(e.mercadoPrice != null && e.mercadoStock === 'In stock')) return false;
   if(shop === 'jubilee' && e.jubileePrice == null) return false;
@@ -343,6 +702,7 @@ function render(){
   const filtered = searched.filter(passesFilters);
   const narrowed = query || filtered.length !== searched.length;
   const tastedCount = entries.filter(e => ratingOf(e)).length;
+  const by = $('fGroup').value || 'fish';
 
   $('count').textContent = entries.length === 0
     ? 'no tins yet'
@@ -351,49 +711,59 @@ function render(){
       : `${entries.length} tins · ${tastedCount} tasted`;
 
   if(entries.length === 0){
+    renderIndex([], by);
     wrap.innerHTML = canEdit()
-      ? `<div class="empty"><span class="big">The shelf is empty.</span>Press &ldquo;Import catalog&rdquo; to load the tinned fish list, or add a tin by hand.</div>`
+      ? `<div class="empty"><span class="big">The shelf is empty.</span>Press &ldquo;Import&rdquo; to load the tinned fish list, or add a tin by hand.</div>`
       : `<div class="empty"><span class="big">The shelf is empty.</span>Sign in and import the catalog to fill it.</div>`;
     applyAuthGating();
     return;
   }
   if(filtered.length === 0){
+    renderIndex([], by);
     wrap.innerHTML = `<div class="empty"><span class="big">No matches.</span>Try a different search or loosen the filters.</div>`;
     applyAuthGating();
     return;
   }
 
-  wrap.innerHTML = sortEntries(filtered).map(e => {
-    const meta = [];
-    if(e.brand) meta.push(`<strong>${escapeHtml(e.brand)}</strong>`);
-    if(e.seafood) meta.push(escapeHtml(e.seafood));
-    if(e.packedIn && e.packedIn !== 'Not stated') meta.push(escapeHtml(e.packedIn));
-    const c = shortCountry(e.country);
-    if(c && !/^not stated/i.test(c)) meta.push(escapeHtml(c));
-    if(e.sizeOz) meta.push(escapeHtml(e.sizeOz + ' oz'));
-    if(e.price != null) meta.push(`<span class="tf-price">${money(e.price)}</span>`);
-    else if(e.localPrice) meta.push(`<span class="tf-price">${escapeHtml(e.localPrice)}</span>`);
-    if(e.mercadoPrice != null) meta.push(`Mercado Central ${money(e.mercadoPrice)}` + (e.mercadoStock === 'Sold out' ? ` <span class="tf-soldout">sold out</span>` : ''));
-    if(e.jubileePrice != null) meta.push(`Jubilee ${money(e.jubileePrice)}`);
-    const r = ratingOf(e);
-    const note = r && r.product.notes ? r.product.notes : (e.myNotes || '');
-    return `
-    <div class="entry entry-row" data-id="${escapeHtml(e.id)}">
-      <div class="entry-actions">
-        <button class="editBtn">edit</button>
-        <button class="delBtn">delete</button>
-      </div>
-      ${scoreChip(e)}
-      <div class="entry-body">
-        <div class="entry-top"><div>
-          <div class="entry-name">${escapeHtml(e.name || 'Untitled')}</div>
-          <div class="entry-meta">${meta.map(m=>`<span>${m}</span>`).join('')}</div>
-        </div></div>
-        ${note ? `<div class="entry-comment">${escapeHtml(note)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  const sorted = sortEntries(filtered);
+  const groups = groupEntries(sorted, by);
+  renderIndex(groups, by);
 
+  // "Your tasted tins": a highlight row up top, best-rated first.
+  let html = '';
+  if(!narrowed && tastedCount){
+    const mine = entries.filter(e => ratingOf(e)).sort((a,b) => ((ratingOf(b).score ?? -1) - (ratingOf(a).score ?? -1)));
+    html += `
+    <section class="tasted">
+      <div class="tasted-head"><h2>From your pantry</h2><span>${mine.length} tasted &middot; best first</span></div>
+      <div class="tasted-row">${mine.map(tinCard).join('')}</div>
+    </section>`;
+  }
+
+  // When results are narrowed, open every shelf so nothing hides behind "Show all".
+  html += groups.map((g, i) => {
+    const open = narrowed || expandedShelves.has(g.key) || g.items.length <= SHELF_PREVIEW + 2;
+    const shown = open ? g.items : g.items.slice(0, SHELF_PREVIEW);
+    const no = by === 'brand' ? '' : `<div class="shelf-no">${String(i + 1).padStart(2, '0')}</div>`;
+    return `
+    <section class="shelf" id="shelf-${escapeHtml(g.key)}" style="--band:${g.color}">
+      <div class="shelf-head"${by === 'brand' ? ' style="grid-template-columns:1fr"' : ''}>
+        ${no}
+        <h2>${g.flag ? `<span class="flag">${g.flag}</span>` : ''}${escapeHtml(g.name)}${g.sub ? ` <span style="font-size:.6em;opacity:.7">${escapeHtml(g.sub)}</span>` : ''}</h2>
+        <div class="shelf-stats">${shelfStats(g.items)}</div>
+        ${g.blurb ? `<p class="shelf-blurb">${g.blurb}</p>` : ''}
+      </div>
+      <div class="shelf-rule"></div>
+      <div class="shelf-grid">${shown.map(tinCard).join('')}</div>
+      ${!open ? `<button class="shelf-more" data-key="${escapeHtml(g.key)}">Show all ${g.items.length} &rarr;</button>` : ''}
+    </section>`;
+  }).join('');
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('.shelf-more').forEach(btn => btn.addEventListener('click', () => {
+    expandedShelves.add(btn.dataset.key);
+    render();
+  }));
   wrap.querySelectorAll('.editBtn').forEach(btn => btn.addEventListener('click', ev => {
     ev.stopPropagation(); openForEdit(ev.target.closest('.entry').dataset.id);
   }));
@@ -403,6 +773,7 @@ function render(){
     if(confirm('Remove this tin from the catalog?')) await deleteEntry(id);
   }));
   wrap.querySelectorAll('.entry').forEach(card => card.addEventListener('click', () => openLightbox(card.dataset.id)));
+  watchShelves();
   applyAuthGating();
 }
 
@@ -410,12 +781,13 @@ function openLightbox(id){
   const e = entries.find(x => x.id === id);
   if(!e) return;
   currentLightboxId = id;
-  $('lb-name').textContent = (e.brand ? e.brand + ' · ' : '') + (e.name || 'Untitled');
+  $('lb-brand').textContent = [e.brand, seafoodGroup(e.seafood)].filter(Boolean).join(' · ');
+  $('lb-name').textContent = e.name || 'Untitled';
+  $('lb-score').innerHTML = scoreBadge(e);
+  $('lightbox').querySelector('.lightbox-card').style.setProperty('--band', bandColor(e.seafood));
   const rows = [];
   const r = ratingOf(e);
-  if(r) rows.push(['My rating', r.score !== null
-    ? `<span class="tf-score" style="display:inline-flex;width:34px;height:24px;font-size:16px;background:${ratingColor(r.score)}">${r.score}</span> / 10`
-    : 'In Pantry, not rated yet']);
+  if(r) rows.push(['My rating', r.score !== null ? `${r.score} / 10` : 'In Pantry, not rated yet']);
   if(r && r.product.notes) rows.push(['Pantry note', escapeHtml(r.product.notes)]);
   if(e.seafood) rows.push(['Seafood', escapeHtml(e.seafood)]);
   if(e.packedIn) rows.push(['Packed in', escapeHtml(e.packedIn)]);
@@ -639,6 +1011,7 @@ async function loadEntries(){
 $('retryLoadBtn').addEventListener('click', loadEntries);
 $('search').addEventListener('input', render);
 ['fSeafood','fCountry','fShop','fTasted','fSort'].forEach(id => $(id).addEventListener('change', render));
+$('fGroup').addEventListener('change', () => { expandedShelves.clear(); render(); window.scrollTo({ top: $('tfIndex').closest('.tf-sticky').offsetTop, behavior:'smooth' }); });
 $('importBtn').addEventListener('click', importCatalog);
 $('toggleForm').addEventListener('click', () => {
   const t = $('ticket');
