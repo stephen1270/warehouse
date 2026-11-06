@@ -45,6 +45,9 @@
   .hero-title{font-family:var(--serif);font-weight:300;font-size:clamp(54px, 8.4vw, 124px);line-height:.94;letter-spacing:-.03em;
     margin:22px 0 30px;animation:rise 1s var(--ease) both;}
   .hero-title em{font-style:italic;font-weight:300;}
+  .hero-title .kept{position:relative;display:inline-block;isolation:isolate;}
+  .hero-title .kept .wh-swath{left:-8%;width:116%;top:22%;height:86%;animation-delay:.8s;}
+  .hero-title .kept .wh-swath path{fill:var(--mark);opacity:.26;}
   .hero-title .dot{display:inline-block;width:.19em;height:.19em;border-radius:50%;background:var(--mark);margin-left:.04em;
     vertical-align:baseline;animation:pop .6s var(--ease) both 1.9s;}
   .hero-dek{font-family:var(--serif);font-size:clamp(19px, 2vw, 23px);line-height:1.45;color:var(--muted);max-width:30em;margin:0 0 34px;
@@ -144,7 +147,7 @@
   <section class="hero">
     <div>
       <div class="eyebrow">Brooklyn, New York &middot; Open to browse</div>
-      <h1 class="hero-title">Everything worth keeping, <em>kept well</em><span class="dot" aria-hidden="true"></span></h1>
+      <h1 class="hero-title">Everything worth keeping, <em class="kept" id="keptWell">kept well</em><span class="dot" aria-hidden="true"></span></h1>
       <p class="hero-dek">A private department store of things collected, tasted, played and kept. <em>Fourteen departments on five floors,</em> each with its own keeper.</p>
       <div class="stats">
         <div class="stat"><b id="statTotal">&mdash;</b><span>Things kept</span></div>
@@ -199,6 +202,8 @@ const COUNT_PREFIX = {
   // 14 marks in a 4-wide grid leave two cells: a pencilled note fills them.
   marks.push(`<div class="note">fourteen departments, one keeper</div>`);
   document.getElementById('marks').innerHTML = marks.join('');
+  // A swath of red paint brushed behind "kept well" (shared with the department titles).
+  document.getElementById('keptWell').insertAdjacentHTML('afterbegin', warehouseSwath('kept well', 'Home'));
 
   const roman = ['I','II','III','IV','V','VI'];
   document.getElementById('cast').innerHTML = WAREHOUSE_FLOORS.map((f, i) => `

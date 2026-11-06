@@ -390,7 +390,8 @@ function applyIncomingSearchQuery(inputId){
 //   - One mark per department (after Milton Glaser's "text plus one
 //     coloured icon"): each department has a single flat emblem in its
 //     signature colour, used in the header, the home page and the footer.
-//   - The hand (after Cy Twombly's written marks): the collector's
+//   - The hand (after Cy Twombly): a translucent swath of paint is
+//     brushed behind each department title, and the collector's
 //     marginal notes are set in a pencil hand.
 //   - Roles (after Cindy Sherman's staged personas): in each department
 //     the collector plays a part (the Monger, the Cellarman...), named in
@@ -467,6 +468,31 @@ function warehouseScrawl(seedText, width){
   return `<svg class="wh-scrawl" viewBox="0 0 ${W} 32" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" pathLength="1"/></svg>`;
 }
 
+// A swath of paint, after Twombly's broad, loaded-brush passages: one
+// translucent stroke with dry-brush streaks and ragged edges, laid behind
+// a title. Seeded per department so each stroke is its own but stable.
+function warehouseSwath(seedText, idSuffix){
+  let seed = 0; for(const ch of (seedText || 'w')) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const id = 'whBrush' + (idSuffix || '');
+  const lift = (rnd() - .5) * 10, t1 = 18 + rnd() * 6, t2 = 16 + rnd() * 6;
+  // Tapered stroke: thin entry at left, full body, dragged-out tail at right.
+  const d = `M6 ${48 + lift/2} C40 ${40 - t1} 120 ${30 - t1 + lift} 200 ${30 + lift} S350 ${28 - t2} 394 ${36 - lift/2}
+    C384 ${50 + t2/2} 330 ${66 + lift/3} 260 ${68 + t2/3} S90 ${74 + lift/2} 30 ${66}
+    C18 ${58} 8 ${54} 6 ${48 + lift/2} Z`;
+  const s1 = Math.floor(rnd() * 90) + 1, s2 = Math.floor(rnd() * 90) + 1;
+  return `<svg class="wh-swath" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
+    <defs><filter id="${id}" x="-4%" y="-40%" width="108%" height="180%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.3" numOctaves="2" seed="${s1}" result="bristle"/>
+      <feColorMatrix in="bristle" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.2 0 0 0 2.05" result="streaks"/>
+      <feComposite in="SourceGraphic" in2="streaks" operator="in" result="dry"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="${s2}" result="edge"/>
+      <feDisplacementMap in="dry" in2="edge" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    </filter></defs>
+    <path d="${d}" filter="url(#${id})"/>
+  </svg>`;
+}
+
 function warehouseCurrentDept(){
   return (location.pathname.split('/').pop() || 'index.html').replace(/\.html?$/, '') || 'index';
 }
@@ -514,7 +540,11 @@ function installWarehouseChrome(){
 
   /* department header additions */
   .wh-emblem-hd{display:block;width:58px;height:58px;margin:26px auto 0;animation:wh-pop .8s cubic-bezier(.2,.7,.2,1) both .1s;}
-  .wh-title{position:relative;display:inline-block;}
+  .wh-title{position:relative;display:inline-block;isolation:isolate;}
+  .wh-swath{position:absolute;z-index:-1;left:-14%;width:128%;top:18%;height:92%;transform:rotate(-2.5deg);overflow:visible;pointer-events:none;
+    mix-blend-mode:multiply;clip-path:inset(0 100% 0 0);animation:wh-brush 1.1s cubic-bezier(.55,.1,.25,1) forwards .35s;}
+  .wh-swath path{fill:var(--wh-dept,#1d1a16);opacity:.3;}
+  @keyframes wh-brush{to{clip-path:inset(0 0 0 0);}}
   .wh-scrawl{position:absolute;left:-4%;width:108%;bottom:-.16em;height:.34em;overflow:visible;pointer-events:none;}
   .wh-scrawl path{fill:none;stroke:var(--wh-dept,#1d1a16);stroke-width:1.6;stroke-linecap:round;opacity:.75;
     stroke-dasharray:1;stroke-dashoffset:1;animation:wh-draw 1.6s cubic-bezier(.6,.1,.3,1) forwards .45s;vector-effect:non-scaling-stroke;}
@@ -528,7 +558,7 @@ function installWarehouseChrome(){
   @keyframes wh-draw{to{stroke-dashoffset:0;}}
   @keyframes wh-pop{from{opacity:0;transform:scale(.6) rotate(-8deg);}to{opacity:1;transform:none;}}
   @keyframes wh-fadein{from{opacity:0;}to{opacity:1;}}
-  @media (prefers-reduced-motion:reduce){ .wh-scrawl path{animation:none;stroke-dashoffset:0;} .wh-emblem-hd,.wh-title .wh-hand{animation:none;} }
+  @media (prefers-reduced-motion:reduce){ .wh-swath{animation:none;clip-path:none;} .wh-emblem-hd,.wh-title .wh-hand{animation:none;} }
 
   .wh-foot{font-family:'Instrument Sans','Helvetica Neue',Helvetica,Arial,sans-serif;background:#1d1a16;color:#e9e2d4;margin-top:56px;}
   .wh-foot-in{max-width:1180px;margin:0 auto;padding:72px 24px 40px;}
@@ -606,7 +636,7 @@ function installWarehouseChrome(){
     const kicker = header.querySelector('.kicker');
     if(kicker) kicker.innerHTML = `<a href="index.html">No. ${String(order.indexOf(dept) + 1).padStart(2, '0')} &middot; ${floor.floor}</a>`;
     h1.insertAdjacentHTML('beforebegin', warehouseEmblem(dept, 'wh-emblem-hd'));
-    h1.innerHTML = `<span class="wh-title">${h1.innerHTML}<span class="wh-hand" hidden></span></span>`;
+    h1.innerHTML = `<span class="wh-title">${warehouseSwath(dept)}${h1.innerHTML}<span class="wh-hand" hidden></span></span>`;
     // The pencil note in the margin is the collector's running tally, read
     // from the page's own count line ("384 records…" -> "384 kept").
     const hand = h1.querySelector('.wh-hand');
