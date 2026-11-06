@@ -390,8 +390,7 @@ function applyIncomingSearchQuery(inputId){
 //   - One mark per department (after Milton Glaser's "text plus one
 //     coloured icon"): each department has a single flat emblem in its
 //     signature colour, used in the header, the home page and the footer.
-//   - The hand (after Cy Twombly's scrawled, written marks): a pencil
-//     line draws itself under each department title, and the collector's
+//   - The hand (after Cy Twombly's written marks): the collector's
 //     marginal notes are set in a pencil hand.
 //   - Roles (after Cindy Sherman's staged personas): in each department
 //     the collector plays a part (the Monger, the Cellarman...), named in
@@ -607,7 +606,7 @@ function installWarehouseChrome(){
     const kicker = header.querySelector('.kicker');
     if(kicker) kicker.innerHTML = `<a href="index.html">No. ${String(order.indexOf(dept) + 1).padStart(2, '0')} &middot; ${floor.floor}</a>`;
     h1.insertAdjacentHTML('beforebegin', warehouseEmblem(dept, 'wh-emblem-hd'));
-    h1.innerHTML = `<span class="wh-title">${h1.innerHTML}${warehouseScrawl(dept, 360)}<span class="wh-hand" hidden></span></span>`;
+    h1.innerHTML = `<span class="wh-title">${h1.innerHTML}<span class="wh-hand" hidden></span></span>`;
     // The pencil note in the margin is the collector's running tally, read
     // from the page's own count line ("384 records…" -> "384 kept").
     const hand = h1.querySelector('.wh-hand');

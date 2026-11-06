@@ -45,10 +45,6 @@
   .hero-title{font-family:var(--serif);font-weight:300;font-size:clamp(54px, 8.4vw, 124px);line-height:.94;letter-spacing:-.03em;
     margin:22px 0 30px;animation:rise 1s var(--ease) both;}
   .hero-title em{font-style:italic;font-weight:300;}
-  .hero-title .kept{position:relative;display:inline-block;}
-  .hero-title .kept svg{position:absolute;left:-3%;width:106%;bottom:-.12em;height:.3em;overflow:visible;}
-  .hero-title .kept path{fill:none;stroke:var(--mark);stroke-width:1.7;stroke-linecap:round;vector-effect:non-scaling-stroke;
-    stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.8s cubic-bezier(.6,.1,.3,1) forwards .7s;}
   .hero-title .dot{display:inline-block;width:.19em;height:.19em;border-radius:50%;background:var(--mark);margin-left:.04em;
     vertical-align:baseline;animation:pop .6s var(--ease) both 1.9s;}
   .hero-dek{font-family:var(--serif);font-size:clamp(19px, 2vw, 23px);line-height:1.45;color:var(--muted);max-width:30em;margin:0 0 34px;
@@ -137,10 +133,9 @@
   .pb-sign{display:block;text-align:right;font-family:var(--hand);font-size:30px;color:var(--mark);margin-top:36px;transform:rotate(-4deg);}
 
   @keyframes rise{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
-  @keyframes draw{to{stroke-dashoffset:0;}}
   @keyframes pop{from{opacity:0;transform:scale(0);}to{opacity:1;transform:none;}}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(194,58,34,.45);}50%{box-shadow:0 0 0 10px rgba(194,58,34,0);}}
-  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none !important;transition:none !important;} .hero-title .kept path{stroke-dashoffset:0;} }
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none !important;transition:none !important;} }
 </style>
 </head>
 <body>
@@ -149,7 +144,7 @@
   <section class="hero">
     <div>
       <div class="eyebrow">Brooklyn, New York &middot; Open to browse</div>
-      <h1 class="hero-title">Everything worth keeping, <em><span class="kept">kept well<svg viewBox="0 0 300 32" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M4 22 C30 20 50 8 58 10 S40 26 70 21 C96 18 112 6 120 9 S104 25 134 21 C160 17 176 7 184 10 S168 25 198 20 C222 17 238 8 246 11 S232 24 262 20 C276 18 288 15 296 16"/></svg></span></em><span class="dot" aria-hidden="true"></span></h1>
+      <h1 class="hero-title">Everything worth keeping, <em>kept well</em><span class="dot" aria-hidden="true"></span></h1>
       <p class="hero-dek">A private department store of things collected, tasted, played and kept. <em>Fourteen departments on five floors,</em> each with its own keeper.</p>
       <div class="stats">
         <div class="stat"><b id="statTotal">&mdash;</b><span>Things kept</span></div>
